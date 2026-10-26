@@ -109,6 +109,16 @@ def main():
             stencil_bandwidth[record.get("space", "?")].append(
                 record["gbps_effective"]
             )
+    # Prefer the 256^3 reference grid when it is present; otherwise average all.
+    reference = defaultdict(list)
+    for record in records:
+        if ("kernel" not in record and record.get("nx") == 256
+                and record.get("ny") == 256 and record.get("nz") == 256):
+            reference[record.get("space", "?")].append(
+                record["gbps_effective"]
+            )
+    if reference:
+        stencil_bandwidth = reference
     if stream and stencil_bandwidth:
         markdown += ["", "## Stencil efficiency vs STREAM copy", ""]
         markdown.append("| space | stencil GB/s (median) | copy GB/s (median) | ratio |")

@@ -7,6 +7,16 @@ workflow, designed for GPU-first scaling.
 **Status:** Phase 0 (foundation). The full design, numerics, and roadmap are in
 [PLAN.md](PLAN.md).
 
+Phase 0 progress:
+
+- CPU toolchain and build presets verified (Kokkos 5.2.2, Serial + OpenMP).
+- 7-point stencil microbenchmark: 0.985 ns/cell/iter on 4 threads, **83% of
+  STREAM copy** on the i7-7700 (see `benchmarks/results/`).
+- EDAC pressure-free prototype completed; projection + GMG remains the
+  production default (see `experiments/edac_tgv/`).
+- CUDA/HIP/SYCL presets scaffolded; CUDA verification pending the local
+  toolkit install.
+
 ## Requirements
 
 - C++20 compiler (GCC >= 10.4, Clang >= 14)
@@ -131,6 +141,7 @@ cmake/       options, warnings, toolchain helpers
 src/core/    version, configuration, logging, timers
 tests/       smoke and unit tests
 benchmarks/  case definitions and recorded results
+experiments/ numerical de-risk prototypes (EDAC TGV)
 scripts/     environment setup and run scripts
 docs/        design notes (added as the project grows)
 ```

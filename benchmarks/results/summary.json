@@ -13,6 +13,18 @@
   },
   {
     "benchmark": "stencil7",
+    "space": "openmp",
+    "backend": "OpenMP",
+    "grid": "512x512x512",
+    "concurrency": 4,
+    "unit": "ns/cell/iter",
+    "median": 1.274602796,
+    "min": 1.274602796,
+    "max": 1.274602796,
+    "runs": 1
+  },
+  {
+    "benchmark": "stencil7",
     "space": "serial",
     "backend": "Serial",
     "grid": "256x256x256",
@@ -22,6 +34,18 @@
     "min": 2.588849735,
     "max": 2.697458373,
     "runs": 3
+  },
+  {
+    "benchmark": "stencil7",
+    "space": "serial",
+    "backend": "Serial",
+    "grid": "512x512x512",
+    "concurrency": 1,
+    "unit": "ns/cell/iter",
+    "median": 2.631171759,
+    "min": 2.631171759,
+    "max": 2.631171759,
+    "runs": 1
   },
   {
     "benchmark": "stream:copy",

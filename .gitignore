@@ -26,3 +26,8 @@ compile_commands.json
 # Runtime output
 *.log
 core
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

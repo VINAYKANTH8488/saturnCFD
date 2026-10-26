@@ -34,6 +34,19 @@
 | STREAM triad | serial | 1 | 20.71 GB/s | 20.64 | 21.36 |
 | STREAM triad | openmp | 4 | 21.98 GB/s | 21.73 | 22.38 |
 
+### Larger grid (512³, single run)
+
+| Benchmark | Space | Threads | Median | Effective GB/s |
+|---|---|---:|---:|---:|
+| stencil7 | serial | 1 | 2.631 ns/cell/iter | 6.08 |
+| stencil7 | openmp | 4 | 1.275 ns/cell/iter | 12.55 |
+
+The 512³ grid is 8× larger and no longer fits in any cache. OpenMP throughput
+drops from 0.985 to 1.275 ns/cell/iter (12.55 GB/s, ~64% of STREAM copy),
+consistent with additional DRAM/TLB pressure. Serial throughput is unchanged,
+confirming that the single-thread kernel is compute/latency-bound rather than
+bandwidth-bound.
+
 ### Stencil efficiency vs STREAM copy
 
 | Space | Stencil GB/s | Copy GB/s | Ratio |

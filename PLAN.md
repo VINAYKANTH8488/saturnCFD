@@ -12,9 +12,9 @@
 
 - **First production solver:** compressible Navier–Stokes (density-based,
   high-order).
-- **Incompressible path:** pressure-free all-Mach formulation (EDAC /
-  artificial compressibility) to avoid the global Poisson solve; projection +
-  GMG retained as the accuracy and scaling **reference**.
+- **Incompressible path:** projection + GMG is the production default. EDAC
+  (pressure-free) is implemented as an experimental extreme-scale path; the 2D
+  prototype showed a ~20× step-count penalty for DNS-level accuracy.
 - **AMR:** uniform first, AMR-ready abstractions, block AMR in Phase 5.
 - **Backends:** CUDA, HIP, and SYCL all buildable from day 1; CUDA is the
   first performance-tuned target.
@@ -40,10 +40,10 @@ of incompressible and compressible flows, with multiphase (VOF) capability, that
 5. Is **verifiable and benchmarkable**: every scheme has an MMS/convergence test,
    every solver has a validation case, and every performance claim has a
    reproducible scaling script.
-6. Provides **three pressure-coupling strategies**: compressible NS for
-   acoustics and shocks, **EDAC** for a local pressure-free incompressible
-   limit, and projection + GMG as the accuracy/scaling reference — selected per
-   case and compared at fixed accuracy.
+6. Provides **three pressure-coupling strategies** — compressible NS for
+   acoustics and shocks, projection + GMG as the production incompressible
+   solver, and EDAC as an experimental pressure-free path — selected per case
+   and compared at fixed accuracy.
 
 ### 1.1 Non-goals (for v1)
 
@@ -235,7 +235,7 @@ Implementation notes:
 |---|---|---|
 | `ScalarAdvectionDiffusion` | `c` (+ optional `N` scalars) | v0 — verification workhorse |
 | `CompressibleNS` | `ρ,ρu,ρv,ρw,E` (+ species) | v1 — first solver, shocks/acoustics |
-| `AllMachEDAC` | `u,v,w,p` (+ `c`) | v2 — pressure-free incompressible |
+| `AllMachEDAC` | `u,v,w,p` (+ `c`) | v2 — experimental pressure-free |
 | `ProjectionIncompressible` | `u,v,w,p` (collocated) | v2 — reference/fallback |
 | `VariableDensityVOF` | `u,v,w,p,c` | v3 — Basilisk parity |
 | `LowMachReacting` | `u,v,w,p,T,Y` | later |
@@ -275,8 +275,9 @@ Rules:
 - **All-Mach consistency:** standard HLLC becomes excessively diffusive as the
   Mach number `M → 0`. Use a low-Mach-corrected Riemann solver (HLLC-low-Mach
   or AUSM⁺-up) for compressible flows; verify with a low-Mach vortex and an
-  acoustic pulse. For the incompressible limit, use EDAC (§5.4) rather than
-  letting a compressible solver become acoustically stiff.
+  acoustic pulse. For the incompressible limit, use projection + GMG for
+  production; EDAC (§5.4) is an experimental pressure-free alternative, not a
+  way to make a compressible solver low-Mach for free.
 - **Balanced-force** surface tension: use the *same* discrete gradient for
   `∇p` and `σκ∇c` so a static bubble has zero spurious currents to machine
   precision.
@@ -326,8 +327,8 @@ therefore implement three strategies behind a `PressureCoupler` policy and let
 
 | Strategy | Global solve | Timestep | Divergence | Scaling | Role |
 |---|---|---|---|---|---|
-| Projection + GMG | `O(N)` V-cycles | advective CFL | zero to solver tol | good (GMG); FFT all-to-all | reference |
-| **EDAC** | **none** | acoustic CFL | `O(M_c²)` | excellent (local) | default incompressible |
+| Projection + GMG | `O(N)` V-cycles | advective CFL | zero to solver tol | good (GMG); FFT all-to-all | **production default** |
+| **EDAC** | **none** | acoustic CFL | `O(M_c)` (measured) | excellent (local) | experimental, extreme scale |
 | Low-Mach preconditioned compressible | inner iterations | advective | good if converged | inner solve | research option |
 
 #### 5.4.1 EDAC — the pressure-free path
@@ -346,17 +347,25 @@ Properties:
   communication, no V-cycle, no FFT transpose. This is exactly the scaling
   property you want.
 - `c = U/M_c` is a numerical sound speed; `M_c` controls how incompressible the
-  flow behaves. Discrete divergence scales as `O(M_c²)`, so `M_c = 0.05–0.1`
-  gives `0.25–1%` divergence — acceptable for DNS, but **verify** on each case.
+  flow behaves. With the standard damping `ν_p = c²τ` and `τ ∝ h/c`, the
+  discrete divergence scales as **`O(M_c)`**, not `O(M_c²)`; this was verified
+  in `experiments/edac_tgv`. At `M_c = 0.05` the TGV divergence is `~1e-5`.
 - `τ` is a damping time; `ν_p = c²τ` stabilizes the pressure field and damps
-  acoustic modes. Tune `τ` so that acoustic waves are damped without
-  over-damping the flow.
+  acoustic modes. The damping coefficient is the **critical** EDAC parameter:
+  in the TGV prototype, `tau_factor = 0.01` (`τ = 0.01 h/c`) was optimal,
+  `0.1` was ~20× less accurate, and `1.0` was unstable. Auto-calibrate it.
 - **Cost:** `dt ≈ CFL · h/(|u|+c) ≈ M_c · h/U`, i.e. roughly `1/M_c` more
-  steps than projection. At `M_c = 0.1`, that is ~10× more steps; whether this
-  beats projection depends on the fraction of the projection step spent in the
-  Poisson solve. See Appendix C for the cost model: EDAC wins only when that
-  fraction exceeds `1 − M_c/α`, which is typically **not** true at 8 GPUs but
-  can become true at very large scale. **Measure it.**
+  steps than projection. Measured on the 128² TGV: at `M_c = 0.05`, matching
+  projection accuracy required **21× more steps and ~11× more wall time** on
+  one CPU with an FFT projection. EDAC wins only when the projection's Poisson
+  fraction exceeds the Appendix C threshold (~95% at `M_c=0.05`) — an
+  extreme-scale regime. **Measure it; do not assume it.**
+- **Prototype verdict:** projection + GMG is the production default. EDAC
+  remains an experimental path for extreme-scale runs and moderate accuracy.
+- **Initial-pressure caveat:** starting from `p = 0` leaves a long-lived
+  acoustic transient (relative error ~2e-2 in the TGV test). A production EDAC
+  path needs a consistent initial pressure (one initial projection or a
+  spin-up).
 - **Scope caveat:** EDAC here is formulated for **constant density**. Coupling
   it to variable density and CSF surface tension (`ρ(c)`, `f_σ`) is a research
   extension; the VOF path defaults to projection + GMG until EDAC-VOF is
@@ -366,15 +375,18 @@ Properties:
 
 Verification for EDAC:
 
-1. Divergence norm must decrease as `M_c²` in a fixed-accuracy study.
-2. TGV and channel must match the projection solver within scheme error.
-3. Cost crossover plot: wall time vs GPU count for EDAC and projection+GMG.
+1. Divergence norm scales linearly with `M_c` at fixed `tau_factor`; document
+   the constant.
+2. TGV and channel match projection within the spatial error floor at
+   `M_c ≈ 0.05`.
+3. Cost crossover vs GPU count; require a measured Poisson fraction above the
+   Appendix C threshold.
+4. Initial-pressure consistency: start from a projection or spin up.
 
-#### 5.4.2 Projection + GMG — the reference path
+#### 5.4.2 Projection + GMG — the production path
 
-Solve `∇·(1/ρ ∇p) = (1/Δt) ∇·u*` with appropriate BCs. This is the accuracy
-reference and the fallback when EDAC's divergence error or acoustic CFL is
-unacceptable.
+Solve `∇·(1/ρ ∇p) = (1/Δt) ∇·u*` with appropriate BCs. This is the production
+default and the accuracy reference for the incompressible solver.
 
 1. **Geometric multigrid (GMG)** — default for the projection path.
    - Cell-centered 7-point stencil, face-centered coefficients.
@@ -408,9 +420,10 @@ optional research path, not the default.
 | Regime | Default |
 |---|---|
 | `M > 0.3` (shocks, acoustics) | compressible NS + HLLC/low-Mach Riemann |
-| `0.01 < M < 0.3` | compressible or EDAC; benchmark both |
-| `M < 0.01` (strict incompressible DNS) | EDAC (`M_c ≈ 0.05`) or projection + GMG |
+| `0.01 < M < 0.3` | compressible or projection; benchmark both |
+| `M < 0.01` (strict incompressible DNS) | **projection + GMG** (production) |
 | Divergence-sensitive / exact projection needed | projection + GMG |
+| Extreme-scale trial where measured Poisson fraction > ~95% | EDAC (experimental) |
 
 The point of the architecture is that **this is a runtime/config choice**, not
 a rewrite: all three share the grid, reconstruction, time integrator, I/O, and
@@ -441,7 +454,7 @@ struct BCParams { BCType type; double value; double t0, ramp; ... };
 | MMS advection–diffusion | spatial order | observed order ≥ 3.8 (4th), ≥ 5.5 (6th) |
 | MMS Euler/NS | coupled order | ≥ 3.5 |
 | Low-Mach vortex / acoustic pulse | all-Mach Riemann | correct wave speeds, low dissipation |
-| EDAC divergence | pressure-free accuracy | `‖∇·u‖ ∝ M_c²` |
+| EDAC divergence | pressure-free accuracy | `‖∇·u‖ ∝ M_c` (measured ~1e-5 at `M_c=0.05`) |
 | EDAC vs projection | cost crossover | same TGV accuracy, compare time-to-solution |
 | Freestream preservation | geometric consistency | machine precision |
 | Mass/momentum/energy conservation | flux form | ≤ 1e-12 relative per step |
@@ -858,18 +871,19 @@ an exit criterion; do not start the next phase until it is met.
 **Exit:** 4th-order MMS ≥ 3.8; Sod correct; low-Mach vortex stable; strong
 scaling to 8 GPUs.
 
-### Phase 3 — Incompressible without Poisson: EDAC + reference (4–5 weeks)
+### Phase 3 — Incompressible: projection + GMG, EDAC experiment (4–5 weeks)
 
+- [ ] Projection + GMG production solver (RK3, Rhie–Chow).
+- [ ] FFT Poisson backend for periodic uniform grids (fast path).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
-- [ ] Projection + GMG reference solver (RK3, Rhie–Chow).
-- [ ] FFT Poisson backend for periodic uniform grids (optional fast path).
-- [ ] TGV Re=1600, channel Re_τ=180/395, cavity on **both** paths.
+- [ ] TGV Re=1600, channel Re_τ=180/395, cavity on both paths.
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
-- [ ] Multi-GPU scaling; report steps, divergence, pressure fraction.
+- [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
-**Exit:** both paths validated against references; EDAC divergence scales as
-`M_c²`; measured crossover plot; ≥ 70% strong-scaling efficiency at 8 GPUs for
-512³.
+**Exit:** projection + GMG validated against references and ≥ 70%
+strong-scaling efficiency at 8 GPUs for 512³; EDAC measured against the
+prototype, with a documented crossover only if the Poisson fraction is high
+enough (Appendix C).
 
 ### Phase 4 — Multiphase VOF (4–6 weeks)
 
@@ -914,8 +928,9 @@ scaling ≥ 70% at 32 GPUs.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| EDAC acoustic CFL costs `1/M_c` more steps | may be slower than projection at small scale | measure cost crossover at fixed accuracy; auto-select per case; keep projection+GMG |
-| EDAC divergence error `O(M_c²)` too large | accuracy loss in long DNS | calibrate `M_c` on TGV/channel; divergence monitor; fall back to projection |
+| EDAC acoustic CFL costs `1/M_c` more steps | measured ~21× more steps at `M_c=0.05` | keep projection + GMG production; use EDAC only if measured Poisson fraction is extreme |
+| EDAC divergence is `O(M_c)`, not `O(M_c²)` | accuracy/step trade-off worse than hoped | document; auto-calibrate `τ`; do not promise quadratic divergence |
+| EDAC initial-pressure transient | `p₀=0` gave ~2e-2 error in TGV | one initial projection or spin-up; validate startup |
 | Projection Poisson dominates/scales poorly | blocks multi-GPU scaling | GMG first, benchmark at 8–64 GPUs early; FFT fallback |
 | GPU AMR halo/regrid overhead | kills AMR scaling | many boxes/rank, fused packing, overlap, device metadata |
 | PLIC/WENO branch divergence | low GPU utilization | branchless select, separate smooth/shock kernels, profile |
@@ -938,10 +953,10 @@ scaling ≥ 70% at 32 GPUs.
    compile jobs to CI (no hardware needed for compile checks).
 3. **Microbenchmark:** 7-point 3D stencil in Kokkos; measure GB/s and
    ns/cell/step on the i7 and the P600. This calibrates all later claims.
-4. **De-risk EDAC first:** a standalone ~300-line mini-app that runs TGV in 2D
-   with EDAC and with projection+GMG, and plots divergence vs cost. Do this
-   **before** the full framework; it validates the central assumption of the
-   pressure strategy.
+4. **EDAC de-risk:** completed in `experiments/edac_tgv/` (2D TGV, EDAC vs FFT
+   projection). Result: EDAC matches accuracy at `M_c≈0.05` but costs ~21×
+   more steps; projection + GMG stays the production default. Re-run the
+   crossover on GPU hardware when available.
 5. **Design docs:** split this plan into `docs/design/grid.md`,
    `numerics.md`, `kokkos.md`, `amr.md`, `pressure.md` with diagrams and
    equations.
@@ -956,7 +971,7 @@ scaling ≥ 70% at 32 GPUs.
 | Decision | Choice |
 |---|---|
 | First production solver | Compressible NS (density-based, high-order) |
-| Incompressible strategy | EDAC (no Poisson), projection + GMG as reference |
+| Incompressible strategy | Projection + GMG production; EDAC experimental extreme-scale |
 | AMR | Uniform first; AMR-ready architecture; block AMR in Phase 5 |
 | Backends | CUDA, HIP, SYCL buildable day 1; CUDA tuned first |
 | Dependencies | Kokkos, MPI, HDF5, Catch2, toml++ |
@@ -1068,12 +1083,15 @@ f > 1 − M_c / α
 
 Examples with `α = 0.7`:
 
-| `M_c` | Divergence scale | EDAC wins if Poisson fraction `f` > |
-|---|---|---|
-| 0.05 | 0.25% | 93% |
-| 0.10 | 1% | 86% |
-| 0.20 | 4% | 71% |
-| 0.30 | 9% | 57% |
+| `M_c` | EDAC wins if Poisson fraction `f` > |
+|---|---|
+| 0.05 | 93% |
+| 0.10 | 86% |
+| 0.20 | 71% |
+| 0.30 | 57% |
+
+The divergence does **not** enter this threshold directly; it sets whether the
+EDAC result is accurate enough (measured `O(M_c)`; see C.6).
 
 **Interpretation:** at 8 GPUs, a good GMG solve typically costs 20–50% of the
 step, so projection wins. EDAC becomes attractive only when the global solve
@@ -1082,24 +1100,31 @@ all-to-all, load imbalance) or with a poor Poisson solver. This is exactly the
 regime the project cares about, but the crossover must be **measured**, not
 assumed.
 
-### C.4 What we will measure
+### C.4 What we measured, and what remains
+
+**Measured (2D TGV, single CPU, FFT projection):**
+
+1. EDAC vs projection accuracy and step count at `N = 64, 128`.
+2. Divergence and L2 error vs `M_c` and vs the damping parameter `τ`.
+3. Sensitivity to the initial pressure (`p₀` exact vs zero).
+
+**Still to measure (target hardware):**
 
 1. `f` vs GPU count for projection + GMG on TGV 512³ (1 → 256 GPUs).
-2. `T_EDAC / T_proj` at fixed TGV accuracy for `M_c ∈ {0.05, 0.1, 0.2, 0.3}`.
-3. Divergence norm and enstrophy error vs `M_c`.
-4. The GPU count where the curves cross; report it explicitly.
+2. `T_EDAC / T_proj` on GPUs, including halo/communication effects.
+3. The GPU count where the curves cross; report it explicitly.
 
 If EDAC never wins on the target hardware, we keep it as a research path and
 use projection + GMG for production — the architecture supports both, so this
 is a data-driven decision, not a dead end.
 
-### C.5 EDAC calibration (proposed default)
+### C.5 EDAC calibration (measured default)
 
 ```
 c        = U_ref / M_c         (numerical pseudo-sound speed, NOT the
                                 thermodynamic sound speed)
 M_c      = 0.05 ... 0.1        (accuracy-dependent)
-τ        = C_tau · h / c       (damp acoustic modes at the grid scale)
+τ        = C_tau · h / c       (C_tau ≈ 0.01 measured on TGV)
 ν_p      = c² τ
 ```
 
@@ -1107,6 +1132,24 @@ Use `U_ref = max(|u|_∞, sqrt(g L), ...)` from the initial condition. Do **not*
 use the physical sound speed here: for a liquid it would be enormous and would
 collapse `dt` for no accuracy benefit.
 
-Auto-calibrate `U_ref` from the initial condition, expose manual overrides, and
-log the resulting `M_c`, `τ`, and measured divergence at startup and every
-plot interval.
+`C_tau` is flow- and resolution-dependent. Scan `C_tau ∈ [1e-3, 0.1]` during
+set-up; values above ~0.5 over-damp and can destabilize the scheme. Initialize
+the pressure from a projection (or a spin-up) rather than zero.
+
+### C.6 Measured prototype results (2D TGV)
+
+From `experiments/edac_tgv/README.md`, `ν = 0.01`, `t_end = 2`, `C_tau = 0.01`:
+
+| Method | N | `M_c` | Steps | Rel. L2 error | `‖∇·u‖₂` | Wall time |
+|---|---:|---:|---:|---:|---:|---:|
+| projection (FFT) | 64 | — | 40 | 3.2e-5 | 8.9e-16 | 0.12 s |
+| EDAC | 64 | 0.05 | 855 | 3.6e-5 | 9.9e-6 | 1.5 s |
+| projection (FFT) | 128 | — | 80 | 8.0e-6 | 1.5e-15 | 0.61 s |
+| EDAC | 128 | 0.05 | 1710 | 1.3e-5 | 1.4e-5 | 6.5 s |
+
+**Result:** EDAC reaches the projection's accuracy at `M_c ≈ 0.05`, but needs
+21× more steps and ~11× more wall time on one CPU with an FFT Poisson solve.
+The measured Poisson fraction is only ~24%, far below the 93% threshold
+required at `M_c=0.05`. The data therefore confirms projection + GMG as the
+production default; EDAC is a scaling bet for a regime this laptop cannot
+reach.
