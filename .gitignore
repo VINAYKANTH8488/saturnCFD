@@ -25,7 +25,8 @@ compile_commands.json
 
 # Runtime output
 *.log
-core
+/core
+core.[0-9]*
 
 # Python
 __pycache__/

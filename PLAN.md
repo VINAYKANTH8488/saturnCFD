@@ -838,16 +838,16 @@ an exit criterion; do not start the next phase until it is met.
 ### Phase 0 — Foundation (1–2 weeks)
 
 - [x] Create a **new git repo** in `saturnCFD/`.
-- [x] Install CMake 3.31.6 and Kokkos 5.2.2 (Serial + OpenMP) under `~/opt`;
-      CUDA toolkit install in progress.
+- [x] Install CMake 3.31.6, Kokkos 5.2.2 (Serial + OpenMP), CUDA 12.2, and a
+      Kokkos-CUDA build (sm_61).
 - [x] CMake skeleton, presets, strict warnings; CI and clang-format pending.
 - [x] `core/`: version and execution-space dispatch; config/logging pending.
-- [x] Stencil + STREAM microbenchmarks; roofline measured (see
-      `benchmarks/results/`).
+- [x] Stencil + STREAM microbenchmarks on CPU and the Quadro P600; roofline
+      measured (see `benchmarks/results/`).
 - [x] Design captured in `PLAN.md`; splitting into `docs/design/` pending.
 
-**Exit (CPU part met):** build, tests, and stencil roofline measured; GPU
-verification pending the CUDA toolkit.
+**Exit (met for CPU and local P600):** build, tests, and stencil roofline
+measured; HIP/SYCL verification waits for hardware.
 
 ### Phase 1 — Mesh + scalar solver (2–3 weeks)
 
@@ -856,10 +856,12 @@ verification pending the CUDA toolkit.
 - [x] Field metadata and periodic ghost fill (physical BCs pending).
 - [ ] HDF5/XDMF output + checkpoint.
 - [x] 2nd-order scalar advection–diffusion + SSP-RK3.
-- [x] MMS 2nd-order convergence; mass conservation (`docs/verification/`).
+- [x] MMS 2nd-order convergence; mass conservation on Serial, OpenMP, and
+      CUDA (`docs/verification/`).
 - [ ] MPI halo exchange; weak scaling on CPU and GPU.
 
-**Exit:** single-rank MMS passes at order 2.00; MPI 1–8 rank run pending.
+**Exit:** single-rank MMS passes at order 2.00 on all three backends; MPI
+1–8 rank run pending.
 
 ### Phase 2 — High-order compressible (3–4 weeks)
 

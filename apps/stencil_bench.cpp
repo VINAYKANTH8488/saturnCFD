@@ -7,6 +7,7 @@
 #include <Kokkos_Core.hpp>
 
 #include "core/execution_space.hpp"
+#include "core/parallel.hpp"
 #include "core/version.hpp"
 
 #include <algorithm>
@@ -32,6 +33,7 @@ struct Params {
   int nz = 256;
   int iters = 50;
   int warmup = 3;
+  int tile = 0;
   std::string space = "default";
   std::string json;
   bool verify = false;
@@ -44,6 +46,7 @@ void usage(const char* argv0) {
       << "  --nx N --ny N --nz N   grid size (default 256^3)\n"
       << "  --iters N              timed iterations (default 50)\n"
       << "  --warmup N             warmup iterations (default 3)\n"
+      << "  --tile N               inner MDRange tile size (0 = backend default)\n"
       << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
       << "  --verify               compare against a host reference (small grids)\n"
       << "  --json PATH            write results as JSON\n"
@@ -58,7 +61,7 @@ int parse_int(const std::string& flag, const std::string& value) {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
     if (pos != value.size()) {
-      throw std::invalid_argument("trailing characters");
+      throw std::invalid_argument{"trailing characters"};
     }
     return result;
   } catch (const std::exception&) {
@@ -92,6 +95,8 @@ Params parse(int argc, char** argv) {
       p.iters = parse_int(a, require_value(i, argc, argv, a));
     } else if (a == "--warmup") {
       p.warmup = parse_int(a, require_value(i, argc, argv, a));
+    } else if (a == "--tile") {
+      p.tile = parse_int(a, require_value(i, argc, argv, a));
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--json") {
@@ -141,8 +146,18 @@ int run_impl(const Params& p) {
 
   constexpr double c0 = 1.0;
   constexpr double c1 = 0.1;
-  const policy_type interior_policy({1, 1, 1},
-                                    {p.nz - 1, p.ny - 1, p.nx - 1});
+  const policy_type interior_policy = [&]() {
+    if (p.tile > 0) {
+      return policy_type({1, 1, 1}, {p.nz - 1, p.ny - 1, p.nx - 1},
+                         {1, 1, p.tile});
+    }
+    if constexpr (saturn::is_host_execution_space<ExecSpace>) {
+      return policy_type({1, 1, 1}, {p.nz - 1, p.ny - 1, p.nx - 1});
+    } else {
+      return policy_type({1, 1, 1}, {p.nz - 1, p.ny - 1, p.nx - 1},
+                         {1, 1, saturn::kInnerTile});
+    }
+  }();
 
   auto launch = [&]() {
     Kokkos::parallel_for(
@@ -259,6 +274,7 @@ int run_impl(const Params& p) {
              << "  \"nz\": " << p.nz << ",\n"
              << "  \"iters\": " << p.iters << ",\n"
              << "  \"warmup\": " << p.warmup << ",\n"
+             << "  \"tile\": " << p.tile << ",\n"
              << "  \"seconds\": " << seconds << ",\n"
              << "  \"ms_per_iter\": " << seconds / p.iters * 1.0e3 << ",\n"
              << "  \"ns_per_cell_iter\": " << ns_per_cell_iter << ",\n"

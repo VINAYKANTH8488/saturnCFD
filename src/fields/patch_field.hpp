@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "core/parallel.hpp"
 #include "mesh/box.hpp"
 
 namespace saturn {
@@ -52,14 +53,14 @@ class PatchField {
     const int np1 = n1 + 2 * ng_;
     const int np2 = n2 + 2 * ng_;
 
-    using policy_type =
-        Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
     auto data = data_;
     const int ng = ng_;
     const int nvar = nvar_;
+    const auto policy =
+        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
 
     Kokkos::parallel_for(
-        "periodic_fill", policy_type({0, 0, 0}, {np2, np1, np0}),
+        "periodic_fill", policy,
         KOKKOS_LAMBDA(int kp, int jp, int ip) {
           const int ii = wrap(ip - ng, n0);
           const int jj = wrap(jp - ng, n1);

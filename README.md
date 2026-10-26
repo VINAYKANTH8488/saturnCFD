@@ -9,15 +9,16 @@ workflow, designed for GPU-first scaling.
 
 Phase 0 progress:
 
-- CPU toolchain and build presets verified (Kokkos 5.2.2, Serial + OpenMP).
-- 7-point stencil microbenchmark: 0.985 ns/cell/iter on 4 threads, **83% of
-  STREAM copy** on the i7-7700 (see `benchmarks/results/`).
+- CPU and CUDA toolchains verified: Kokkos 5.2.2 (Serial + OpenMP) and CUDA
+  12.2 (sm_61, Quadro P600).
+- 7-point stencil microbenchmark: **84% of STREAM copy** on 4 CPU threads and
+  **52%** on the P600 (see `benchmarks/results/`).
 - EDAC pressure-free prototype completed; projection + GMG remains the
   production default (see `experiments/edac_tgv/`).
-- 2nd-order scalar advection–diffusion MMS passes on Serial/OpenMP: observed
-  order **2.00**, mass drift ~1e-16 (see `docs/verification/scalar_mms.md`).
-- CUDA/HIP/SYCL presets scaffolded; CUDA verification pending the local
-  toolkit install.
+- 2nd-order scalar advection–diffusion MMS passes on **Serial, OpenMP, and
+  CUDA**: observed order **2.00**, mass drift ~1e-16 (see
+  `docs/verification/scalar_mms.md`).
+- HIP/SYCL presets scaffolded; tuning waits for hardware access.
 
 ## Requirements
 
@@ -84,6 +85,17 @@ ctest --test-dir build/cpu-openmp --output-on-failure
 
 Presets: `cpu`, `cpu-serial`, `cpu-openmp`, `cuda-local`, `cuda-a100`,
 `cuda-h100`, `hip-mi250`, `sycl-pvc`.
+
+CUDA build (after installing a CUDA toolkit and a matching Kokkos build):
+
+```bash
+export KOKKOS_ROOT_CUDA=$HOME/opt/kokkos-5.2.2-cuda
+cmake --preset cuda-local
+cmake --build build/cuda-local -j4
+
+./build/cuda-local/apps/saturn_stencil --space cuda --nx 256 --ny 256 --nz 256
+./build/cuda-local/apps/saturn_scalar_mms --space cuda --n-list 16 32 64 --check
+```
 
 ## Stencil microbenchmark
 

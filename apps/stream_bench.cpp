@@ -53,7 +53,7 @@ int parse_int(const std::string& flag, const std::string& value) {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
     if (pos != value.size()) {
-      throw std::invalid_argument("trailing characters");
+      throw std::invalid_argument{"trailing characters"};
     }
     return result;
   } catch (const std::exception&) {

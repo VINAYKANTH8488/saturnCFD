@@ -1,15 +1,27 @@
 [
   {
     "benchmark": "stencil7",
+    "space": "cuda",
+    "backend": "Cuda",
+    "grid": "256x256x256",
+    "concurrency": 6144,
+    "unit": "ns/cell/iter",
+    "median": 0.5650241648,
+    "min": 0.5615919606,
+    "max": 0.5660714451,
+    "runs": 3
+  },
+  {
+    "benchmark": "stencil7",
     "space": "openmp",
     "backend": "OpenMP",
     "grid": "256x256x256",
     "concurrency": 4,
     "unit": "ns/cell/iter",
-    "median": 0.9845581454,
+    "median": 0.97157665525,
     "min": 0.9497347737,
     "max": 0.9931441349,
-    "runs": 3
+    "runs": 4
   },
   {
     "benchmark": "stencil7",
@@ -49,6 +61,18 @@
   },
   {
     "benchmark": "stream:copy",
+    "space": "cuda",
+    "backend": "Cuda",
+    "grid": "16777216",
+    "concurrency": 6144,
+    "unit": "GB/s",
+    "median": 54.67799591,
+    "min": 53.99530938,
+    "max": 54.70690003,
+    "runs": 3
+  },
+  {
+    "benchmark": "stream:copy",
     "space": "openmp",
     "backend": "OpenMP",
     "grid": "33554432",
@@ -69,6 +93,18 @@
     "median": 18.83544919,
     "min": 18.21922879,
     "max": 19.43990398,
+    "runs": 3
+  },
+  {
+    "benchmark": "stream:triad",
+    "space": "cuda",
+    "backend": "Cuda",
+    "grid": "16777216",
+    "concurrency": 6144,
+    "unit": "GB/s",
+    "median": 55.0097087,
+    "min": 54.99590276,
+    "max": 55.01664358,
     "runs": 3
   },
   {

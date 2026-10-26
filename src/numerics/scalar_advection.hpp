@@ -4,6 +4,7 @@
 
 #include <array>
 
+#include "core/parallel.hpp"
 #include "fields/patch_field.hpp"
 
 namespace saturn {
@@ -20,8 +21,6 @@ void scalar_advection_diffusion_rhs(const PatchField<ExecSpace>& c,
                                     double nu,
                                     const std::array<double, 3>& h) {
   const Box box = c.box();
-  using policy_type =
-      Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
 
   const double ux = velocity[0];
   const double uy = velocity[1];
@@ -33,10 +32,12 @@ void scalar_advection_diffusion_rhs(const PatchField<ExecSpace>& c,
   const double inv_hy2 = 1.0 / (hy * hy);
   const double inv_hz2 = 1.0 / (hz * hz);
 
+  const auto policy = make_mdrange3<ExecSpace>(
+      Int3{{box.lo[2], box.lo[1], box.lo[0]}},
+      Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
+
   Kokkos::parallel_for(
-      "scalar_advection_diffusion",
-      policy_type({box.lo[2], box.lo[1], box.lo[0]},
-                  {box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}),
+      "scalar_advection_diffusion", policy,
       KOKKOS_LAMBDA(int k, int j, int i) {
         const double cc = c(0, i, j, k);
         const double adv =

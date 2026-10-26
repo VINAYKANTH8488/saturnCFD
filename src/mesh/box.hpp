@@ -3,14 +3,15 @@
 #include <Kokkos_Core.hpp>
 
 #include <algorithm>
-#include <array>
 
 namespace saturn {
 
 // A 3D index box with inclusive bounds: [lo, hi].
+// Plain C arrays are used instead of std::array so the accessors are safe in
+// CUDA device code without relying on --expt-relaxed-constexpr.
 struct Box {
-  std::array<int, 3> lo{{0, 0, 0}};
-  std::array<int, 3> hi{{-1, -1, -1}};
+  int lo[3]{0, 0, 0};
+  int hi[3]{-1, -1, -1};
 
   KOKKOS_INLINE_FUNCTION
   bool empty() const {
@@ -47,8 +48,12 @@ struct Box {
   KOKKOS_INLINE_FUNCTION
   Box shift(int di, int dj, int dk) const {
     Box result;
-    result.lo = {lo[0] + di, lo[1] + dj, lo[2] + dk};
-    result.hi = {hi[0] + di, hi[1] + dj, hi[2] + dk};
+    result.lo[0] = lo[0] + di;
+    result.lo[1] = lo[1] + dj;
+    result.lo[2] = lo[2] + dk;
+    result.hi[0] = hi[0] + di;
+    result.hi[1] = hi[1] + dj;
+    result.hi[2] = hi[2] + dk;
     return result;
   }
 
@@ -56,15 +61,17 @@ struct Box {
   Box intersect(const Box& other) const {
     Box result;
     for (int d = 0; d < 3; ++d) {
-      result.lo[d] = std::max(lo[d], other.lo[d]);
-      result.hi[d] = std::min(hi[d], other.hi[d]);
+      result.lo[d] = (lo[d] > other.lo[d]) ? lo[d] : other.lo[d];
+      result.hi[d] = (hi[d] < other.hi[d]) ? hi[d] : other.hi[d];
     }
     return result;
   }
 
   KOKKOS_INLINE_FUNCTION
   bool operator==(const Box& other) const {
-    return lo == other.lo && hi == other.hi;
+    return lo[0] == other.lo[0] && lo[1] == other.lo[1] &&
+           lo[2] == other.lo[2] && hi[0] == other.hi[0] &&
+           hi[1] == other.hi[1] && hi[2] == other.hi[2];
   }
 
   KOKKOS_INLINE_FUNCTION
@@ -72,8 +79,12 @@ struct Box {
 
   static Box from_extents(int nx, int ny, int nz) {
     Box result;
-    result.lo = {0, 0, 0};
-    result.hi = {nx - 1, ny - 1, nz - 1};
+    result.lo[0] = 0;
+    result.lo[1] = 0;
+    result.lo[2] = 0;
+    result.hi[0] = nx - 1;
+    result.hi[1] = ny - 1;
+    result.hi[2] = nz - 1;
     return result;
   }
 };

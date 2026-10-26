@@ -12,6 +12,12 @@ if [ -d "${HOME}/opt/cmake/bin" ]; then
   export PATH="${HOME}/opt/cmake/bin:${PATH}"
 fi
 
+# User-local CUDA toolkit, when present.
+if [ -d "${HOME}/opt/cuda-12.2/bin" ]; then
+  export PATH="${HOME}/opt/cuda-12.2/bin:${PATH}"
+  export CUDAToolkit_ROOT="${CUDAToolkit_ROOT:-${HOME}/opt/cuda-12.2}"
+fi
+
 export SATURN_ROOT="${_saturn_root}"
 export KOKKOS_ROOT="${KOKKOS_ROOT:-${HOME}/opt/kokkos-5.2.2}"
 export KOKKOS_ROOT_CUDA="${KOKKOS_ROOT_CUDA:-${HOME}/opt/kokkos-5.2.2-cuda}"

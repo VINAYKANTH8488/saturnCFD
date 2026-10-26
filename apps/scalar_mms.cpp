@@ -10,6 +10,7 @@
 #include <Kokkos_Core.hpp>
 
 #include "core/execution_space.hpp"
+#include "core/parallel.hpp"
 #include "core/version.hpp"
 #include "fields/patch_field.hpp"
 #include "mesh/uniform_grid.hpp"
@@ -93,7 +94,7 @@ double parse_double(const std::string& flag, const std::string& value) {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
     if (pos != value.size()) {
-      throw std::invalid_argument("trailing characters");
+      throw std::invalid_argument{"trailing characters"};
     }
     return result;
   } catch (const std::exception&) {
@@ -108,7 +109,7 @@ int parse_int(const std::string& flag, const std::string& value) {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
     if (pos != value.size()) {
-      throw std::invalid_argument("trailing characters");
+      throw std::invalid_argument{"trailing characters"};
     }
     return result;
   } catch (const std::exception&) {
@@ -183,8 +184,6 @@ Params parse(int argc, char** argv) {
 template <class ExecSpace>
 CaseResult run_case(int n, const Params& p) {
   using field_type = saturn::PatchField<ExecSpace>;
-  using policy_type =
-      Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
 
   const int ng = 1;
   const double nu = p.nu;
@@ -223,8 +222,9 @@ CaseResult run_case(int n, const Params& p) {
   dt = p.tend / steps;
 
   const double cell_volume = grid.h[0] * grid.h[1] * grid.h[2];
-  const policy_type interior({box.lo[2], box.lo[1], box.lo[0]},
-                             {box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1});
+  const auto interior = saturn::make_mdrange3<ExecSpace>(
+      saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
+      saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
 
   auto mass = [&](const field_type& f) {
     double sum = 0.0;
@@ -304,7 +304,7 @@ CaseResult run_case(int n, const Params& p) {
         const double a = Kokkos::abs(e);
         acc = (a > acc) ? a : acc;
       },
-      Kokkos::Max<double>(linf));
+      Kokkos::Max<double>{linf});
 
   CaseResult result;
   result.n = n;

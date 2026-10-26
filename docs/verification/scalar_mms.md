@@ -1,7 +1,7 @@
 # Verification: 2nd-order scalar advection–diffusion
 
 **Date:** 2026-10-26
-**Status:** passing on Serial and OpenMP (single rank).
+**Status:** passing on Serial, OpenMP, and CUDA (Quadro P600), single rank.
 **Code:** `apps/scalar_mms.cpp`
 
 ## Problem
@@ -43,7 +43,10 @@ meaningful check.
 | 64 | 9.817e-2 | 1.111e-2 | 18 | 5.884e-4 | 1.99 | 8.32e-4 | 0.00e0 |
 | 128 | 4.909e-2 | 5.556e-3 | 36 | 1.473e-4 | 2.00 | 2.08e-4 | −9.2e-16 |
 
-Serial and OpenMP runs produce the same norms to displayed precision.
+CUDA (P600) produces the same norms to displayed precision; the N=128 run took
+0.85 s and also reported order 2.00 and mass drift −1.8e-15.
+
+Serial, OpenMP, and CUDA produce the same norms to displayed precision.
 
 ## Interpretation
 
