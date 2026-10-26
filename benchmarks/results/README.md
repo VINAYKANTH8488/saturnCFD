@@ -74,6 +74,27 @@ tile (Kokkos default on host, 32 on device).
 | openmp (4 threads) | 16.47 | 19.56 | 84.2% |
 | cuda (P600) | 28.32 | 54.68 | 51.8% |
 
+## MPI halo exchange
+
+`apps/halo_bench.cpp`, periodic cube, `ng=2`, one Kokkos thread per rank
+(OpenMPI, `--oversubscribe` for 8 ranks on the 4-core host):
+
+| Grid | Ranks | µs/exchange | Aggregate GB/s | ns/cell |
+|---:|---:|---:|---:|---:|
+| 128³ | 1 | 1428 | 0 | 0.681 |
+| 128³ | 2 | 1151 | 1.82 | 0.549 |
+| 128³ | 4 | 1419 | 2.96 | 0.677 |
+| 128³ | 8 | 1454 | 4.33 | 0.693 |
+| 256³ | 1 | 8097 | 0 | 0.483 |
+| 256³ | 2 | 6808 | 1.23 | 0.406 |
+| 256³ | 4 | 5850 | 2.87 | 0.349 |
+| 256³ | 8 | 6458 | 3.90 | 0.385 |
+
+The exchange is latency-bound at these sizes; serialized it costs 35–50% of a
+256³ CPU stencil step. On the P600 (128³), one rank takes 418 µs and two ranks
+1426 µs with host staging. Overlap and GPU-aware MPI are the next
+optimizations.
+
 ## Interpretation
 
 1. **The CPU saturates at ~19–22 GB/s.** Serial and 4-thread STREAM are nearly

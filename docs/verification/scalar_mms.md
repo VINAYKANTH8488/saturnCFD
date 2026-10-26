@@ -87,11 +87,39 @@ The two-rank CUDA MMS also matches the CPU values (N=16/32, order 1.97).
 
 ## Remaining MPI work
 
-- Halo bandwidth and weak-scaling measurements (1–8 ranks are correct, not yet
-  benchmarked).
+- Overlap halo exchange with interior computation (currently serialized).
+- GPU-aware MPI to remove host staging.
 - Non-periodic physical boundary conditions (face exchange currently skips
   `MPI_PROC_NULL` sides).
-- GPU-aware MPI to remove host staging.
+- Weak scaling at fixed cells per rank.
+
+## Halo benchmark
+
+`apps/halo_bench.cpp`, periodic cube, `ng = 2`, one Kokkos thread per rank,
+median of 20 exchanges (n=128) or 10 exchanges (n=256):
+
+| Grid | Ranks | Dims | Local box | µs/exchange | GB/s | ns/cell |
+|---:|---:|---|---|---:|---:|---:|
+| 128³ | 1 | 1×1×1 | 128³ | 1428 | 0 | 0.681 |
+| 128³ | 2 | 2×1×1 | 64×128×128 | 1151 | 1.82 | 0.549 |
+| 128³ | 4 | 2×2×1 | 64×64×128 | 1419 | 2.96 | 0.677 |
+| 128³ | 8 | 2×2×2 | 64³ | 1454 | 4.33 | 0.693 |
+| 256³ | 1 | 1×1×1 | 256³ | 8097 | 0 | 0.483 |
+| 256³ | 2 | 2×1×1 | 128×256×256 | 6808 | 1.23 | 0.406 |
+| 256³ | 4 | 2×2×1 | 128×128×256 | 5850 | 2.87 | 0.349 |
+| 256³ | 8 | 2×2×2 | 128³ | 6458 | 3.90 | 0.385 |
+
+At these sizes the exchange is **latency-bound**, not bandwidth-bound: adding
+ranks increases aggregate bytes but not throughput. For 256³ the cost is
+0.35–0.48 ns/cell versus 0.97 ns/cell for the CPU stencil, i.e. a 35–50%
+overhead if serialized. The fix is to **overlap** the exchange with the
+interior stencil (planned) and, on GPUs, use GPU-aware MPI instead of host
+staging. The surface-to-volume ratio improves at larger grids, so the fraction
+falls with problem size.
+
+On the P600 (128³, host-staged), one rank takes **418 µs** (0.20 ns/cell) and
+two ranks **1426 µs** (0.68 ns/cell). Host staging dominates the multi-rank GPU
+path; GPU-aware MPI is a priority for the scaling milestone.
 
 ## Interpretation
 

@@ -1,0 +1,16 @@
+{
+  "code": "saturnCFD",
+  "version": "0.1.0",
+  "backend": "Cuda",
+  "space": "cuda",
+  "ranks": 2,
+  "dims": [2, 1, 1],
+  "n": 128,
+  "ng": 2,
+  "iters": 10,
+  "local_cells": 1048576,
+  "seconds": 0.014255947,
+  "us_per_exchange": 1425.5947,
+  "gbps_aggregate": 1.471071687,
+  "ns_per_cell_exchange": 0.6797765255
+}

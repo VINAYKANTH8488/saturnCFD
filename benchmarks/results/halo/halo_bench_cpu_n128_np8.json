@@ -1,0 +1,16 @@
+{
+  "code": "saturnCFD",
+  "version": "0.1.0",
+  "backend": "OpenMP",
+  "space": "openmp",
+  "ranks": 8,
+  "dims": [2, 2, 2],
+  "n": 128,
+  "ng": 2,
+  "iters": 20,
+  "local_cells": 262144,
+  "seconds": 0.031565269,
+  "us_per_exchange": 1578.26345,
+  "gbps_aggregate": 3.986315466,
+  "ns_per_cell_exchange": 0.7525746584
+}

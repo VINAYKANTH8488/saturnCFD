@@ -20,7 +20,11 @@ inline constexpr bool is_host_execution_space =
 template <class ExecSpace>
 using MDRange3 = Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
 
+template <class ExecSpace>
+using MDRange4 = Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<4>>;
+
 using Int3 = Kokkos::Array<int, 3>;
+using Int4 = Kokkos::Array<int, 4>;
 
 template <class ExecSpace>
 MDRange3<ExecSpace> make_mdrange3(Int3 lower, Int3 upper) {
@@ -28,6 +32,15 @@ MDRange3<ExecSpace> make_mdrange3(Int3 lower, Int3 upper) {
     return MDRange3<ExecSpace>(lower, upper);
   } else {
     return MDRange3<ExecSpace>(lower, upper, Int3{{1, 1, kInnerTile}});
+  }
+}
+
+template <class ExecSpace>
+MDRange4<ExecSpace> make_mdrange4(Int4 lower, Int4 upper) {
+  if constexpr (is_host_execution_space<ExecSpace>) {
+    return MDRange4<ExecSpace>(lower, upper);
+  } else {
+    return MDRange4<ExecSpace>(lower, upper, Int4{{1, 1, 1, kInnerTile}});
   }
 }
 

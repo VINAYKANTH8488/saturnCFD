@@ -186,6 +186,14 @@ GPU builds stage halo buffers through host memory; GPU-aware MPI is a later
 optimization. Non-periodic physical boundaries are not yet implemented (the
 exchange skips `MPI_PROC_NULL` faces).
 
+Halo cost:
+
+```bash
+/usr/bin/mpiexec -n 4 ./build/cpu-openmp/apps/saturn_halo \
+  --space openmp --n 256 --ng 2 --iters 10 --warmup 2 \
+  --kokkos-num-threads=1 --json benchmarks/results/halo/halo_np4.json
+```
+
 ## Layout
 
 ```text

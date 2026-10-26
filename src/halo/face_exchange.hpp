@@ -2,6 +2,7 @@
 
 #include <Kokkos_Core.hpp>
 
+#include "core/parallel.hpp"
 #include "fields/patch_field.hpp"
 #include "mesh/decomposition.hpp"
 
@@ -112,7 +113,7 @@ class FaceExchange {
     const int ng = ng_;
     const int n1 = n1_[d];
     const int n2 = n2_[d];
-    const int count = size_[d];
+    const int nvar = nvar_;
     const int lo0 = box.lo[0];
     const int lo1 = box.lo[1];
     const int lo2 = box.lo[2];
@@ -120,16 +121,11 @@ class FaceExchange {
     const int hi1 = box.hi[1];
     const int hi2 = box.hi[2];
 
+    const auto policy = make_mdrange4<ExecSpace>(
+        Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
     Kokkos::parallel_for(
-        "halo_pack", count,
-        KOKKOS_LAMBDA(int idx) {
-          const int b = idx % n2;
-          int t = idx / n2;
-          const int a = t % n1;
-          t /= n1;
-          const int f = t % ng;
-          const int v = t / ng;
-
+        "halo_pack", policy,
+        KOKKOS_LAMBDA(int v, int f, int a, int b) {
           int i = 0;
           int j = 0;
           int k = 0;
@@ -146,6 +142,7 @@ class FaceExchange {
             i = lo0 + a;
             j = lo1 + b;
           }
+          const int idx = ((v * ng + f) * n1 + a) * n2 + b;
           buffer(idx) = q(v, i, j, k);
         });
   }
@@ -156,7 +153,7 @@ class FaceExchange {
     const int ng = ng_;
     const int n1 = n1_[d];
     const int n2 = n2_[d];
-    const int count = size_[d];
+    const int nvar = nvar_;
     const int lo0 = box.lo[0];
     const int lo1 = box.lo[1];
     const int lo2 = box.lo[2];
@@ -164,16 +161,11 @@ class FaceExchange {
     const int hi1 = box.hi[1];
     const int hi2 = box.hi[2];
 
+    const auto policy = make_mdrange4<ExecSpace>(
+        Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
     Kokkos::parallel_for(
-        "halo_unpack", count,
-        KOKKOS_LAMBDA(int idx) {
-          const int b = idx % n2;
-          int t = idx / n2;
-          const int a = t % n1;
-          t /= n1;
-          const int f = t % ng;
-          const int v = t / ng;
-
+        "halo_unpack", policy,
+        KOKKOS_LAMBDA(int v, int f, int a, int b) {
           int i = 0;
           int j = 0;
           int k = 0;
@@ -190,6 +182,7 @@ class FaceExchange {
             i = lo0 + a;
             j = lo1 + b;
           }
+          const int idx = ((v * ng + f) * n1 + a) * n2 + b;
           q(v, i, j, k) = buffer(idx);
         });
   }

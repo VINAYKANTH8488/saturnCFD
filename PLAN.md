@@ -860,10 +860,13 @@ measured; HIP/SYCL verification waits for hardware.
       CUDA (`docs/verification/`).
 - [x] MPI halo exchange: face exchange and global reductions verified on 1–8
       CPU ranks and 2 CUDA ranks.
-- [ ] Halo bandwidth and weak-scaling measurements.
+- [x] Halo bandwidth measured (`docs/verification/scalar_mms.md`); overlap and
+      weak scaling still pending.
+- [ ] Overlap halo exchange with interior computation.
 
 **Exit:** 2nd-order MMS passes on 1–8 ranks at order 1.99–2.00; halo unit test
-reports zero errors. Bandwidth/scaling numbers are still pending.
+reports zero errors; exchange cost measured. Overlap is the remaining
+performance item.
 
 ### Phase 2 — High-order compressible (3–4 weeks)
 
