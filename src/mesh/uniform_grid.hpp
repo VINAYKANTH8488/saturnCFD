@@ -12,6 +12,7 @@ namespace saturn {
 
 struct UniformGrid {
   Box global;
+  Box local;
   std::array<double, 3> lo{{0.0, 0.0, 0.0}};
   std::array<double, 3> hi{{1.0, 1.0, 1.0}};
   std::array<double, 3> h{{1.0, 1.0, 1.0}};
@@ -21,6 +22,7 @@ struct UniformGrid {
                                 double lz, int ng) {
     UniformGrid grid;
     grid.global = Box::from_extents(nx, ny, nz);
+    grid.local = grid.global;
     grid.lo = {0.0, 0.0, 0.0};
     grid.hi = {lx, ly, lz};
     grid.h = {lx / nx, ly / ny, lz / nz};
@@ -28,9 +30,15 @@ struct UniformGrid {
     return grid;
   }
 
-  // Single-rank local box. The Cartesian MPI decomposition will replace this
-  // in the halo-exchange milestone; operators already take a Box.
-  Box local_box() const { return global; }
+  static UniformGrid from_cells_local(int nx, int ny, int nz, double lx,
+                                      double ly, double lz, int ng,
+                                      const Box& local) {
+    UniformGrid grid = from_cells(nx, ny, nz, lx, ly, lz, ng);
+    grid.local = local;
+    return grid;
+  }
+
+  Box local_box() const { return local; }
 
   KOKKOS_INLINE_FUNCTION
   long long num_cells() const { return global.num_cells(); }

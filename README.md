@@ -18,6 +18,8 @@ Phase 0 progress:
 - 2nd-order scalar advection–diffusion MMS passes on **Serial, OpenMP, and
   CUDA**: observed order **2.00**, mass drift ~1e-16 (see
   `docs/verification/scalar_mms.md`).
+- **MPI halo exchange verified on 1, 2, 4, and 8 CPU ranks and 2 CUDA ranks**;
+  the face-halo unit test reports zero errors.
 - HIP/SYCL presets scaffolded; tuning waits for hardware access.
 
 ## Requirements
@@ -160,6 +162,29 @@ advection–diffusion on a periodic 3D box:
 
 Expected: observed order **2.00** and machine-precision mass conservation.
 Details are in `docs/verification/scalar_mms.md`.
+
+## MPI
+
+The CPU build enables MPI by default. The scalar MMS can be run on multiple
+ranks; each rank owns a Cartesian sub-box and exchanges face ghosts:
+
+```bash
+# 1, 2, 4, or 8 ranks
+/usr/bin/mpiexec -n 4 ./build/cpu-openmp/apps/saturn_scalar_mms \
+  --space openmp --n-list 32 64 --nu 0.01 --tend 0.2 --check \
+  --kokkos-num-threads=1
+```
+
+Use the `mpiexec` from the same MPI installation as `mpicxx`. CTest also runs
+a 2-rank halo test and a 2-rank MMS test when MPI is found:
+
+```bash
+ctest --test-dir build/cpu-openmp --output-on-failure
+```
+
+GPU builds stage halo buffers through host memory; GPU-aware MPI is a later
+optimization. Non-periodic physical boundaries are not yet implemented (the
+exchange skips `MPI_PROC_NULL` faces).
 
 ## Layout
 

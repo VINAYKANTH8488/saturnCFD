@@ -10,9 +10,12 @@
 #include <Kokkos_Core.hpp>
 
 #include "core/execution_space.hpp"
+#include "core/mpi.hpp"
 #include "core/parallel.hpp"
 #include "core/version.hpp"
 #include "fields/patch_field.hpp"
+#include "halo/face_exchange.hpp"
+#include "mesh/decomposition.hpp"
 #include "mesh/uniform_grid.hpp"
 #include "numerics/scalar_advection.hpp"
 
@@ -188,14 +191,18 @@ CaseResult run_case(int n, const Params& p) {
   const int ng = 1;
   const double nu = p.nu;
   const double tend = p.tend;
-  const auto grid = saturn::UniformGrid::from_cells(
-      n, n, n, 2.0 * kPi, 2.0 * kPi, 2.0 * kPi, ng);
+  const bool periodic[3] = {true, true, true};
+  const auto decomposition = saturn::Decomposition::create(
+      saturn::Box::from_extents(n, n, n), periodic);
+  const auto grid = saturn::UniformGrid::from_cells_local(
+      n, n, n, 2.0 * kPi, 2.0 * kPi, 2.0 * kPi, ng, decomposition.local);
   const saturn::Box box = grid.local_box();
 
   field_type q0(box, 1, ng, "q0");
   field_type q1(box, 1, ng, "q1");
   field_type q2(box, 1, ng, "q2");
   field_type rhs(box, 1, ng, "rhs");
+  saturn::FaceExchange<ExecSpace> exchange(decomposition, 1, ng);
 
   // Initial condition on the host mirror.
   auto hq = Kokkos::create_mirror_view(q0.data());
@@ -237,11 +244,11 @@ CaseResult run_case(int n, const Params& p) {
     return sum * cell_volume;
   };
 
-  const double mass0 = mass(q0);
+  const double mass0 = saturn::mpi_sum(mass(q0));
   Kokkos::Timer timer;
 
   for (int step = 0; step < steps; ++step) {
-    q0.fill_periodic();
+    exchange.exchange(q0);
     saturn::scalar_advection_diffusion_rhs(q0, rhs, velocity, p.nu, grid.h);
 
     Kokkos::parallel_for(
@@ -250,7 +257,7 @@ CaseResult run_case(int n, const Params& p) {
           q1(0, i, j, k) = q0(0, i, j, k) + dt * rhs(0, i, j, k);
         });
 
-    q1.fill_periodic();
+    exchange.exchange(q1);
     saturn::scalar_advection_diffusion_rhs(q1, rhs, velocity, p.nu, grid.h);
 
     Kokkos::parallel_for(
@@ -261,7 +268,7 @@ CaseResult run_case(int n, const Params& p) {
               0.25 * (q1(0, i, j, k) + dt * rhs(0, i, j, k));
         });
 
-    q2.fill_periodic();
+    exchange.exchange(q2);
     saturn::scalar_advection_diffusion_rhs(q2, rhs, velocity, p.nu, grid.h);
 
     Kokkos::parallel_for(
@@ -275,10 +282,10 @@ CaseResult run_case(int n, const Params& p) {
     std::swap(q0, q1);
   }
 
-  q0.fill_periodic();
+  exchange.exchange(q0);
   ExecSpace().fence();
-  const double seconds = timer.seconds();
-  const double mass1 = mass(q0);
+  const double seconds = saturn::mpi_max(timer.seconds());
+  const double mass1 = saturn::mpi_sum(mass(q0));
 
   double l2 = 0.0;
   Kokkos::parallel_reduce(
@@ -291,7 +298,8 @@ CaseResult run_case(int n, const Params& p) {
         acc += e * e;
       },
       l2);
-  l2 = std::sqrt(l2 / static_cast<double>(n) / n / n);
+  l2 = std::sqrt(saturn::mpi_sum(l2) /
+                 (static_cast<double>(n) * n * n));
 
   double linf = 0.0;
   Kokkos::parallel_reduce(
@@ -305,6 +313,7 @@ CaseResult run_case(int n, const Params& p) {
         acc = (a > acc) ? a : acc;
       },
       Kokkos::Max<double>{linf});
+  linf = saturn::mpi_max(linf);
 
   CaseResult result;
   result.n = n;
@@ -323,19 +332,22 @@ int run_sweep(const Params& p) {
   std::vector<CaseResult> results;
   double previous_error = 0.0;
   double previous_h = 0.0;
+  const bool root = saturn::mpi_rank() == 0;
 
-  std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion
-            << " scalar MMS\n"
-            << "Kokkos: " << ExecSpace::name() << " (concurrency "
-            << ExecSpace{}.concurrency() << ")\n";
-  if (p.verbose) {
-    Kokkos::print_configuration(std::cout, true);
+  if (root) {
+    std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion
+              << " scalar MMS\n"
+              << "Kokkos: " << ExecSpace::name() << " (concurrency "
+              << ExecSpace{}.concurrency() << ")\n";
+    if (p.verbose) {
+      Kokkos::print_configuration(std::cout, true);
+    }
+    std::cout << std::left << std::setw(6) << "N" << std::setw(12) << "h"
+              << std::setw(12) << "dt" << std::setw(8) << "steps"
+              << std::setw(14) << "L2" << std::setw(8) << "order"
+              << std::setw(14) << "Linf" << std::setw(14) << "mass drift"
+              << "time [s]\n";
   }
-  std::cout << std::left << std::setw(6) << "N" << std::setw(12) << "h"
-            << std::setw(12) << "dt" << std::setw(8) << "steps"
-            << std::setw(14) << "L2" << std::setw(8) << "order"
-            << std::setw(14) << "Linf" << std::setw(14) << "mass drift"
-            << "time [s]\n";
 
   for (int n : p.n_list) {
     CaseResult r = run_case<ExecSpace>(n, p);
@@ -347,17 +359,19 @@ int run_sweep(const Params& p) {
     previous_h = r.h;
     results.push_back(r);
 
-    std::cout << std::left << std::setw(6) << r.n << std::setw(12)
-              << std::scientific << std::setprecision(3) << r.h
-              << std::setw(12) << r.dt << std::setw(8) << r.steps
-              << std::setw(14) << r.l2 << std::setw(8)
-              << std::fixed << std::setprecision(2) << r.order
-              << std::setw(14) << std::scientific << r.linf
-              << std::setw(14) << r.mass_drift << std::fixed
-              << std::setprecision(3) << r.seconds << "\n";
+    if (root) {
+      std::cout << std::left << std::setw(6) << r.n << std::setw(12)
+                << std::scientific << std::setprecision(3) << r.h
+                << std::setw(12) << r.dt << std::setw(8) << r.steps
+                << std::setw(14) << r.l2 << std::setw(8)
+                << std::fixed << std::setprecision(2) << r.order
+                << std::setw(14) << std::scientific << r.linf
+                << std::setw(14) << r.mass_drift << std::fixed
+                << std::setprecision(3) << r.seconds << "\n";
+    }
   }
 
-  if (!p.json.empty()) {
+  if (root && !p.json.empty()) {
     const std::filesystem::path path(p.json);
     if (path.has_parent_path()) {
       std::filesystem::create_directories(path.parent_path());
@@ -398,13 +412,18 @@ int run_sweep(const Params& p) {
         ok = false;
       }
     }
+    ok = saturn::mpi_all(ok);
     if (!ok) {
-      std::fprintf(stderr,
-                   "scalar MMS check failed: order or mass conservation "
-                   "out of tolerance\n");
+      if (root) {
+        std::fprintf(stderr,
+                     "scalar MMS check failed: order or mass conservation "
+                     "out of tolerance\n");
+      }
       return 1;
     }
-    std::printf("scalar MMS check passed\n");
+    if (root) {
+      std::printf("scalar MMS check passed\n");
+    }
   }
 
   return 0;
@@ -415,6 +434,11 @@ int run_sweep(const Params& p) {
 int main(int argc, char** argv) {
   const Params params = parse(argc, argv);
 
+#ifdef SATURN_ENABLE_MPI
+  int provided = 0;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+#endif
+
   Kokkos::initialize(argc, argv);
   const int status = saturn::dispatch_execution_space(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
@@ -422,5 +446,9 @@ int main(int argc, char** argv) {
         return run_sweep<space_type>(params);
       });
   Kokkos::finalize();
+
+#ifdef SATURN_ENABLE_MPI
+  MPI_Finalize();
+#endif
   return status;
 }

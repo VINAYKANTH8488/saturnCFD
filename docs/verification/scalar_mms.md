@@ -1,7 +1,8 @@
 # Verification: 2nd-order scalar advection–diffusion
 
 **Date:** 2026-10-26
-**Status:** passing on Serial, OpenMP, and CUDA (Quadro P600), single rank.
+**Status:** passing on Serial, OpenMP, and CUDA (Quadro P600); 1–8 MPI ranks
+on CPU and 2 ranks on the GPU.
 **Code:** `apps/scalar_mms.cpp`
 
 ## Problem
@@ -47,6 +48,50 @@ CUDA (P600) produces the same norms to displayed precision; the N=128 run took
 0.85 s and also reported order 2.00 and mass drift −1.8e-15.
 
 Serial, OpenMP, and CUDA produce the same norms to displayed precision.
+
+## MPI verification
+
+The same case was run on 1, 2, 4, and 8 OpenMPI ranks (8 ranks oversubscribed
+on the 4-core host), with one Kokkos thread per rank. The per-rank Cartesian
+decomposition uses face-only halo exchange; a separate halo unit test fills a
+global linear index field and checks every face ghost cell (2 ghost layers).
+
+| Ranks | N | L2 error | Order | Mass drift |
+|---:|---:|---:|---:|---:|
+| 1 | 32 | 2.343e-3 | — | 0 |
+| 1 | 64 | 5.884e-4 | 1.99 | 0 |
+| 2 | 32 | 2.343e-3 | — | −2.3e-16 |
+| 2 | 64 | 5.884e-4 | 1.99 | −1.2e-16 |
+| 4 | 32 | 2.343e-3 | — | +2.3e-16 |
+| 4 | 64 | 5.884e-4 | 1.99 | +1.2e-16 |
+| 8 | 16 | 9.195e-3 | — | +2.3e-16 |
+| 8 | 32 | 2.343e-3 | 1.97 | +2.3e-16 |
+
+Halo test (`tests/test_halo.cpp`): **0 errors** on 1, 2, 4, and 8 ranks; the
+same test passes with 2 CUDA ranks (host-staged MPI).
+
+The two-rank CUDA MMS also matches the CPU values (N=16/32, order 1.97).
+
+## MPI halo design
+
+- Cartesian process grid from `MPI_Dims_create` with a greedy fallback for thin
+  grids; 2:1-style partitioning of global cells per rank.
+- Face-only exchange (edges/corners are never read by the 7-point stencil).
+- Persistent pack/unpack buffers; `MPI_Isend`/`Irecv` for both faces posted
+  before `MPI_Waitall` to avoid cross-side deadlock.
+- Send tag uses the sender's side; receive tag uses the opposite side, so the
+  message pairs with the neighbor's high/low face correctly.
+- GPU builds stage through host buffers; GPU-aware MPI is a later optimization.
+- Global reductions (`MPI_Allreduce`) for L2, Linf, mass, and timing; only rank
+  0 writes tables and JSON.
+
+## Remaining MPI work
+
+- Halo bandwidth and weak-scaling measurements (1–8 ranks are correct, not yet
+  benchmarked).
+- Non-periodic physical boundary conditions (face exchange currently skips
+  `MPI_PROC_NULL` sides).
+- GPU-aware MPI to remove host staging.
 
 ## Interpretation
 

@@ -858,10 +858,12 @@ measured; HIP/SYCL verification waits for hardware.
 - [x] 2nd-order scalar advection–diffusion + SSP-RK3.
 - [x] MMS 2nd-order convergence; mass conservation on Serial, OpenMP, and
       CUDA (`docs/verification/`).
-- [ ] MPI halo exchange; weak scaling on CPU and GPU.
+- [x] MPI halo exchange: face exchange and global reductions verified on 1–8
+      CPU ranks and 2 CUDA ranks.
+- [ ] Halo bandwidth and weak-scaling measurements.
 
-**Exit:** single-rank MMS passes at order 2.00 on all three backends; MPI
-1–8 rank run pending.
+**Exit:** 2nd-order MMS passes on 1–8 ranks at order 1.99–2.00; halo unit test
+reports zero errors. Bandwidth/scaling numbers are still pending.
 
 ### Phase 2 — High-order compressible (3–4 weeks)
 

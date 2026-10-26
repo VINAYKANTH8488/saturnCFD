@@ -45,6 +45,29 @@ if(NOT DEFINED SATURN_DEFAULT_SPACE)
 endif()
 message(STATUS "saturnCFD default execution space: ${SATURN_DEFAULT_SPACE}")
 
+set(SATURN_HAVE_MPI FALSE)
+if(SATURN_ENABLE_MPI)
+  find_package(MPI COMPONENTS CXX)
+  if(MPI_CXX_FOUND)
+    set(SATURN_HAVE_MPI TRUE)
+    target_link_libraries(saturn_core INTERFACE MPI::MPI_CXX)
+    target_compile_definitions(saturn_core INTERFACE SATURN_ENABLE_MPI)
+    # Use the launcher from the same prefix as the MPI compiler; PATH may
+    # contain an unrelated MPI (e.g. ParaView's MPICH) earlier.
+    get_filename_component(_saturn_mpi_bindir "${MPI_CXX_COMPILER}" DIRECTORY)
+    if(EXISTS "${_saturn_mpi_bindir}/mpiexec")
+      set(SATURN_MPIEXEC "${_saturn_mpi_bindir}/mpiexec" CACHE FILEPATH
+          "MPI launcher used by CTest")
+    else()
+      set(SATURN_MPIEXEC "${MPIEXEC_EXECUTABLE}" CACHE FILEPATH
+          "MPI launcher used by CTest")
+    endif()
+    message(STATUS "MPI enabled (${MPI_CXX_COMPILER}); launcher ${SATURN_MPIEXEC}")
+  else()
+    message(WARNING "SATURN_ENABLE_MPI=ON but MPI was not found; building serial-only")
+  endif()
+endif()
+
 add_subdirectory(apps)
 
 if(SATURN_ENABLE_TESTS)
