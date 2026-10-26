@@ -1,0 +1,17 @@
+{
+  "code": "saturnCFD",
+  "version": "0.1.0",
+  "backend": "Serial",
+  "concurrency": 1,
+  "space": "serial",
+  "kernel": "copy",
+  "n": 33554432,
+  "iters": 30,
+  "warmup": 3,
+  "bytes_per_element": 16,
+  "seconds": 0.855096536,
+  "ms_per_iter": 28.50321787,
+  "gbps": 18.83544919,
+  "ns_per_element_iter": 0.8494620879,
+  "checksum": 596504368.6
+}

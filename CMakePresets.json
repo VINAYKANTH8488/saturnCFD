@@ -1,0 +1,126 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "Kokkos_ROOT": "$env{KOKKOS_ROOT}",
+        "SATURN_ENABLE_TESTS": "ON",
+        "SATURN_ENABLE_WARNINGS": "ON"
+      }
+    },
+    {
+      "name": "cpu",
+      "inherits": "base",
+      "displayName": "CPU (Kokkos Serial + OpenMP)",
+      "cacheVariables": {
+        "SATURN_DEFAULT_SPACE": "default"
+      }
+    },
+    {
+      "name": "cpu-serial",
+      "inherits": "cpu",
+      "displayName": "CPU, Serial default",
+      "cacheVariables": {
+        "SATURN_DEFAULT_SPACE": "serial"
+      }
+    },
+    {
+      "name": "cpu-openmp",
+      "inherits": "cpu",
+      "displayName": "CPU, OpenMP default",
+      "cacheVariables": {
+        "SATURN_DEFAULT_SPACE": "openmp"
+      }
+    },
+    {
+      "name": "cuda-local",
+      "inherits": "base",
+      "displayName": "CUDA sm_61 (Quadro P600, functional tests only)",
+      "cacheVariables": {
+        "Kokkos_ROOT": "$env{KOKKOS_ROOT_CUDA}",
+        "SATURN_DEFAULT_SPACE": "cuda"
+      }
+    },
+    {
+      "name": "cuda-a100",
+      "inherits": "base",
+      "displayName": "CUDA sm_80 (A100)",
+      "cacheVariables": {
+        "Kokkos_ROOT": "$env{KOKKOS_ROOT_CUDA}",
+        "SATURN_DEFAULT_SPACE": "cuda"
+      }
+    },
+    {
+      "name": "cuda-h100",
+      "inherits": "base",
+      "displayName": "CUDA sm_90 (H100)",
+      "cacheVariables": {
+        "Kokkos_ROOT": "$env{KOKKOS_ROOT_CUDA}",
+        "SATURN_DEFAULT_SPACE": "cuda"
+      }
+    },
+    {
+      "name": "hip-mi250",
+      "inherits": "base",
+      "displayName": "HIP gfx90a (MI250)",
+      "cacheVariables": {
+        "Kokkos_ROOT": "$env{KOKKOS_ROOT_HIP}",
+        "SATURN_DEFAULT_SPACE": "hip"
+      }
+    },
+    {
+      "name": "sycl-pvc",
+      "inherits": "base",
+      "displayName": "SYCL (Ponte Vecchio)",
+      "cacheVariables": {
+        "Kokkos_ROOT": "$env{KOKKOS_ROOT_SYCL}",
+        "SATURN_DEFAULT_SPACE": "sycl"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "cpu",
+      "configurePreset": "cpu"
+    },
+    {
+      "name": "cpu-serial",
+      "configurePreset": "cpu-serial"
+    },
+    {
+      "name": "cpu-openmp",
+      "configurePreset": "cpu-openmp"
+    },
+    {
+      "name": "cuda-local",
+      "configurePreset": "cuda-local"
+    },
+    {
+      "name": "cuda-a100",
+      "configurePreset": "cuda-a100"
+    },
+    {
+      "name": "cuda-h100",
+      "configurePreset": "cuda-h100"
+    },
+    {
+      "name": "hip-mi250",
+      "configurePreset": "hip-mi250"
+    },
+    {
+      "name": "sycl-pvc",
+      "configurePreset": "sycl-pvc"
+    }
+  ]
+}

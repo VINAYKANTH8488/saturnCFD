@@ -1,0 +1,19 @@
+{
+  "code": "saturnCFD",
+  "version": "0.1.0",
+  "backend": "OpenMP",
+  "space": "openmp",
+  "nx": 256,
+  "ny": 256,
+  "nz": 256,
+  "iters": 30,
+  "warmup": 3,
+  "seconds": 1.283779436,
+  "ms_per_iter": 42.79264787,
+  "ns_per_cell_iter": 2.611367593,
+  "gcell_updates_per_s": 0.3829411083,
+  "gbps_effective": 6.127057732,
+  "gbps_naive": 24.50823093,
+  "checksum": 26239360.17,
+  "max_abs_error": 0
+}

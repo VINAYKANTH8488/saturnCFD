@@ -1,0 +1,20 @@
+{
+  "code": "saturnCFD",
+  "version": "0.1.0",
+  "backend": "Serial",
+  "concurrency": 1,
+  "space": "serial",
+  "nx": 256,
+  "ny": 256,
+  "nz": 256,
+  "iters": 30,
+  "warmup": 3,
+  "seconds": 1.32610269,
+  "ms_per_iter": 44.203423,
+  "ns_per_cell_iter": 2.697458373,
+  "gcell_updates_per_s": 0.3707193445,
+  "gbps_effective": 5.931509512,
+  "gbps_naive": 23.72603805,
+  "checksum": 26239360.17,
+  "max_abs_error": 0
+}

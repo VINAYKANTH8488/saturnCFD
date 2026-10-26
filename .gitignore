@@ -1,0 +1,28 @@
+# Build trees
+build/
+build-*/
+cmake-build-*/
+install/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+
+# Objects and libraries
+*.o
+*.a
+*.so
+*.dylib
+*.mod
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Runtime output
+*.log
+core

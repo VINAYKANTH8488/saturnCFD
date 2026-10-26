@@ -1,0 +1,74 @@
+[
+  {
+    "benchmark": "stencil7",
+    "space": "openmp",
+    "backend": "OpenMP",
+    "grid": "256x256x256",
+    "concurrency": 4,
+    "unit": "ns/cell/iter",
+    "median": 0.9845581454,
+    "min": 0.9497347737,
+    "max": 0.9931441349,
+    "runs": 3
+  },
+  {
+    "benchmark": "stencil7",
+    "space": "serial",
+    "backend": "Serial",
+    "grid": "256x256x256",
+    "concurrency": 1,
+    "unit": "ns/cell/iter",
+    "median": 2.659830551,
+    "min": 2.588849735,
+    "max": 2.697458373,
+    "runs": 3
+  },
+  {
+    "benchmark": "stream:copy",
+    "space": "openmp",
+    "backend": "OpenMP",
+    "grid": "33554432",
+    "concurrency": 4,
+    "unit": "GB/s",
+    "median": 19.56150808,
+    "min": 19.34450971,
+    "max": 20.00532528,
+    "runs": 3
+  },
+  {
+    "benchmark": "stream:copy",
+    "space": "serial",
+    "backend": "Serial",
+    "grid": "33554432",
+    "concurrency": 1,
+    "unit": "GB/s",
+    "median": 18.83544919,
+    "min": 18.21922879,
+    "max": 19.43990398,
+    "runs": 3
+  },
+  {
+    "benchmark": "stream:triad",
+    "space": "openmp",
+    "backend": "OpenMP",
+    "grid": "33554432",
+    "concurrency": 4,
+    "unit": "GB/s",
+    "median": 21.98126143,
+    "min": 21.72903607,
+    "max": 22.38296894,
+    "runs": 3
+  },
+  {
+    "benchmark": "stream:triad",
+    "space": "serial",
+    "backend": "Serial",
+    "grid": "33554432",
+    "concurrency": 1,
+    "unit": "GB/s",
+    "median": 20.71071738,
+    "min": 20.64201201,
+    "max": 21.35854792,
+    "runs": 3
+  }
+]

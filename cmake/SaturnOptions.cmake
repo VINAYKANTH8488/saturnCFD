@@ -1,0 +1,4 @@
+option(SATURN_ENABLE_TESTS "Build unit and smoke tests" ON)
+option(SATURN_ENABLE_WARNINGS "Enable compiler warnings for project code" ON)
+option(SATURN_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
+option(SATURN_ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan (host builds)" OFF)
