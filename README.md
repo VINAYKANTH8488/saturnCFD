@@ -14,6 +14,8 @@ Phase 0 progress:
   STREAM copy** on the i7-7700 (see `benchmarks/results/`).
 - EDAC pressure-free prototype completed; projection + GMG remains the
   production default (see `experiments/edac_tgv/`).
+- 2nd-order scalar advection–diffusion MMS passes on Serial/OpenMP: observed
+  order **2.00**, mass drift ~1e-16 (see `docs/verification/scalar_mms.md`).
 - CUDA/HIP/SYCL presets scaffolded; CUDA verification pending the local
   toolkit install.
 
@@ -132,6 +134,20 @@ To separate machine bandwidth from stencil efficiency:
 `copy` moves two arrays (16 bytes/element); `triad` reads two and writes one
 (24 bytes/element). The stencil's effective GB/s should be interpreted as a
 fraction of these numbers.
+
+## Scalar verification (Phase 1)
+
+The first numerical gate is a manufactured-solution test for 2nd-order
+advection–diffusion on a periodic 3D box:
+
+```bash
+./build/cpu-openmp/apps/saturn_scalar_mms \
+  --space openmp --n-list 16 32 64 128 \
+  --nu 0.01 --tend 0.2 --check
+```
+
+Expected: observed order **2.00** and machine-precision mass conservation.
+Details are in `docs/verification/scalar_mms.md`.
 
 ## Layout
 

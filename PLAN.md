@@ -837,27 +837,29 @@ an exit criterion; do not start the next phase until it is met.
 
 ### Phase 0 — Foundation (1–2 weeks)
 
-- [ ] Create a **new git repo** in `saturnCFD/` (the current repo root is your
-      home directory — do not commit there).
-- [ ] Install CMake ≥ 3.24, Kokkos 5.2.x (Serial/OpenMP; CUDA toolkit 12.x),
-      Catch2 v3, toml++.
-- [ ] CMake skeleton, presets, compiler warnings, clang-format, CI (CPU).
-- [ ] `core/`: config, logging, timers, error, version string.
-- [ ] Stencil microbenchmark: 7-point 3D FP64, measure GB/s on CPU and P600.
-- [ ] Write `docs/design/{grid,numerics,kokkos,amr}.md` (expand this plan).
+- [x] Create a **new git repo** in `saturnCFD/`.
+- [x] Install CMake 3.31.6 and Kokkos 5.2.2 (Serial + OpenMP) under `~/opt`;
+      CUDA toolkit install in progress.
+- [x] CMake skeleton, presets, strict warnings; CI and clang-format pending.
+- [x] `core/`: version and execution-space dispatch; config/logging pending.
+- [x] Stencil + STREAM microbenchmarks; roofline measured (see
+      `benchmarks/results/`).
+- [x] Design captured in `PLAN.md`; splitting into `docs/design/` pending.
 
-**Exit:** `saturnCFD --version` runs; CI green; stencil roofline measured.
+**Exit (CPU part met):** build, tests, and stencil roofline measured; GPU
+verification pending the CUDA toolkit.
 
 ### Phase 1 — Mesh + scalar solver (2–3 weeks)
 
-- [ ] `Box`, `BoxArray`, `Patch`, `Level`, uniform decomposition.
-- [ ] `State`, field metadata, ghost fill, physical BCs.
+- [x] `Box`, `PatchField`, uniform single-rank decomposition
+      (`BoxArray`/`Level` pending).
+- [x] Field metadata and periodic ghost fill (physical BCs pending).
 - [ ] HDF5/XDMF output + checkpoint.
-- [ ] 2nd-order scalar advection–diffusion + SSP-RK3.
-- [ ] MMS 2nd-order convergence; conservation test.
+- [x] 2nd-order scalar advection–diffusion + SSP-RK3.
+- [x] MMS 2nd-order convergence; mass conservation (`docs/verification/`).
 - [ ] MPI halo exchange; weak scaling on CPU and GPU.
 
-**Exit:** 2nd-order MMS passes on 1–8 ranks; halo bandwidth measured.
+**Exit:** single-rank MMS passes at order 2.00; MPI 1–8 rank run pending.
 
 ### Phase 2 — High-order compressible (3–4 weeks)
 
