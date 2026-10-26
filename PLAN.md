@@ -854,7 +854,8 @@ measured; HIP/SYCL verification waits for hardware.
 - [x] `Box`, `PatchField`, uniform single-rank decomposition
       (`BoxArray`/`Level` pending).
 - [x] Field metadata and periodic ghost fill (physical BCs pending).
-- [ ] HDF5/XDMF output + checkpoint.
+- [x] VTK snapshot output and binary checkpoint/restart (1–2 ranks, CPU/CUDA);
+      HDF5/ADIOS2 backends are later.
 - [x] 2nd-order scalar advection–diffusion + SSP-RK3.
 - [x] MMS 2nd-order convergence; mass conservation on Serial, OpenMP, and
       CUDA (`docs/verification/`).

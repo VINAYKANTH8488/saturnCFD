@@ -15,6 +15,7 @@
 #include "core/version.hpp"
 #include "fields/patch_field.hpp"
 #include "halo/face_exchange.hpp"
+#include "io/vtk_writer.hpp"
 #include "mesh/decomposition.hpp"
 #include "mesh/uniform_grid.hpp"
 #include "numerics/scalar_advection.hpp"
@@ -55,6 +56,7 @@ struct Params {
   double cfl = 0.2;
   std::string space = "default";
   std::string json;
+  std::string output;
   bool verbose = false;
   bool check = false;
 };
@@ -87,6 +89,7 @@ void usage(const char* argv0) {
       << "  --cfl VALUE            advective CFL (default 0.2)\n"
       << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
       << "  --json PATH            write results as JSON\n"
+      << "  --output BASE          write the final field as VTK (BASE.vti/.pvti)\n"
       << "  --check                fail if observed order < 1.7 or mass drift > 1e-10\n"
       << "  --verbose              print the full Kokkos configuration\n"
       << "  --help                 show this help\n";
@@ -159,6 +162,8 @@ Params parse(int argc, char** argv) {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--json") {
       p.json = require_value(i, argc, argv, a);
+    } else if (a == "--output") {
+      p.output = require_value(i, argc, argv, a);
     } else if (a == "--verbose") {
       p.verbose = true;
     } else if (a == "--check") {
@@ -286,6 +291,16 @@ CaseResult run_case(int n, const Params& p) {
   ExecSpace().fence();
   const double seconds = saturn::mpi_max(timer.seconds());
   const double mass1 = saturn::mpi_sum(mass(q0));
+
+  if (!p.output.empty()) {
+    const std::array<double, 3> origin{{0.0, 0.0, 0.0}};
+    const bool ok = saturn::write_vti(p.output, q0, origin, grid.h,
+                                      grid.global, tend);
+    if (!ok && saturn::mpi_rank() == 0) {
+      std::fprintf(stderr, "VTK output failed for base '%s'\n",
+                   p.output.c_str());
+    }
+  }
 
   double l2 = 0.0;
   Kokkos::parallel_reduce(

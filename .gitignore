@@ -28,6 +28,9 @@ compile_commands.json
 /core
 core.[0-9]*
 
+# Test output
+saturn_io_test*
+
 # Python
 __pycache__/
 *.pyc

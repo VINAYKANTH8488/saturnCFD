@@ -4,11 +4,17 @@ target_link_libraries(saturn_test_smoke PRIVATE saturn_core)
 add_executable(saturn_test_halo test_halo.cpp)
 target_link_libraries(saturn_test_halo PRIVATE saturn_core)
 
+add_executable(saturn_test_io test_io.cpp)
+target_link_libraries(saturn_test_io PRIVATE saturn_core)
+
 add_test(NAME saturn.smoke COMMAND saturn_test_smoke)
 set_tests_properties(saturn.smoke PROPERTIES LABELS "unit")
 
 add_test(NAME saturn.halo COMMAND saturn_test_halo)
 set_tests_properties(saturn.halo PROPERTIES LABELS "unit;halo")
+
+add_test(NAME saturn.io COMMAND saturn_test_io)
+set_tests_properties(saturn.io PROPERTIES LABELS "unit;io")
 
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)
@@ -30,5 +36,13 @@ if(SATURN_HAVE_MPI)
             --kokkos-num-threads=1)
   set_tests_properties(saturn.scalar_mms_mpi PROPERTIES
     LABELS "verification;mpi"
+    ENVIRONMENT "DISPLAY=;OMP_NUM_THREADS=1;OMP_PROC_BIND=false")
+
+  add_test(NAME saturn.io_mpi
+    COMMAND ${SATURN_MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2
+            ${MPIEXEC_PREFLAGS} $<TARGET_FILE:saturn_test_io>
+            --kokkos-num-threads=1)
+  set_tests_properties(saturn.io_mpi PROPERTIES
+    LABELS "unit;io;mpi"
     ENVIRONMENT "DISPLAY=;OMP_NUM_THREADS=1;OMP_PROC_BIND=false")
 endif()
