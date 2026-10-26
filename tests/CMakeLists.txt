@@ -38,6 +38,15 @@ if(SATURN_HAVE_MPI)
     LABELS "verification;mpi"
     ENVIRONMENT "DISPLAY=;OMP_NUM_THREADS=1;OMP_PROC_BIND=false")
 
+  add_test(NAME saturn.scalar_mms_overlap_mpi
+    COMMAND ${SATURN_MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2
+            ${MPIEXEC_PREFLAGS} $<TARGET_FILE:saturn_scalar_mms>
+            --n-list 16 32 --nu 0.01 --tend 0.2 --overlap --check
+            --kokkos-num-threads=1)
+  set_tests_properties(saturn.scalar_mms_overlap_mpi PROPERTIES
+    LABELS "verification;mpi;overlap"
+    ENVIRONMENT "DISPLAY=;OMP_NUM_THREADS=1;OMP_PROC_BIND=false")
+
   add_test(NAME saturn.io_mpi
     COMMAND ${SATURN_MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2
             ${MPIEXEC_PREFLAGS} $<TARGET_FILE:saturn_test_io>

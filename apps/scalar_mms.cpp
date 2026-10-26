@@ -59,6 +59,7 @@ struct Params {
   std::string output;
   bool verbose = false;
   bool check = false;
+  bool overlap = false;
 };
 
 struct CaseResult {
@@ -90,6 +91,7 @@ void usage(const char* argv0) {
       << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
       << "  --json PATH            write results as JSON\n"
       << "  --output BASE          write the final field as VTK (BASE.vti/.pvti)\n"
+      << "  --overlap              overlap halo exchange with interior RHS (opt-in)\n"
       << "  --check                fail if observed order < 1.7 or mass drift > 1e-10\n"
       << "  --verbose              print the full Kokkos configuration\n"
       << "  --help                 show this help\n";
@@ -164,6 +166,8 @@ Params parse(int argc, char** argv) {
       p.json = require_value(i, argc, argv, a);
     } else if (a == "--output") {
       p.output = require_value(i, argc, argv, a);
+    } else if (a == "--overlap") {
+      p.overlap = true;
     } else if (a == "--verbose") {
       p.verbose = true;
     } else if (a == "--check") {
@@ -234,14 +238,15 @@ CaseResult run_case(int n, const Params& p) {
   dt = p.tend / steps;
 
   const double cell_volume = grid.h[0] * grid.h[1] * grid.h[2];
-  const auto interior = saturn::make_mdrange3<ExecSpace>(
+  const auto full_policy = saturn::make_mdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
+  const saturn::Box interior_box = box.shrink(1);
 
   auto mass = [&](const field_type& f) {
     double sum = 0.0;
     Kokkos::parallel_reduce(
-        "mass", interior,
+        "mass", full_policy,
         KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
           acc += f(0, i, j, k);
         },
@@ -252,32 +257,43 @@ CaseResult run_case(int n, const Params& p) {
   const double mass0 = saturn::mpi_sum(mass(q0));
   Kokkos::Timer timer;
 
+  auto compute_rhs = [&](field_type& q) {
+    if (p.overlap) {
+      exchange.begin(q);
+      saturn::scalar_advection_diffusion_rhs(q, rhs, velocity, p.nu, grid.h,
+                                             interior_box);
+      exchange.end(q);
+      saturn::scalar_advection_diffusion_rhs_shell(q, rhs, velocity, p.nu,
+                                                   grid.h, box);
+    } else {
+      exchange.exchange(q);
+      saturn::scalar_advection_diffusion_rhs(q, rhs, velocity, p.nu, grid.h);
+    }
+  };
+
   for (int step = 0; step < steps; ++step) {
-    exchange.exchange(q0);
-    saturn::scalar_advection_diffusion_rhs(q0, rhs, velocity, p.nu, grid.h);
+    compute_rhs(q0);
 
     Kokkos::parallel_for(
-        "rk3_stage1", interior,
+        "rk3_stage1", full_policy,
         KOKKOS_LAMBDA(int k, int j, int i) {
           q1(0, i, j, k) = q0(0, i, j, k) + dt * rhs(0, i, j, k);
         });
 
-    exchange.exchange(q1);
-    saturn::scalar_advection_diffusion_rhs(q1, rhs, velocity, p.nu, grid.h);
+    compute_rhs(q1);
 
     Kokkos::parallel_for(
-        "rk3_stage2", interior,
+        "rk3_stage2", full_policy,
         KOKKOS_LAMBDA(int k, int j, int i) {
           q2(0, i, j, k) =
               0.75 * q0(0, i, j, k) +
               0.25 * (q1(0, i, j, k) + dt * rhs(0, i, j, k));
         });
 
-    exchange.exchange(q2);
-    saturn::scalar_advection_diffusion_rhs(q2, rhs, velocity, p.nu, grid.h);
+    compute_rhs(q2);
 
     Kokkos::parallel_for(
-        "rk3_stage3", interior,
+        "rk3_stage3", full_policy,
         KOKKOS_LAMBDA(int k, int j, int i) {
           q1(0, i, j, k) =
               (1.0 / 3.0) * q0(0, i, j, k) +
@@ -304,7 +320,7 @@ CaseResult run_case(int n, const Params& p) {
 
   double l2 = 0.0;
   Kokkos::parallel_reduce(
-      "l2", interior,
+      "l2", full_policy,
       KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
         const double x = (i + 0.5) * (2.0 * kPi / static_cast<double>(n));
         const double y = (j + 0.5) * (2.0 * kPi / static_cast<double>(n));
@@ -318,7 +334,7 @@ CaseResult run_case(int n, const Params& p) {
 
   double linf = 0.0;
   Kokkos::parallel_reduce(
-      "linf", interior,
+      "linf", full_policy,
       KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
         const double x = (i + 0.5) * (2.0 * kPi / static_cast<double>(n));
         const double y = (j + 0.5) * (2.0 * kPi / static_cast<double>(n));

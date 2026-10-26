@@ -46,6 +46,9 @@ struct Box {
   }
 
   KOKKOS_INLINE_FUNCTION
+  Box shrink(int n) const { return grow(-n); }
+
+  KOKKOS_INLINE_FUNCTION
   Box shift(int di, int dj, int dk) const {
     Box result;
     result.lo[0] = lo[0] + di;

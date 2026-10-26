@@ -20,6 +20,9 @@ Phase 0 progress:
   `docs/verification/scalar_mms.md`).
 - **MPI halo exchange verified on 1, 2, 4, and 8 CPU ranks and 2 CUDA ranks**;
   the face-halo unit test reports zero errors.
+- Halo/compute overlap implemented (`begin`/`end` + boundary shell) and
+  correctness-tested; opt-in because it is not yet faster at the tested sizes
+  (`docs/verification/halo_overlap.md`).
 - VTK snapshots and binary checkpoint/restart pass on 1–2 ranks on CPU and CUDA
   (`docs/verification/io.md`); HDF5/ADIOS2 are later.
 - HIP/SYCL presets scaffolded; tuning waits for hardware access.

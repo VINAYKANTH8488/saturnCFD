@@ -863,11 +863,13 @@ measured; HIP/SYCL verification waits for hardware.
       CPU ranks and 2 CUDA ranks.
 - [x] Halo bandwidth measured (`docs/verification/scalar_mms.md`); overlap and
       weak scaling still pending.
-- [ ] Overlap halo exchange with interior computation.
+- [x] Overlap halo exchange with interior RHS (`begin`/`end`, boundary shell);
+      implemented and correct but opt-in because it is not yet faster at the
+      tested CPU/GPU sizes (`docs/verification/halo_overlap.md`).
 
 **Exit:** 2nd-order MMS passes on 1–8 ranks at order 1.99–2.00; halo unit test
-reports zero errors; exchange cost measured. Overlap is the remaining
-performance item.
+reports zero errors; exchange cost and overlap measured. Making overlap a win
+requires GPU streams / GPU-aware MPI and larger exchange fractions.
 
 ### Phase 2 — High-order compressible (3–4 weeks)
 

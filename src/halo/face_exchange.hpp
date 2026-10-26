@@ -42,16 +42,18 @@ class FaceExchange {
     }
   }
 
-  void exchange(PatchField<ExecSpace>& q) {
+  // Start a non-blocking exchange. Ghost cells on MPI faces are not valid
+  // until end() is called; interior cells (one layer inside the local box)
+  // are safe to compute in between.
+  void begin(PatchField<ExecSpace>& q) {
 #ifndef SATURN_ENABLE_MPI
     q.fill_periodic();
-    return;
+    (void)q;
 #else
-    for (int d = 0; d < 3; ++d) {
-      int mpi_sides[2] = {0, 0};
-      int nmpi = 0;
+    nrequests_ = 0;
+    npending_ = 0;
 
-      // Handle self-periodic sides and pack all MPI sides first.
+    for (int d = 0; d < 3; ++d) {
       for (int side_sign = -1; side_sign <= 1; side_sign += 2) {
         const int side = (side_sign < 0) ? 0 : 1;
         const int partner = decomposition_.partner(d, side_sign);
@@ -60,7 +62,7 @@ class FaceExchange {
         }
         if (partner == decomposition_.rank) {
           // Periodic dimension with one rank: pack the opposite face and
-          // unpack it into this side's ghosts.
+          // unpack it into this side's ghosts immediately.
           pack(q, d, -side_sign, send_[d][side]);
           Kokkos::deep_copy(recv_[d][side], send_[d][side]);
           unpack(q, d, side_sign, recv_[d][side]);
@@ -69,39 +71,45 @@ class FaceExchange {
         pack(q, d, side_sign, send_[d][side]);
         Kokkos::deep_copy(host_send_[d][side], send_[d][side]);
         Kokkos::fence();
-        mpi_sides[nmpi++] = side;
-      }
 
-      if (nmpi == 0) {
-        continue;
-      }
-
-      // Post both sides before waiting: the receive tag of one side matches
-      // the send tag of the opposite side on the neighbor.
-      MPI_Request requests[4];
-      int nreq = 0;
-      for (int k = 0; k < nmpi; ++k) {
-        const int side = mpi_sides[k];
-        const int side_sign = (side == 0) ? -1 : 1;
-        const int partner = decomposition_.partner(d, side_sign);
         const int send_tag = 100 + d * 2 + side;
         const int recv_tag = 100 + d * 2 + (1 - side);
         MPI_Isend(host_send_[d][side].data(), size_[d], MPI_DOUBLE, partner,
-                  send_tag, decomposition_.comm, &requests[nreq++]);
+                  send_tag, decomposition_.comm, &requests_[nrequests_++]);
         MPI_Irecv(host_recv_[d][side].data(), size_[d], MPI_DOUBLE, partner,
-                  recv_tag, decomposition_.comm, &requests[nreq++]);
-      }
-      MPI_Waitall(nreq, requests, MPI_STATUSES_IGNORE);
-
-      for (int k = 0; k < nmpi; ++k) {
-        const int side = mpi_sides[k];
-        const int side_sign = (side == 0) ? -1 : 1;
-        Kokkos::deep_copy(recv_[d][side], host_recv_[d][side]);
-        Kokkos::fence();
-        unpack(q, d, side_sign, recv_[d][side]);
+                  recv_tag, decomposition_.comm, &requests_[nrequests_++]);
+        pending_dim_[npending_] = d;
+        pending_side_[npending_] = side;
+        ++npending_;
       }
     }
 #endif
+  }
+
+  // Wait for the outstanding messages and fill the MPI-face ghosts.
+  void end(PatchField<ExecSpace>& q) {
+#ifdef SATURN_ENABLE_MPI
+    if (nrequests_ > 0) {
+      MPI_Waitall(nrequests_, requests_, MPI_STATUSES_IGNORE);
+    }
+    for (int k = 0; k < npending_; ++k) {
+      const int d = pending_dim_[k];
+      const int side = pending_side_[k];
+      Kokkos::deep_copy(recv_[d][side], host_recv_[d][side]);
+      Kokkos::fence();
+      unpack(q, d, (side == 0) ? -1 : 1, recv_[d][side]);
+    }
+    nrequests_ = 0;
+    npending_ = 0;
+#else
+    (void)q;
+#endif
+  }
+
+  // Blocking convenience wrapper.
+  void exchange(PatchField<ExecSpace>& q) {
+    begin(q);
+    end(q);
   }
 
  public:
@@ -198,6 +206,13 @@ class FaceExchange {
   buffer_type recv_[3][2]{};
   host_buffer_type host_send_[3][2]{};
   host_buffer_type host_recv_[3][2]{};
+#ifdef SATURN_ENABLE_MPI
+  MPI_Request requests_[12]{};
+  int pending_dim_[6]{0, 0, 0, 0, 0, 0};
+  int pending_side_[6]{0, 0, 0, 0, 0, 0};
+  int nrequests_ = 0;
+  int npending_ = 0;
+#endif
 };
 
 }  // namespace saturn
