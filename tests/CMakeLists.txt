@@ -22,6 +22,9 @@ target_link_libraries(saturn_test_boundary_conditions PRIVATE saturn_core)
 add_executable(saturn_test_poisson test_poisson.cpp)
 target_link_libraries(saturn_test_poisson PRIVATE saturn_core)
 
+add_executable(saturn_test_projection test_projection.cpp)
+target_link_libraries(saturn_test_projection PRIVATE saturn_core)
+
 add_test(NAME saturn.smoke COMMAND saturn_test_smoke)
 set_tests_properties(saturn.smoke PROPERTIES LABELS "unit")
 
@@ -46,6 +49,16 @@ set_tests_properties(saturn.boundary_conditions
 
 add_test(NAME saturn.poisson COMMAND saturn_test_poisson)
 set_tests_properties(saturn.poisson PROPERTIES LABELS "unit;numerics;poisson")
+
+add_test(NAME saturn.projection COMMAND saturn_test_projection)
+set_tests_properties(saturn.projection
+  PROPERTIES LABELS "unit;numerics;poisson")
+
+add_test(NAME saturn.incompressible_tgv
+  COMMAND saturn_incompressible_sim --n-list 16 32 64 --tend 0.5
+          --nu 0.05 --cfl 0.3 --check)
+set_tests_properties(saturn.incompressible_tgv
+  PROPERTIES LABELS "verification;incompressible")
 
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)

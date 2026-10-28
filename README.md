@@ -5,8 +5,9 @@ CPU and multiple GPUs, built on Kokkos. Basilisk-inspired in physics and
 workflow, designed for GPU-first scaling.
 
 **Status:** Phase 2 essentially complete on CPU (GPU scaling pending); Phase 3
-(incompressible) started with the periodic geometric-multigrid Poisson solver.
-The full design, numerics, and roadmap are in [PLAN.md](PLAN.md).
+(incompressible) in progress with a periodic GMG Poisson solver and a
+staggered-MAC projection prototype verified on the exact 2D Taylor–Green
+vortex. The full design, numerics, and roadmap are in [PLAN.md](PLAN.md).
 
 Progress:
 
@@ -59,6 +60,10 @@ Progress:
   periodic boxes with a 7-point Laplacian, red-black Gauss-Seidel smoothing,
   full-weighting restriction, and trilinear prolongation; 2nd-order MMS
   convergence at 16/32/48³ (`docs/verification/poisson.md`).
+- Phase 3 staggered-MAC projection solver with SSP-RK3 and projection after
+  every stage; the exact 2D Taylor–Green vortex converges at second order
+  (L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at 16/32/64²) with divergence at
+  round-off (`docs/verification/incompressible.md`).
 
 ## Requirements
 
@@ -319,6 +324,22 @@ The manufactured-solution test gives second-order convergence (2.01 and 2.00
 at 32³ and 48³; final relative residual `~1e-10`). The solver is currently
 single-rank, constant-coefficient, and periodic-only. Details and limitations
 are in `docs/verification/poisson.md`.
+
+## Incompressible solver (Phase 3)
+
+`apps/incompressible_sim.cpp` is a staggered MAC projection solver: second-
+order central advection/diffusion, SSP-RK3, and the GMG Poisson solver for the
+pressure correction after every RK stage.
+
+```bash
+./build/cpu-openmp/apps/saturn_incompressible_sim \
+  --n-list 16 32 64 --tend 0.5 --nu 0.05 --cfl 0.3 --check
+```
+
+The exact 2D Taylor–Green vortex converges at **2.00** order (L2 velocity
+`7.2e-3`, `1.8e-3`, `4.5e-4` at 16/32/64²) with `max|div| ~ 1e-12`. The
+prototype is single-rank and periodic-only. Details are in
+`docs/verification/incompressible.md`.
 
 ## MPI
 

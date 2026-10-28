@@ -22,3 +22,8 @@ add_executable(saturn_compressible_sim compressible_sim.cpp)
 target_link_libraries(saturn_compressible_sim PRIVATE saturn_core)
 target_compile_definitions(saturn_compressible_sim PRIVATE
   SATURN_DEFAULT_SPACE="${SATURN_DEFAULT_SPACE}")
+
+add_executable(saturn_incompressible_sim incompressible_sim.cpp)
+target_link_libraries(saturn_incompressible_sim PRIVATE saturn_core)
+target_compile_definitions(saturn_incompressible_sim PRIVATE
+  SATURN_DEFAULT_SPACE="${SATURN_DEFAULT_SPACE}")
