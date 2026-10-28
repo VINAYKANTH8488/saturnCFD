@@ -923,6 +923,11 @@ scaling to 8 GPUs.
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
+**Current:** periodic GMG and the staggered-MAC projection solver are verified
+on the exact 2D TGV and 3D ABC flow. Next: non-periodic and
+variable-coefficient Poisson operators (channel/cavity), the 3D TGV at
+Re=1600, and a distributed multigrid solve.
+
 **Exit:** projection + GMG validated against references and ≥ 70%
 strong-scaling efficiency at 8 GPUs for 512³; EDAC measured against the
 prototype, with a documented crossover only if the Poisson fraction is high
