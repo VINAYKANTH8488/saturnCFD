@@ -81,20 +81,22 @@ double exact_scalar(double x, double y, double z, double t, double nu) {
 }
 
 void usage(const char* argv0) {
-  std::cout
-      << "Usage: " << argv0 << " [options]\n"
-      << "  --n N                  single resolution\n"
-      << "  --n-list N1 N2 ...     resolutions for a convergence sweep\n"
-      << "  --nu VALUE             diffusivity (default 0.01)\n"
-      << "  --tend VALUE           final time (default 0.2)\n"
-      << "  --cfl VALUE            advective CFL (default 0.2)\n"
-      << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
-      << "  --json PATH            write results as JSON\n"
-      << "  --output BASE          write the final field as VTK (BASE.vti/.pvti)\n"
-      << "  --overlap              overlap halo exchange with interior RHS (opt-in)\n"
-      << "  --check                fail if observed order < 1.7 or mass drift > 1e-10\n"
-      << "  --verbose              print the full Kokkos configuration\n"
-      << "  --help                 show this help\n";
+  std::cout << "Usage: " << argv0 << " [options]\n"
+            << "  --n N                  single resolution\n"
+            << "  --n-list N1 N2 ...     resolutions for a convergence sweep\n"
+            << "  --nu VALUE             diffusivity (default 0.01)\n"
+            << "  --tend VALUE           final time (default 0.2)\n"
+            << "  --cfl VALUE            advective CFL (default 0.2)\n"
+            << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
+            << "  --json PATH            write results as JSON\n"
+            << "  --output BASE          write the final field as VTK "
+               "(BASE.vti/.pvti)\n"
+            << "  --overlap              overlap halo exchange with interior "
+               "RHS (opt-in)\n"
+            << "  --check                fail if observed order < 1.7 or mass "
+               "drift > 1e-10\n"
+            << "  --verbose              print the full Kokkos configuration\n"
+            << "  --help                 show this help\n";
 }
 
 double parse_double(const std::string& flag, const std::string& value) {
@@ -221,8 +223,8 @@ CaseResult run_case(int n, const Params& p) {
         const double x = (i + 0.5) * grid.h[0];
         const double y = (j + 0.5) * grid.h[1];
         const double z = (k + 0.5) * grid.h[2];
-        hq(0, k - box.lo[2] + ng, j - box.lo[1] + ng,
-           i - box.lo[0] + ng) = exact_scalar(x, y, z, 0.0, p.nu);
+        hq(0, k - box.lo[2] + ng, j - box.lo[1] + ng, i - box.lo[0] + ng) =
+            exact_scalar(x, y, z, 0.0, p.nu);
       }
     }
   }
@@ -275,26 +277,22 @@ CaseResult run_case(int n, const Params& p) {
     compute_rhs(q0);
 
     Kokkos::parallel_for(
-        "rk3_stage1", full_policy,
-        KOKKOS_LAMBDA(int k, int j, int i) {
+        "rk3_stage1", full_policy, KOKKOS_LAMBDA(int k, int j, int i) {
           q1(0, i, j, k) = q0(0, i, j, k) + dt * rhs(0, i, j, k);
         });
 
     compute_rhs(q1);
 
     Kokkos::parallel_for(
-        "rk3_stage2", full_policy,
-        KOKKOS_LAMBDA(int k, int j, int i) {
-          q2(0, i, j, k) =
-              0.75 * q0(0, i, j, k) +
-              0.25 * (q1(0, i, j, k) + dt * rhs(0, i, j, k));
+        "rk3_stage2", full_policy, KOKKOS_LAMBDA(int k, int j, int i) {
+          q2(0, i, j, k) = 0.75 * q0(0, i, j, k) +
+                           0.25 * (q1(0, i, j, k) + dt * rhs(0, i, j, k));
         });
 
     compute_rhs(q2);
 
     Kokkos::parallel_for(
-        "rk3_stage3", full_policy,
-        KOKKOS_LAMBDA(int k, int j, int i) {
+        "rk3_stage3", full_policy, KOKKOS_LAMBDA(int k, int j, int i) {
           q1(0, i, j, k) =
               (1.0 / 3.0) * q0(0, i, j, k) +
               (2.0 / 3.0) * (q2(0, i, j, k) + dt * rhs(0, i, j, k));
@@ -310,8 +308,8 @@ CaseResult run_case(int n, const Params& p) {
 
   if (!p.output.empty()) {
     const std::array<double, 3> origin{{0.0, 0.0, 0.0}};
-    const bool ok = saturn::write_vti(p.output, q0, origin, grid.h,
-                                      grid.global, tend);
+    const bool ok =
+        saturn::write_vti(p.output, q0, origin, grid.h, grid.global, tend);
     if (!ok && saturn::mpi_rank() == 0) {
       std::fprintf(stderr, "VTK output failed for base '%s'\n",
                    p.output.c_str());
@@ -329,8 +327,7 @@ CaseResult run_case(int n, const Params& p) {
         acc += e * e;
       },
       l2);
-  l2 = std::sqrt(saturn::mpi_sum(l2) /
-                 (static_cast<double>(n) * n * n));
+  l2 = std::sqrt(saturn::mpi_sum(l2) / (static_cast<double>(n) * n * n));
 
   double linf = 0.0;
   Kokkos::parallel_reduce(
@@ -366,7 +363,8 @@ int run_sweep(const Params& p) {
   const bool root = saturn::mpi_rank() == 0;
 
   if (root) {
-    std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion
+    std::cout << "\n"
+              << saturn::kProjectName << " " << saturn::kVersion
               << " scalar MMS\n"
               << "Kokkos: " << ExecSpace::name() << " (concurrency "
               << ExecSpace{}.concurrency() << ")\n";
@@ -383,8 +381,7 @@ int run_sweep(const Params& p) {
   for (int n : p.n_list) {
     CaseResult r = run_case<ExecSpace>(n, p);
     if (previous_error > 0.0 && previous_h > 0.0) {
-      r.order = std::log(previous_error / r.l2) /
-                std::log(previous_h / r.h);
+      r.order = std::log(previous_error / r.l2) / std::log(previous_h / r.h);
     }
     previous_error = r.l2;
     previous_h = r.h;
@@ -394,11 +391,10 @@ int run_sweep(const Params& p) {
       std::cout << std::left << std::setw(6) << r.n << std::setw(12)
                 << std::scientific << std::setprecision(3) << r.h
                 << std::setw(12) << r.dt << std::setw(8) << r.steps
-                << std::setw(14) << r.l2 << std::setw(8)
-                << std::fixed << std::setprecision(2) << r.order
-                << std::setw(14) << std::scientific << r.linf
-                << std::setw(14) << r.mass_drift << std::fixed
-                << std::setprecision(3) << r.seconds << "\n";
+                << std::setw(14) << r.l2 << std::setw(8) << std::fixed
+                << std::setprecision(2) << r.order << std::setw(14)
+                << std::scientific << r.linf << std::setw(14) << r.mass_drift
+                << std::fixed << std::setprecision(3) << r.seconds << "\n";
     }
   }
 

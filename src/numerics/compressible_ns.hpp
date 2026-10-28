@@ -46,12 +46,11 @@ double temperature(const PrimitiveState& state, const GasProperties& gas) {
 }
 
 template <class PatchType>
-KOKKOS_INLINE_FUNCTION
-PrimitiveState load_primitive(const PatchType& q, int i, int j, int k,
-                              const GasProperties& gas) {
-  const ConservativeState state{q(0, i, j, k), q(1, i, j, k),
-                                q(2, i, j, k), q(3, i, j, k),
-                                q(4, i, j, k)};
+KOKKOS_INLINE_FUNCTION PrimitiveState load_primitive(const PatchType& q, int i,
+                                                     int j, int k,
+                                                     const GasProperties& gas) {
+  const ConservativeState state{q(0, i, j, k), q(1, i, j, k), q(2, i, j, k),
+                                q(3, i, j, k), q(4, i, j, k)};
   return riemann::to_primitive(state, gas.gamma);
 }
 
@@ -74,8 +73,7 @@ Flux from_normal(const Flux& flux, int direction) {
     return flux;
   }
   if (direction == 1) {
-    return Flux{flux.rho, flux.mom_t1, flux.mom_n, flux.mom_t2,
-                flux.energy};
+    return Flux{flux.rho, flux.mom_t1, flux.mom_n, flux.mom_t2, flux.energy};
   }
   return Flux{flux.rho, flux.mom_t1, flux.mom_t2, flux.mom_n, flux.energy};
 }
@@ -83,10 +81,12 @@ Flux from_normal(const Flux& flux, int direction) {
 // Reconstruct the left/right primitive states at the face between cell
 // (i,j,k) and its neighbor in `direction`.
 template <class PatchType>
-KOKKOS_INLINE_FUNCTION
-void reconstruct_face(const PatchType& q, int i, int j, int k, int direction,
-                      Reconstruction scheme, const GasProperties& gas,
-                      PrimitiveState& left, PrimitiveState& right) {
+KOKKOS_INLINE_FUNCTION void reconstruct_face(const PatchType& q, int i, int j,
+                                             int k, int direction,
+                                             Reconstruction scheme,
+                                             const GasProperties& gas,
+                                             PrimitiveState& left,
+                                             PrimitiveState& right) {
   const int di = direction == 0 ? 1 : 0;
   const int dj = direction == 1 ? 1 : 0;
   const int dk = direction == 2 ? 1 : 0;
@@ -97,9 +97,8 @@ void reconstruct_face(const PatchType& q, int i, int j, int k, int direction,
   double w[6];
   double p[6];
   for (int offset = -2; offset <= 3; ++offset) {
-    const PrimitiveState value =
-        load_primitive(q, i + offset * di, j + offset * dj,
-                       k + offset * dk, gas);
+    const PrimitiveState value = load_primitive(
+        q, i + offset * di, j + offset * dj, k + offset * dk, gas);
     const int index = offset + 2;
     rho[index] = value.rho;
     u[index] = value.u;
@@ -130,10 +129,11 @@ void reconstruct_face(const PatchType& q, int i, int j, int k, int direction,
 }
 
 template <class PatchType>
-KOKKOS_INLINE_FUNCTION
-Flux inviscid_face_flux(const PatchType& q, int i, int j, int k,
-                        int direction, Reconstruction scheme,
-                        RiemannSolver solver, const GasProperties& gas) {
+KOKKOS_INLINE_FUNCTION Flux inviscid_face_flux(const PatchType& q, int i, int j,
+                                               int k, int direction,
+                                               Reconstruction scheme,
+                                               RiemannSolver solver,
+                                               const GasProperties& gas) {
   PrimitiveState left;
   PrimitiveState right;
   reconstruct_face(q, i, j, k, direction, scheme, gas, left, right);
@@ -151,28 +151,26 @@ double central4_derivative(double minus2, double minus1, double plus1,
 
 // Cell-centered 4th-order gradients of (u,v,w,T) along one direction.
 template <class PatchType>
-KOKKOS_INLINE_FUNCTION
-void gradient_line(const PatchType& q, int i, int j, int k, int direction,
-                   double h, const GasProperties& gas, double derivative[4]) {
+KOKKOS_INLINE_FUNCTION void gradient_line(const PatchType& q, int i, int j,
+                                          int k, int direction, double h,
+                                          const GasProperties& gas,
+                                          double derivative[4]) {
   const int di = direction == 0 ? 1 : 0;
   const int dj = direction == 1 ? 1 : 0;
   const int dk = direction == 2 ? 1 : 0;
   const PrimitiveState minus2 =
       load_primitive(q, i - 2 * di, j - 2 * dj, k - 2 * dk, gas);
-  const PrimitiveState minus1 =
-      load_primitive(q, i - di, j - dj, k - dk, gas);
-  const PrimitiveState plus1 =
-      load_primitive(q, i + di, j + dj, k + dk, gas);
+  const PrimitiveState minus1 = load_primitive(q, i - di, j - dj, k - dk, gas);
+  const PrimitiveState plus1 = load_primitive(q, i + di, j + dj, k + dk, gas);
   const PrimitiveState plus2 =
       load_primitive(q, i + 2 * di, j + 2 * dj, k + 2 * dk, gas);
 
   derivative[0] = central4_derivative(minus2.u, minus1.u, plus1.u, plus2.u, h);
   derivative[1] = central4_derivative(minus2.v, minus1.v, plus1.v, plus2.v, h);
   derivative[2] = central4_derivative(minus2.w, minus1.w, plus1.w, plus2.w, h);
-  derivative[3] = central4_derivative(temperature(minus2, gas),
-                                      temperature(minus1, gas),
-                                      temperature(plus1, gas),
-                                      temperature(plus2, gas), h);
+  derivative[3] =
+      central4_derivative(temperature(minus2, gas), temperature(minus1, gas),
+                          temperature(plus1, gas), temperature(plus2, gas), h);
 }
 
 // Gradient layout:
@@ -195,8 +193,7 @@ void compute_gradients(const PatchField<ExecSpace>& q,
   const double hz = grid.h[2];
 
   Kokkos::parallel_for(
-      "compressible_gradients", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "compressible_gradients", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         double derivative[4];
         gradient_line(q, i, j, k, 0, hx, gas, derivative);
         grad(0, i, j, k) = derivative[0];
@@ -222,8 +219,8 @@ void compute_gradients(const PatchField<ExecSpace>& q,
 //   0 tau_xx, 1 tau_yy, 2 tau_zz, 3 tau_xy, 4 tau_xz, 5 tau_yz
 template <class ExecSpace>
 void compute_stress(const PatchField<ExecSpace>& grad,
-                    PatchField<ExecSpace>& stress,
-                    const GasProperties& gas, const Box& region) {
+                    PatchField<ExecSpace>& stress, const GasProperties& gas,
+                    const Box& region) {
   if (region.empty()) {
     return;
   }
@@ -233,8 +230,7 @@ void compute_stress(const PatchField<ExecSpace>& grad,
   const double mu = gas.mu;
 
   Kokkos::parallel_for(
-      "compressible_stress", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "compressible_stress", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const double du_dx = grad(0, i, j, k);
         const double du_dy = grad(1, i, j, k);
         const double du_dz = grad(2, i, j, k);
@@ -287,20 +283,18 @@ void compute_face_fluxes_x(const PatchField<ExecSpace>& q,
   const int nx = box.length(0);
   const int ny = box.length(1);
   const int nz = box.length(2);
-  const auto policy = make_mdrange3<ExecSpace>(Int3{{0, 0, 0}},
-                                               Int3{{nz, ny, nx + 1}});
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{nz, ny, nx + 1}});
   auto fx = workspace.fx;
 
   Kokkos::parallel_for(
-      "compressible_faces_x", policy,
-      KOKKOS_LAMBDA(int k, int j, int face) {
+      "compressible_faces_x", policy, KOKKOS_LAMBDA(int k, int j, int face) {
         const int i_left = box.lo[0] + face - 1;
         const int j_global = box.lo[1] + j;
         const int k_global = box.lo[2] + k;
 
-        const Flux inviscid =
-            inviscid_face_flux(q, i_left, j_global, k_global, 0, scheme,
-                               solver, gas);
+        const Flux inviscid = inviscid_face_flux(q, i_left, j_global, k_global,
+                                                 0, scheme, solver, gas);
         fx(0, k, j, face) = inviscid.rho;
         fx(1, k, j, face) = inviscid.mom_n;
         fx(2, k, j, face) = inviscid.mom_t1;
@@ -318,20 +312,18 @@ void compute_face_fluxes_y(const PatchField<ExecSpace>& q,
   const int nx = box.length(0);
   const int ny = box.length(1);
   const int nz = box.length(2);
-  const auto policy = make_mdrange3<ExecSpace>(Int3{{0, 0, 0}},
-                                               Int3{{nz, ny + 1, nx}});
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{nz, ny + 1, nx}});
   auto fy = workspace.fy;
 
   Kokkos::parallel_for(
-      "compressible_faces_y", policy,
-      KOKKOS_LAMBDA(int k, int face, int i) {
+      "compressible_faces_y", policy, KOKKOS_LAMBDA(int k, int face, int i) {
         const int j_left = box.lo[1] + face - 1;
         const int i_global = box.lo[0] + i;
         const int k_global = box.lo[2] + k;
 
-        const Flux inviscid =
-            inviscid_face_flux(q, i_global, j_left, k_global, 1, scheme,
-                               solver, gas);
+        const Flux inviscid = inviscid_face_flux(q, i_global, j_left, k_global,
+                                                 1, scheme, solver, gas);
         fy(0, k, face, i) = inviscid.rho;
         fy(1, k, face, i) = inviscid.mom_n;
         fy(2, k, face, i) = inviscid.mom_t1;
@@ -349,20 +341,18 @@ void compute_face_fluxes_z(const PatchField<ExecSpace>& q,
   const int nx = box.length(0);
   const int ny = box.length(1);
   const int nz = box.length(2);
-  const auto policy = make_mdrange3<ExecSpace>(Int3{{0, 0, 0}},
-                                               Int3{{nz + 1, ny, nx}});
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{nz + 1, ny, nx}});
   auto fz = workspace.fz;
 
   Kokkos::parallel_for(
-      "compressible_faces_z", policy,
-      KOKKOS_LAMBDA(int face, int j, int i) {
+      "compressible_faces_z", policy, KOKKOS_LAMBDA(int face, int j, int i) {
         const int k_left = box.lo[2] + face - 1;
         const int i_global = box.lo[0] + i;
         const int j_global = box.lo[1] + j;
 
-        const Flux inviscid =
-            inviscid_face_flux(q, i_global, j_global, k_left, 2, scheme,
-                               solver, gas);
+        const Flux inviscid = inviscid_face_flux(q, i_global, j_global, k_left,
+                                                 2, scheme, solver, gas);
         fz(0, face, j, i) = inviscid.rho;
         fz(1, face, j, i) = inviscid.mom_n;
         fz(2, face, j, i) = inviscid.mom_t1;
@@ -373,16 +363,15 @@ void compute_face_fluxes_z(const PatchField<ExecSpace>& q,
 
 // Fourth-order central derivative of one component of a cell-centered field.
 template <class FieldType>
-KOKKOS_INLINE_FUNCTION
-double field_derivative(const FieldType& field, int component, int i, int j,
-                        int k, int di, int dj, int dk, double h) {
-  return central4_derivative(field(component, i - 2 * di, j - 2 * dj,
-                                  k - 2 * dk),
-                             field(component, i - di, j - dj, k - dk),
-                             field(component, i + di, j + dj, k + dk),
-                             field(component, i + 2 * di, j + 2 * dj,
-                                   k + 2 * dk),
-                             h);
+KOKKOS_INLINE_FUNCTION double field_derivative(const FieldType& field,
+                                               int component, int i, int j,
+                                               int k, int di, int dj, int dk,
+                                               double h) {
+  return central4_derivative(
+      field(component, i - 2 * di, j - 2 * dj, k - 2 * dk),
+      field(component, i - di, j - dj, k - dk),
+      field(component, i + di, j + dj, k + dk),
+      field(component, i + 2 * di, j + 2 * dj, k + 2 * dk), h);
 }
 
 // Assemble -div(F_inviscid) + div(tau) and the viscous energy terms. The
@@ -407,16 +396,15 @@ void assemble_rhs(const PatchField<ExecSpace>& q,
   auto fz = workspace.fz;
   const auto grad_patch = workspace.grad;
   const auto stress = workspace.stress;
-  const double conductivity = gas.mu * gas.gamma * gas.gas_constant /
-                              ((gas.gamma - 1.0) * gas.prandtl);
+  const double conductivity =
+      gas.mu * gas.gamma * gas.gas_constant / ((gas.gamma - 1.0) * gas.prandtl);
 
   const auto policy = make_mdrange3<ExecSpace>(
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
 
   Kokkos::parallel_for(
-      "compressible_assemble_rhs", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "compressible_assemble_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int il = i - box.lo[0];
         const int jl = j - box.lo[1];
         const int kl = k - box.lo[2];
@@ -426,28 +414,24 @@ void assemble_rhs(const PatchField<ExecSpace>& q,
         const double div_z = (fz(0, kl + 1, jl, il) - fz(0, kl, jl, il)) / hz;
         rhs(0, i, j, k) = -(div_x + div_y + div_z);
 
-        const double mom_x =
-            (fx(1, kl, jl, il + 1) - fx(1, kl, jl, il)) / hx +
-            (fy(1, kl, jl + 1, il) - fy(1, kl, jl, il)) / hy +
-            (fz(1, kl + 1, jl, il) - fz(1, kl, jl, il)) / hz;
+        const double mom_x = (fx(1, kl, jl, il + 1) - fx(1, kl, jl, il)) / hx +
+                             (fy(1, kl, jl + 1, il) - fy(1, kl, jl, il)) / hy +
+                             (fz(1, kl + 1, jl, il) - fz(1, kl, jl, il)) / hz;
         rhs(1, i, j, k) = -mom_x;
 
-        const double mom_y =
-            (fx(2, kl, jl, il + 1) - fx(2, kl, jl, il)) / hx +
-            (fy(2, kl, jl + 1, il) - fy(2, kl, jl, il)) / hy +
-            (fz(2, kl + 1, jl, il) - fz(2, kl, jl, il)) / hz;
+        const double mom_y = (fx(2, kl, jl, il + 1) - fx(2, kl, jl, il)) / hx +
+                             (fy(2, kl, jl + 1, il) - fy(2, kl, jl, il)) / hy +
+                             (fz(2, kl + 1, jl, il) - fz(2, kl, jl, il)) / hz;
         rhs(2, i, j, k) = -mom_y;
 
-        const double mom_z =
-            (fx(3, kl, jl, il + 1) - fx(3, kl, jl, il)) / hx +
-            (fy(3, kl, jl + 1, il) - fy(3, kl, jl, il)) / hy +
-            (fz(3, kl + 1, jl, il) - fz(3, kl, jl, il)) / hz;
+        const double mom_z = (fx(3, kl, jl, il + 1) - fx(3, kl, jl, il)) / hx +
+                             (fy(3, kl, jl + 1, il) - fy(3, kl, jl, il)) / hy +
+                             (fz(3, kl + 1, jl, il) - fz(3, kl, jl, il)) / hz;
         rhs(3, i, j, k) = -mom_z;
 
-        const double energy =
-            (fx(4, kl, jl, il + 1) - fx(4, kl, jl, il)) / hx +
-            (fy(4, kl, jl + 1, il) - fy(4, kl, jl, il)) / hy +
-            (fz(4, kl + 1, jl, il) - fz(4, kl, jl, il)) / hz;
+        const double energy = (fx(4, kl, jl, il + 1) - fx(4, kl, jl, il)) / hx +
+                              (fy(4, kl, jl + 1, il) - fy(4, kl, jl, il)) / hy +
+                              (fz(4, kl + 1, jl, il) - fz(4, kl, jl, il)) / hz;
         rhs(4, i, j, k) = -energy;
 
         const double div_tau_x =
@@ -474,8 +458,7 @@ void assemble_rhs(const PatchField<ExecSpace>& q,
         const double dw_dz = grad_patch(8, i, j, k);
         const double dissipation =
             stress(0, i, j, k) * du_dx + stress(1, i, j, k) * dv_dy +
-            stress(2, i, j, k) * dw_dz +
-            stress(3, i, j, k) * (du_dy + dv_dx) +
+            stress(2, i, j, k) * dw_dz + stress(3, i, j, k) * (du_dy + dv_dx) +
             stress(4, i, j, k) * (du_dz + dw_dx) +
             stress(5, i, j, k) * (dv_dz + dw_dy);
 
@@ -553,10 +536,8 @@ double max_kinematic_diffusivity(const PatchField<ExecSpace>& q,
       KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
         const PrimitiveState state = load_primitive(q, i, j, k, gas);
         const double nu_momentum = (4.0 / 3.0) * gas.mu / state.rho;
-        const double nu_thermal =
-            gas.mu / (state.rho * gas.prandtl);
-        const double nu =
-            nu_momentum > nu_thermal ? nu_momentum : nu_thermal;
+        const double nu_thermal = gas.mu / (state.rho * gas.prandtl);
+        const double nu = nu_momentum > nu_thermal ? nu_momentum : nu_thermal;
         acc = nu > acc ? nu : acc;
       },
       Kokkos::Max<double>{local_max});

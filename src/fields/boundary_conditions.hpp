@@ -43,18 +43,16 @@ void apply_boundary_conditions(PatchField<ExecSpace>& q,
   const int np0 = box.length(0) + 2 * ng;
   const int np1 = box.length(1) + 2 * ng;
   const int np2 = box.length(2) + 2 * ng;
-  const auto policy = make_mdrange3<ExecSpace>(Int3{{0, 0, 0}},
-                                               Int3{{np2, np1, np0}});
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
 
   Kokkos::parallel_for(
-      "compressible_boundary", policy,
-      KOKKOS_LAMBDA(int kp, int jp, int ip) {
+      "compressible_boundary", policy, KOKKOS_LAMBDA(int kp, int jp, int ip) {
         const int i = box.lo[0] - ng + ip;
         const int j = box.lo[1] - ng + jp;
         const int k = box.lo[2] - ng + kp;
-        const bool outside = i < box.lo[0] || i > box.hi[0] ||
-                             j < box.lo[1] || j > box.hi[1] ||
-                             k < box.lo[2] || k > box.hi[2];
+        const bool outside = i < box.lo[0] || i > box.hi[0] || j < box.lo[1] ||
+                             j > box.hi[1] || k < box.lo[2] || k > box.hi[2];
         if (!outside) {
           return;
         }
@@ -107,8 +105,7 @@ void apply_boundary_conditions(PatchField<ExecSpace>& q,
         auto data = q.data();
         for (int v = 0; v < q.nvar(); ++v) {
           double value = data(v, source_kp, source_jp, source_ip);
-          if ((v == 1 && flip_x) || (v == 2 && flip_y) ||
-              (v == 3 && flip_z)) {
+          if ((v == 1 && flip_x) || (v == 2 && flip_y) || (v == 3 && flip_z)) {
             value = -value;
           }
           data(v, kp, jp, ip) = value;

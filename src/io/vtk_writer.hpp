@@ -39,8 +39,7 @@ inline void ensure_parent(const std::string& path) {
 //
 // `names` must contain at least q.nvar() entries.
 template <class ExecSpace>
-bool write_vti_fields(const std::string& base,
-                      const PatchField<ExecSpace>& q,
+bool write_vti_fields(const std::string& base, const PatchField<ExecSpace>& q,
                       const std::vector<std::string>& names,
                       const std::array<double, 3>& origin,
                       const std::array<double, 3>& spacing, const Box& global,
@@ -63,8 +62,8 @@ bool write_vti_fields(const std::string& base,
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 #endif
 
-  const std::string vti = (size > 1) ? (base + rank_suffix(rank) + ".vti")
-                                     : (base + ".vti");
+  const std::string vti =
+      (size > 1) ? (base + rank_suffix(rank) + ".vti") : (base + ".vti");
   ensure_parent(vti);
   std::ofstream out(vti);
   if (!out) {
@@ -72,12 +71,10 @@ bool write_vti_fields(const std::string& base,
     return false;
   }
 
-  const int whole[6] = {global.lo[0], global.hi[0] + 1,
-                        global.lo[1], global.hi[1] + 1,
-                        global.lo[2], global.hi[2] + 1};
-  const int piece[6] = {local.lo[0], local.hi[0] + 1,
-                        local.lo[1], local.hi[1] + 1,
-                        local.lo[2], local.hi[2] + 1};
+  const int whole[6] = {global.lo[0],     global.hi[0] + 1, global.lo[1],
+                        global.hi[1] + 1, global.lo[2],     global.hi[2] + 1};
+  const int piece[6] = {local.lo[0],     local.hi[0] + 1, local.lo[1],
+                        local.hi[1] + 1, local.lo[2],     local.hi[2] + 1};
 
   auto name_of = [&](int v) -> const std::string& {
     static const std::string fallback = "var";
@@ -94,8 +91,8 @@ bool write_vti_fields(const std::string& base,
       << "  <ImageData WholeExtent=\"" << whole[0] << " " << whole[1] << " "
       << whole[2] << " " << whole[3] << " " << whole[4] << " " << whole[5]
       << "\" Origin=\"" << origin[0] << " " << origin[1] << " " << origin[2]
-      << "\" Spacing=\"" << spacing[0] << " " << spacing[1] << " "
-      << spacing[2] << "\">\n"
+      << "\" Spacing=\"" << spacing[0] << " " << spacing[1] << " " << spacing[2]
+      << "\">\n"
       << "    <Piece Extent=\"" << piece[0] << " " << piece[1] << " "
       << piece[2] << " " << piece[3] << " " << piece[4] << " " << piece[5]
       << "\">\n"
@@ -131,9 +128,8 @@ bool write_vti_fields(const std::string& base,
   if (rank == 0) {
     extents.resize(static_cast<std::size_t>(6) * size);
   }
-  MPI_Gather(local_extent, 6, MPI_INT,
-             (rank == 0) ? extents.data() : nullptr, 6, MPI_INT, 0,
-             MPI_COMM_WORLD);
+  MPI_Gather(local_extent, 6, MPI_INT, (rank == 0) ? extents.data() : nullptr,
+             6, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
   if (rank == 0) {
@@ -147,9 +143,9 @@ bool write_vti_fields(const std::string& base,
     collection << "<?xml version=\"1.0\"?>\n"
                << "<VTKFile type=\"PImageData\" version=\"0.1\" "
                   "byte_order=\"LittleEndian\">\n"
-               << "  <PImageData WholeExtent=\"" << whole[0] << " "
-               << whole[1] << " " << whole[2] << " " << whole[3] << " "
-               << whole[4] << " " << whole[5] << "\" GhostLevel=\"0\" "
+               << "  <PImageData WholeExtent=\"" << whole[0] << " " << whole[1]
+               << " " << whole[2] << " " << whole[3] << " " << whole[4] << " "
+               << whole[5] << "\" GhostLevel=\"0\" "
                << "Origin=\"" << origin[0] << " " << origin[1] << " "
                << origin[2] << "\" Spacing=\"" << spacing[0] << " "
                << spacing[1] << " " << spacing[2] << "\">\n"
@@ -161,9 +157,9 @@ bool write_vti_fields(const std::string& base,
     collection << "    </PCellData>\n";
     for (int r = 0; r < size; ++r) {
       const int* e = &extents[static_cast<std::size_t>(r) * 6];
-      collection << "    <Piece Extent=\"" << e[0] << " " << e[1] << " "
-                 << e[2] << " " << e[3] << " " << e[4] << " " << e[5]
-                 << "\" Source=\"" << base << rank_suffix(r) << ".vti\"/>\n";
+      collection << "    <Piece Extent=\"" << e[0] << " " << e[1] << " " << e[2]
+                 << " " << e[3] << " " << e[4] << " " << e[5] << "\" Source=\""
+                 << base << rank_suffix(r) << ".vti\"/>\n";
     }
     collection << "  </PImageData>\n"
                << "</VTKFile>\n";

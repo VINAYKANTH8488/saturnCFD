@@ -47,8 +47,8 @@ class BoxExchange {
     }
     (void)all_periodic;
 
-    auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
-                                                    q.data());
+    auto host =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());
 
     struct Pending {
       int neighbor = 0;
@@ -153,14 +153,13 @@ class BoxExchange {
     int index = 0;
     for (int v = 0; v < nvar_; ++v) {
       for (int kk = 0; kk < extent[2]; ++kk) {
-        const int k = (off[2] > 0) ? box.hi[2] - ng_ + 1 + kk
-                                   : box.lo[2] + kk;
+        const int k = (off[2] > 0) ? box.hi[2] - ng_ + 1 + kk : box.lo[2] + kk;
         for (int jj = 0; jj < extent[1]; ++jj) {
-          const int j = (off[1] > 0) ? box.hi[1] - ng_ + 1 + jj
-                                     : box.lo[1] + jj;
+          const int j =
+              (off[1] > 0) ? box.hi[1] - ng_ + 1 + jj : box.lo[1] + jj;
           for (int ii = 0; ii < extent[0]; ++ii) {
-            const int i = (off[0] > 0) ? box.hi[0] - ng_ + 1 + ii
-                                       : box.lo[0] + ii;
+            const int i =
+                (off[0] > 0) ? box.hi[0] - ng_ + 1 + ii : box.lo[0] + ii;
             buffer[static_cast<std::size_t>(index++)] =
                 host(v, k - box.lo[2] + ng_, j - box.lo[1] + ng_,
                      i - box.lo[0] + ng_);
@@ -176,9 +175,9 @@ class BoxExchange {
     int index = 0;
     for (int v = 0; v < nvar_; ++v) {
       for (int kk = 0; kk < extent[2]; ++kk) {
-        const int k = (off[2] > 0) ? box.hi[2] + 1 + kk
-                                   : (off[2] < 0 ? box.lo[2] - ng_ + kk
-                                                 : box.lo[2] + kk);
+        const int k =
+            (off[2] > 0) ? box.hi[2] + 1 + kk
+                         : (off[2] < 0 ? box.lo[2] - ng_ + kk : box.lo[2] + kk);
         for (int jj = 0; jj < extent[1]; ++jj) {
           const int j = (off[1] > 0) ? box.hi[1] + 1 + jj
                                      : (off[1] < 0 ? box.lo[1] - ng_ + jj

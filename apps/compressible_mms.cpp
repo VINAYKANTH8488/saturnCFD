@@ -235,8 +235,7 @@ Params parse(int argc, char** argv) {
     p.mu = 0.05;
   }
   if (p.case_name == "entropy" && p.mu != 0.0) {
-    std::fprintf(stderr,
-                 "entropy case is inviscid; set --mu 0 or omit --mu\n");
+    std::fprintf(stderr, "entropy case is inviscid; set --mu 0 or omit --mu\n");
     std::exit(2);
   }
   if (p.time != "rk3" && p.time != "rk4") {
@@ -320,8 +319,7 @@ void copy_field(const saturn::PatchField<ExecSpace>& source,
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "copy_field", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "copy_field", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < 5; ++v) {
           destination(v, i, j, k) = source(v, i, j, k);
         }
@@ -338,27 +336,23 @@ void combine_fields(saturn::PatchField<ExecSpace>& destination, double a,
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "combine_fields", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "combine_fields", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < 5; ++v) {
-          destination(v, i, j, k) =
-              a * x(v, i, j, k) + b * y(v, i, j, k);
+          destination(v, i, j, k) = a * x(v, i, j, k) + b * y(v, i, j, k);
         }
       });
 }
 
 // destination += scale * x
 template <class ExecSpace>
-void add_scaled_field(saturn::PatchField<ExecSpace>& destination,
-                      double scale,
+void add_scaled_field(saturn::PatchField<ExecSpace>& destination, double scale,
                       const saturn::PatchField<ExecSpace>& x) {
   const saturn::Box box = destination.box();
   const auto policy = saturn::make_mdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "add_scaled_field", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "add_scaled_field", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < 5; ++v) {
           destination(v, i, j, k) += scale * x(v, i, j, k);
         }
@@ -366,8 +360,7 @@ void add_scaled_field(saturn::PatchField<ExecSpace>& destination,
 }
 
 template <class ExecSpace>
-CaseResult run_case(int n, const Params& params,
-                    const ExactSolution& exact) {
+CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   using field_type = saturn::PatchField<ExecSpace>;
   using workspace_type = saturn::compressible::CompressibleWorkspace<ExecSpace>;
 
@@ -423,8 +416,8 @@ CaseResult run_case(int n, const Params& params,
 
   const auto compute_rhs = [&](field_type& state, field_type& out) {
     exchange.exchange(state);
-    saturn::compressible::compressible_rhs(
-        state, workspace, out, grid, gas, scheme, solver, params.sink);
+    saturn::compressible::compressible_rhs(state, workspace, out, grid, gas,
+                                           scheme, solver, params.sink);
   };
 
   const double hmin = std::min({grid.h[0], grid.h[1], grid.h[2]});
@@ -453,8 +446,7 @@ CaseResult run_case(int n, const Params& params,
   double last_dt = 0.0;
 
   while (time < params.tend - 1.0e-14) {
-    const double max_speed =
-        saturn::compressible::max_wave_speed(q, gas);
+    const double max_speed = saturn::compressible::max_wave_speed(q, gas);
     const double max_nu =
         saturn::compressible::max_kinematic_diffusivity(q, gas);
     double dt = params.cfl * hmin / std::max(max_speed, 1.0e-300);
@@ -565,7 +557,8 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
   const bool root = saturn::mpi_rank() == 0;
 
   if (root) {
-    std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion
+    std::cout << "\n"
+              << saturn::kProjectName << " " << saturn::kVersion
               << " compressible " << params.case_name << " MMS\n"
               << "scheme: " << scheme_name(parse_scheme(params.scheme))
               << ", solver: " << solver_name(parse_solver(params.solver))
@@ -585,8 +578,8 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
 
   for (const int n : params.n_list) {
     CaseResult result = run_case<ExecSpace>(n, params, exact);
-    const double error = params.case_name == "shear" ? result.l2_u
-                                                     : result.l2_rho;
+    const double error =
+        params.case_name == "shear" ? result.l2_u : result.l2_rho;
     if (previous_error > 0.0 && previous_h > 0.0) {
       result.order =
           std::log(previous_error / error) / std::log(previous_h / result.h);
@@ -600,13 +593,11 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
                 << std::scientific << std::setprecision(3) << result.h
                 << std::setw(12) << result.dt << std::setw(8) << result.steps
                 << std::setw(14) << result.l2_rho << std::setw(14)
-                << result.l2_u << std::setw(14) << result.l2_p
-                << std::setw(8) << std::fixed << std::setprecision(2)
-                << result.order << std::scientific << std::setprecision(2)
-                << std::setw(12) << result.mass_drift
-                << std::setw(12) << result.energy_drift
-                << std::fixed << std::setprecision(3)
-                << result.seconds << "\n";
+                << result.l2_u << std::setw(14) << result.l2_p << std::setw(8)
+                << std::fixed << std::setprecision(2) << result.order
+                << std::scientific << std::setprecision(2) << std::setw(12)
+                << result.mass_drift << std::setw(12) << result.energy_drift
+                << std::fixed << std::setprecision(3) << result.seconds << "\n";
     }
   }
 

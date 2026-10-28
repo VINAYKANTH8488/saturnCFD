@@ -53,8 +53,8 @@ bool valid(const PrimitiveState& state) {
 
 // Maximum-entropy wave speed estimate used by the local Lax-Friedrichs flux.
 KOKKOS_INLINE_FUNCTION
-double max_signal_speed(const PrimitiveState& left,
-                        const PrimitiveState& right, double gamma) {
+double max_signal_speed(const PrimitiveState& left, const PrimitiveState& right,
+                        double gamma) {
   const double c_left = Kokkos::sqrt(gamma * left.p / left.rho);
   const double c_right = Kokkos::sqrt(gamma * right.p / right.rho);
   const double a_left = Kokkos::fabs(left.u) + c_left;
@@ -68,8 +68,8 @@ ConservativeState to_conservative(const PrimitiveState& state, double gamma) {
       0.5 * state.rho *
       (state.u * state.u + state.v * state.v + state.w * state.w);
   const double energy = state.p / (gamma - 1.0) + kinetic;
-  return ConservativeState{state.rho, state.rho * state.u,
-                           state.rho * state.v, state.rho * state.w, energy};
+  return ConservativeState{state.rho, state.rho * state.u, state.rho * state.v,
+                           state.rho * state.w, energy};
 }
 
 KOKKOS_INLINE_FUNCTION
@@ -80,8 +80,9 @@ PrimitiveState to_primitive(const ConservativeState& state, double gamma) {
   const double v = state.mom_t1 * inv_rho;
   const double w = state.mom_t2 * inv_rho;
   const double kinetic =
-      0.5 * (state.mom_n * state.mom_n + state.mom_t1 * state.mom_t1 +
-             state.mom_t2 * state.mom_t2) *
+      0.5 *
+      (state.mom_n * state.mom_n + state.mom_t1 * state.mom_t1 +
+       state.mom_t2 * state.mom_t2) *
       inv_rho;
   const double pressure = (gamma - 1.0) * (state.energy - kinetic);
   return PrimitiveState{rho, u, v, w, pressure};
@@ -89,10 +90,10 @@ PrimitiveState to_primitive(const ConservativeState& state, double gamma) {
 
 KOKKOS_INLINE_FUNCTION
 Flux physical_flux(const PrimitiveState& state, double gamma) {
-  const double energy = state.p / (gamma - 1.0) +
-                        0.5 * state.rho *
-                            (state.u * state.u + state.v * state.v +
-                             state.w * state.w);
+  const double energy =
+      state.p / (gamma - 1.0) +
+      0.5 * state.rho *
+          (state.u * state.u + state.v * state.v + state.w * state.w);
   return Flux{state.rho * state.u, state.rho * state.u * state.u + state.p,
               state.rho * state.u * state.v, state.rho * state.u * state.w,
               state.u * (energy + state.p)};
@@ -100,8 +101,7 @@ Flux physical_flux(const PrimitiveState& state, double gamma) {
 
 KOKKOS_INLINE_FUNCTION
 Flux average_flux(const Flux& left, const Flux& right) {
-  return Flux{0.5 * (left.rho + right.rho),
-              0.5 * (left.mom_n + right.mom_n),
+  return Flux{0.5 * (left.rho + right.rho), 0.5 * (left.mom_n + right.mom_n),
               0.5 * (left.mom_t1 + right.mom_t1),
               0.5 * (left.mom_t2 + right.mom_t2),
               0.5 * (left.energy + right.energy)};
@@ -120,17 +120,16 @@ Flux llf(const PrimitiveState& left, const PrimitiveState& right,
   const ConservativeState u_left = to_conservative(left, gamma);
   const ConservativeState u_right = to_conservative(right, gamma);
   const double alpha = max_signal_speed(left, right, gamma);
-  return Flux{
-      0.5 * (flux_left.rho + flux_right.rho) -
-          0.5 * alpha * (u_right.rho - u_left.rho),
-      0.5 * (flux_left.mom_n + flux_right.mom_n) -
-          0.5 * alpha * (u_right.mom_n - u_left.mom_n),
-      0.5 * (flux_left.mom_t1 + flux_right.mom_t1) -
-          0.5 * alpha * (u_right.mom_t1 - u_left.mom_t1),
-      0.5 * (flux_left.mom_t2 + flux_right.mom_t2) -
-          0.5 * alpha * (u_right.mom_t2 - u_left.mom_t2),
-      0.5 * (flux_left.energy + flux_right.energy) -
-          0.5 * alpha * (u_right.energy - u_left.energy)};
+  return Flux{0.5 * (flux_left.rho + flux_right.rho) -
+                  0.5 * alpha * (u_right.rho - u_left.rho),
+              0.5 * (flux_left.mom_n + flux_right.mom_n) -
+                  0.5 * alpha * (u_right.mom_n - u_left.mom_n),
+              0.5 * (flux_left.mom_t1 + flux_right.mom_t1) -
+                  0.5 * alpha * (u_right.mom_t1 - u_left.mom_t1),
+              0.5 * (flux_left.mom_t2 + flux_right.mom_t2) -
+                  0.5 * alpha * (u_right.mom_t2 - u_left.mom_t2),
+              0.5 * (flux_left.energy + flux_right.energy) -
+                  0.5 * alpha * (u_right.energy - u_left.energy)};
 }
 
 // HLLC with Roe-averaged wave-speed bounds.
@@ -158,11 +157,10 @@ Flux hllc_impl(const PrimitiveState& left, const PrimitiveState& right,
   const double u_roe = (sqrt_left * left.u + sqrt_right * right.u) * inv_sum;
   const double v_roe = (sqrt_left * left.v + sqrt_right * right.v) * inv_sum;
   const double w_roe = (sqrt_left * left.w + sqrt_right * right.w) * inv_sum;
-  const double h_roe =
-      (sqrt_left * h_left + sqrt_right * h_right) * inv_sum;
-  double c_roe_sq = (gamma - 1.0) *
-                    (h_roe - 0.5 * (u_roe * u_roe + v_roe * v_roe +
-                                    w_roe * w_roe));
+  const double h_roe = (sqrt_left * h_left + sqrt_right * h_right) * inv_sum;
+  double c_roe_sq =
+      (gamma - 1.0) *
+      (h_roe - 0.5 * (u_roe * u_roe + v_roe * v_roe + w_roe * w_roe));
   if (!(c_roe_sq > 0.0)) {
     c_roe_sq = 0.0;
   }
@@ -217,8 +215,7 @@ Flux hllc_impl(const PrimitiveState& left, const PrimitiveState& right,
         factor, factor * s_star, factor * left.v, factor * left.w,
         factor * (u_left.energy / left.rho +
                   (s_star - left.u) *
-                      (s_star + left.p /
-                                    (left.rho * (s_left - left.u))))};
+                      (s_star + left.p / (left.rho * (s_left - left.u))))};
     return Flux{flux_left.rho + s_left * (star.rho - u_left.rho),
                 flux_left.mom_n + s_left * (star.mom_n - u_left.mom_n),
                 flux_left.mom_t1 + s_left * (star.mom_t1 - u_left.mom_t1),
@@ -239,8 +236,7 @@ Flux hllc_impl(const PrimitiveState& left, const PrimitiveState& right,
       factor, factor * s_star, factor * right.v, factor * right.w,
       factor * (u_right.energy / right.rho +
                 (s_star - right.u) *
-                    (s_star + right.p /
-                                  (right.rho * (s_right - right.u))))};
+                    (s_star + right.p / (right.rho * (s_right - right.u))))};
   return Flux{flux_right.rho + s_right * (star.rho - u_right.rho),
               flux_right.mom_n + s_right * (star.mom_n - u_right.mom_n),
               flux_right.mom_t1 + s_right * (star.mom_t1 - u_right.mom_t1),
@@ -382,9 +378,9 @@ Flux ausm_plus_up(const PrimitiveState& left, const PrimitiveState& right,
   const double p_minus_right = pressure_minus_5(mach_right, alpha);
 
   const double rho_face = 0.5 * (left.rho + right.rho);
-  double pressure_diffusion =
-      -0.75 * p_plus_left * p_minus_right * (left.rho + right.rho) *
-      (f_a * a_face) * (right.u - left.u);
+  double pressure_diffusion = -0.75 * p_plus_left * p_minus_right *
+                              (left.rho + right.rho) * (f_a * a_face) *
+                              (right.u - left.u);
 
   double mass_diffusion = 0.0;
   const double pressure_jump = right.p - left.p;
@@ -393,23 +389,22 @@ Flux ausm_plus_up(const PrimitiveState& left, const PrimitiveState& right,
                      (rho_face * a_face * a_face);
   }
 
-  const double mach_face = mach_plus_2(mach_left) +
-                           mach_minus_2(mach_right) + mass_diffusion;
+  const double mach_face =
+      mach_plus_2(mach_left) + mach_minus_2(mach_right) + mass_diffusion;
   const double mass_flux =
       a_face * mach_face * (mach_face > 0.0 ? left.rho : right.rho);
   const double pressure_face =
       p_plus_left * left.p + p_minus_right * right.p + pressure_diffusion;
 
   const PrimitiveState& upwind = mass_flux > 0.0 ? left : right;
-  const double energy = upwind.p / (gamma - 1.0) +
-                        0.5 * upwind.rho *
-                            (upwind.u * upwind.u + upwind.v * upwind.v +
-                             upwind.w * upwind.w);
+  const double energy =
+      upwind.p / (gamma - 1.0) +
+      0.5 * upwind.rho *
+          (upwind.u * upwind.u + upwind.v * upwind.v + upwind.w * upwind.w);
   const double enthalpy = (energy + upwind.p) / upwind.rho;
 
   return Flux{mass_flux, mass_flux * upwind.u + pressure_face,
-              mass_flux * upwind.v, mass_flux * upwind.w,
-              mass_flux * enthalpy};
+              mass_flux * upwind.v, mass_flux * upwind.w, mass_flux * enthalpy};
 }
 
 KOKKOS_INLINE_FUNCTION

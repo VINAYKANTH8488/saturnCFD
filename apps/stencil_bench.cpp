@@ -41,19 +41,21 @@ struct Params {
 };
 
 void usage(const char* argv0) {
-  std::cout
-      << "Usage: " << argv0 << " [options]\n"
-      << "  --nx N --ny N --nz N   grid size (default 256^3)\n"
-      << "  --iters N              timed iterations (default 50)\n"
-      << "  --warmup N             warmup iterations (default 3)\n"
-      << "  --tile N               inner MDRange tile size (0 = backend default)\n"
-      << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
-      << "  --verify               compare against a host reference (small grids)\n"
-      << "  --json PATH            write results as JSON\n"
-      << "  --verbose              print the full Kokkos configuration\n"
-      << "  --help                 show this help\n"
-      << "\n"
-      << "Kokkos options (for example --kokkos-num-threads=4) are passed through.\n";
+  std::cout << "Usage: " << argv0 << " [options]\n"
+            << "  --nx N --ny N --nz N   grid size (default 256^3)\n"
+            << "  --iters N              timed iterations (default 50)\n"
+            << "  --warmup N             warmup iterations (default 3)\n"
+            << "  --tile N               inner MDRange tile size (0 = backend "
+               "default)\n"
+            << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
+            << "  --verify               compare against a host reference "
+               "(small grids)\n"
+            << "  --json PATH            write results as JSON\n"
+            << "  --verbose              print the full Kokkos configuration\n"
+            << "  --help                 show this help\n"
+            << "\n"
+            << "Kokkos options (for example --kokkos-num-threads=4) are passed "
+               "through.\n";
 }
 
 int parse_int(const std::string& flag, const std::string& value) {
@@ -65,12 +67,14 @@ int parse_int(const std::string& flag, const std::string& value) {
     }
     return result;
   } catch (const std::exception&) {
-    std::fprintf(stderr, "invalid integer for %s: '%s'\n", flag.c_str(), value.c_str());
+    std::fprintf(stderr, "invalid integer for %s: '%s'\n", flag.c_str(),
+                 value.c_str());
     std::exit(2);
   }
 }
 
-std::string require_value(int& i, int argc, char** argv, const std::string& flag) {
+std::string require_value(int& i, int argc, char** argv,
+                          const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -108,7 +112,8 @@ Params parse(int argc, char** argv) {
     } else if (a.rfind("--kokkos-", 0) == 0) {
       // Handled by Kokkos::initialize().
     } else {
-      std::fprintf(stderr, "warning: ignoring unknown argument '%s'\n", a.c_str());
+      std::fprintf(stderr, "warning: ignoring unknown argument '%s'\n",
+                   a.c_str());
     }
   }
 
@@ -125,11 +130,9 @@ Params parse(int argc, char** argv) {
 
 template <class ExecSpace>
 int run_impl(const Params& p) {
-  using view_type =
-      Kokkos::View<double***, Kokkos::LayoutRight,
-                   typename ExecSpace::memory_space>;
-  using policy_type =
-      Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
+  using view_type = Kokkos::View<double***, Kokkos::LayoutRight,
+                                 typename ExecSpace::memory_space>;
+  using policy_type = Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
 
   const double interior =
       static_cast<double>(p.nx - 2) * (p.ny - 2) * (p.nz - 2);
@@ -161,13 +164,11 @@ int run_impl(const Params& p) {
 
   auto launch = [&]() {
     Kokkos::parallel_for(
-        "stencil7", interior_policy,
-        KOKKOS_LAMBDA(int k, int j, int i) {
+        "stencil7", interior_policy, KOKKOS_LAMBDA(int k, int j, int i) {
           out(k, j, i) =
               c0 * in(k, j, i) +
-              c1 * (in(k - 1, j, i) + in(k + 1, j, i) +
-                    in(k, j - 1, i) + in(k, j + 1, i) +
-                    in(k, j, i - 1) + in(k, j, i + 1));
+              c1 * (in(k - 1, j, i) + in(k + 1, j, i) + in(k, j - 1, i) +
+                    in(k, j + 1, i) + in(k, j, i - 1) + in(k, j, i + 1));
         });
   };
 
@@ -186,9 +187,7 @@ int run_impl(const Params& p) {
   double checksum = 0.0;
   Kokkos::parallel_reduce(
       "checksum", interior_policy,
-      KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
-        acc += out(k, j, i);
-      },
+      KOKKOS_LAMBDA(int k, int j, int i, double& acc) { acc += out(k, j, i); },
       checksum);
   ExecSpace().fence();
 
@@ -205,8 +204,8 @@ int run_impl(const Params& p) {
   const double gbps_naive = bytes_naive / seconds / 1.0e9;
 
   double max_error = 0.0;
-  if (p.verify && static_cast<long long>(p.nx) * p.ny * p.nz <=
-                      64LL * 64LL * 64LL) {
+  if (p.verify &&
+      static_cast<long long>(p.nx) * p.ny * p.nz <= 64LL * 64LL * 64LL) {
     auto h_in = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), in);
     auto h_out = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), out);
     for (int k = 1; k < p.nz - 1; ++k) {
@@ -214,31 +213,30 @@ int run_impl(const Params& p) {
         for (int i = 1; i < p.nx - 1; ++i) {
           const double ref =
               c0 * h_in(k, j, i) +
-              c1 * (h_in(k - 1, j, i) + h_in(k + 1, j, i) +
-                    h_in(k, j - 1, i) + h_in(k, j + 1, i) +
-                    h_in(k, j, i - 1) + h_in(k, j, i + 1));
+              c1 * (h_in(k - 1, j, i) + h_in(k + 1, j, i) + h_in(k, j - 1, i) +
+                    h_in(k, j + 1, i) + h_in(k, j, i - 1) + h_in(k, j, i + 1));
           max_error = std::max(max_error, std::abs(h_out(k, j, i) - ref));
         }
       }
     }
   }
 
-  std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion << "\n"
+  std::cout << "\n"
+            << saturn::kProjectName << " " << saturn::kVersion << "\n"
             << "Kokkos:      " << ExecSpace::name() << " (concurrency "
             << ExecSpace{}.concurrency() << ")\n";
   if (p.verbose) {
     Kokkos::print_configuration(std::cout, true);
   }
-  std::cout << "grid:        " << p.nx << " x " << p.ny << " x " << p.nz
-            << " (" << (static_cast<double>(p.nx) * p.ny * p.nz / 1.0e6)
+  std::cout << "grid:        " << p.nx << " x " << p.ny << " x " << p.nz << " ("
+            << (static_cast<double>(p.nx) * p.ny * p.nz / 1.0e6)
             << " M cells)\n"
             << "backend:     " << ExecSpace::name() << "\n"
             << "iterations:  " << p.iters << " (warmup " << p.warmup << ")\n"
             << "time:        " << std::fixed << std::setprecision(6) << seconds
             << " s  (" << (seconds / p.iters * 1.0e3) << " ms/iter)\n"
             << "throughput:  " << std::setprecision(3) << gcells_per_s
-            << " Gcell-updates/s, " << ns_per_cell_iter
-            << " ns/cell/iter\n"
+            << " Gcell-updates/s, " << ns_per_cell_iter << " ns/cell/iter\n"
             << "bandwidth:   " << gbps_effective
             << " GB/s effective (read+write), " << gbps_naive
             << " GB/s naive (8 accesses)\n"
@@ -262,8 +260,7 @@ int run_impl(const Params& p) {
       std::fprintf(stderr, "could not open %s for writing\n", p.json.c_str());
       return 2;
     }
-    out_file << std::setprecision(10)
-             << "{\n"
+    out_file << std::setprecision(10) << "{\n"
              << "  \"code\": \"" << saturn::kProjectName << "\",\n"
              << "  \"version\": \"" << saturn::kVersion << "\",\n"
              << "  \"backend\": \"" << ExecSpace::name() << "\",\n"

@@ -14,9 +14,7 @@ struct Box {
   int hi[3]{-1, -1, -1};
 
   KOKKOS_INLINE_FUNCTION
-  bool empty() const {
-    return hi[0] < lo[0] || hi[1] < lo[1] || hi[2] < lo[2];
-  }
+  bool empty() const { return hi[0] < lo[0] || hi[1] < lo[1] || hi[2] < lo[2]; }
 
   KOKKOS_INLINE_FUNCTION
   int length(int d) const { return hi[d] - lo[d] + 1; }
@@ -31,8 +29,8 @@ struct Box {
 
   KOKKOS_INLINE_FUNCTION
   bool contains(int i, int j, int k) const {
-    return i >= lo[0] && i <= hi[0] && j >= lo[1] && j <= hi[1] &&
-           k >= lo[2] && k <= hi[2];
+    return i >= lo[0] && i <= hi[0] && j >= lo[1] && j <= hi[1] && k >= lo[2] &&
+           k <= hi[2];
   }
 
   KOKKOS_INLINE_FUNCTION

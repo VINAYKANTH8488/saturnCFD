@@ -43,28 +43,27 @@ bool finite(double value) {
 }
 
 double flux_scale(const Flux& value) {
-  return std::max(1.0, std::max(std::fabs(value.rho),
-                                std::max(std::fabs(value.mom_n),
-                                         std::fabs(value.energy))));
+  return std::max(
+      1.0, std::max(std::fabs(value.rho),
+                    std::max(std::fabs(value.mom_n), std::fabs(value.energy))));
 }
 
 void check_flux(const char* what, const char* solver, const Flux& actual,
                 const Flux& expected, double tolerance) {
   const double scale = std::max(flux_scale(expected), flux_scale(actual));
-  const double error =
-      std::max(std::fabs(actual.rho - expected.rho),
-               std::max(std::fabs(actual.mom_n - expected.mom_n),
-                        std::max(std::fabs(actual.mom_t1 - expected.mom_t1),
-                                 std::max(std::fabs(actual.mom_t2 -
-                                                    expected.mom_t2),
-                                          std::fabs(actual.energy -
-                                                    expected.energy)))));
+  const double error = std::max(
+      std::fabs(actual.rho - expected.rho),
+      std::max(std::fabs(actual.mom_n - expected.mom_n),
+               std::max(std::fabs(actual.mom_t1 - expected.mom_t1),
+                        std::max(std::fabs(actual.mom_t2 - expected.mom_t2),
+                                 std::fabs(actual.energy - expected.energy)))));
   if (!(error <= tolerance * scale)) {
-    std::printf("FAIL %s [%s]: actual [%.12g %.12g %.12g %.12g %.12g] "
-                "expected [%.12g %.12g %.12g %.12g %.12g] error %.3e\n",
-                what, solver, actual.rho, actual.mom_n, actual.mom_t1,
-                actual.mom_t2, actual.energy, expected.rho, expected.mom_n,
-                expected.mom_t1, expected.mom_t2, expected.energy, error);
+    std::printf(
+        "FAIL %s [%s]: actual [%.12g %.12g %.12g %.12g %.12g] "
+        "expected [%.12g %.12g %.12g %.12g %.12g] error %.3e\n",
+        what, solver, actual.rho, actual.mom_n, actual.mom_t1, actual.mom_t2,
+        actual.energy, expected.rho, expected.mom_n, expected.mom_t1,
+        expected.mom_t2, expected.energy, error);
     ++g_failures;
   }
 }
@@ -84,8 +83,7 @@ PrimitiveState mirror(const PrimitiveState& state) {
 }
 
 double distance(const Flux& left, const Flux& right) {
-  return std::fabs(left.rho - right.rho) +
-         std::fabs(left.mom_n - right.mom_n) +
+  return std::fabs(left.rho - right.rho) + std::fabs(left.mom_n - right.mom_n) +
          std::fabs(left.mom_t1 - right.mom_t1) +
          std::fabs(left.mom_t2 - right.mom_t2) +
          std::fabs(left.energy - right.energy);
@@ -141,10 +139,9 @@ void test_symmetry() {
   const PrimitiveState right{0.4, -0.2, 0.5, 0.3, 0.2};
   for (const auto solver : kAllSolvers) {
     const Flux value = flux(solver, left, right, kGamma);
-    const Flux reflected =
-        flux(solver, mirror(right), mirror(left), kGamma);
-    const Flux expected{-value.rho, value.mom_n, -value.mom_t1,
-                        -value.mom_t2, -value.energy};
+    const Flux reflected = flux(solver, mirror(right), mirror(left), kGamma);
+    const Flux expected{-value.rho, value.mom_n, -value.mom_t1, -value.mom_t2,
+                        -value.energy};
     check_flux("mirror symmetry", solver_name(solver), reflected, expected,
                1.0e-12);
   }
@@ -156,8 +153,8 @@ void test_symmetry() {
       flux(RiemannSolver::HllcLowMach, slow_left, slow_right, kGamma);
   const Flux reflected = flux(RiemannSolver::HllcLowMach, mirror(slow_right),
                               mirror(slow_left), kGamma);
-  const Flux expected{-value.rho, value.mom_n, -value.mom_t1,
-                      -value.mom_t2, -value.energy};
+  const Flux expected{-value.rho, value.mom_n, -value.mom_t1, -value.mom_t2,
+                      -value.energy};
   check_flux("low-Mach mirror symmetry", "hllc_lm", reflected, expected,
              1.0e-12);
 }
@@ -167,30 +164,27 @@ void test_sod_fluxes() {
   const PrimitiveState right{0.125, 0.0, 0.0, 0.0, 0.1};
   for (const auto solver : kAllSolvers) {
     const Flux value = flux(solver, left, right, kGamma);
-    if (!(finite(value.rho) && finite(value.mom_n) &&
-          finite(value.mom_t1) && finite(value.mom_t2) &&
-          finite(value.energy))) {
-      std::printf("FAIL Sod flux [%s]: non-finite flux\n",
-                  solver_name(solver));
+    if (!(finite(value.rho) && finite(value.mom_n) && finite(value.mom_t1) &&
+          finite(value.mom_t2) && finite(value.energy))) {
+      std::printf("FAIL Sod flux [%s]: non-finite flux\n", solver_name(solver));
       ++g_failures;
     }
     if (!(value.rho > 0.0 && value.mom_n > 0.0)) {
-      std::printf("FAIL Sod flux [%s]: expected rightward mass/momentum "
-                  "flux, got rho=%.6g mom=%.6g\n",
-                  solver_name(solver), value.rho, value.mom_n);
+      std::printf(
+          "FAIL Sod flux [%s]: expected rightward mass/momentum "
+          "flux, got rho=%.6g mom=%.6g\n",
+          solver_name(solver), value.rho, value.mom_n);
       ++g_failures;
     }
   }
 
   // The pressure-jump sensor must leave HLLC-LM identical to HLLC on a shock.
   const Flux hllc = flux(RiemannSolver::Hllc, left, right, kGamma);
-  const Flux low_mach =
-      flux(RiemannSolver::HllcLowMach, left, right, kGamma);
+  const Flux low_mach = flux(RiemannSolver::HllcLowMach, left, right, kGamma);
   check_flux("shock sensor", "hllc_lm", low_mach, hllc, 1.0e-14);
 
   // AUSM+-up at a strong pressure jump uses a larger freestream Mach floor.
-  const Flux ausm =
-      saturn::riemann::ausm_plus_up(left, right, kGamma, 1.0);
+  const Flux ausm = saturn::riemann::ausm_plus_up(left, right, kGamma, 1.0);
   if (!(finite(ausm.rho) && finite(ausm.mom_n) && finite(ausm.energy))) {
     std::printf("FAIL Sod flux [ausm_plus_up] with Mach floor 1\n");
     ++g_failures;
@@ -202,20 +196,19 @@ void test_low_mach_dissipation() {
   // (non-dissipative) flux than plain HLLC.
   const PrimitiveState left{1.0, 1.0e-2, 0.0, 0.0, 1.0};
   const PrimitiveState right{0.8, 1.0e-2, 0.0, 0.0, 1.0001};
-  const Flux central =
-      saturn::riemann::average_flux(
-          saturn::riemann::physical_flux(left, kGamma),
-          saturn::riemann::physical_flux(right, kGamma));
+  const Flux central = saturn::riemann::average_flux(
+      saturn::riemann::physical_flux(left, kGamma),
+      saturn::riemann::physical_flux(right, kGamma));
   const Flux hllc = flux(RiemannSolver::Hllc, left, right, kGamma);
-  const Flux low_mach =
-      flux(RiemannSolver::HllcLowMach, left, right, kGamma);
+  const Flux low_mach = flux(RiemannSolver::HllcLowMach, left, right, kGamma);
   const double hllc_error = distance(hllc, central);
   const double low_mach_error = distance(low_mach, central);
   std::printf("  low-Mach distance to central: HLLC %.3e, HLLC-LM %.3e\n",
               hllc_error, low_mach_error);
   if (!(low_mach_error < hllc_error)) {
-    std::printf("FAIL low-Mach dissipation: HLLC-LM did not reduce the "
-                "central-flux distance\n");
+    std::printf(
+        "FAIL low-Mach dissipation: HLLC-LM did not reduce the "
+        "central-flux distance\n");
     ++g_failures;
   }
 
@@ -224,8 +217,8 @@ void test_low_mach_dissipation() {
   const Flux ausm = saturn::riemann::ausm_plus_up(left, right, kGamma, 0.01);
   check_value("AUSM+-up low-Mach mass flux", "ausm_plus_up", ausm.rho, 0.0,
               0.05);
-  check_value("AUSM+-up low-Mach pressure flux", "ausm_plus_up",
-              ausm.mom_n, 1.0, 0.05);
+  check_value("AUSM+-up low-Mach pressure flux", "ausm_plus_up", ausm.mom_n,
+              1.0, 0.05);
 }
 
 void test_device_kernel() {

@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
     bc[2][0] = bc[2][1] = BoundaryType::SlipWall;
     saturn::apply_boundary_conditions(q, bc);
 
-    auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
-                                                    q.data());
+    auto host =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());
     const int ng = q.ng();
     int failures = 0;
     const auto at = [&](int v, int i, int j, int k) {

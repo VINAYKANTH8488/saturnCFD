@@ -28,8 +28,8 @@ class FaceExchange {
     const Box& box = decomposition_.local;
     for (int d = 0; d < 3; ++d) {
       const int n1 = (d == 0) ? box.length(1) : box.length(0);
-      const int n2 = (d == 0) ? box.length(2)
-                              : ((d == 1) ? box.length(2) : box.length(1));
+      const int n2 =
+          (d == 0) ? box.length(2) : ((d == 1) ? box.length(2) : box.length(1));
       n1_[d] = n1;
       n2_[d] = n2;
       size_[d] = nvar_ * ng_ * n1 * n2;
@@ -129,11 +129,10 @@ class FaceExchange {
     const int hi1 = box.hi[1];
     const int hi2 = box.hi[2];
 
-    const auto policy = make_mdrange4<ExecSpace>(
-        Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
+    const auto policy =
+        make_mdrange4<ExecSpace>(Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
     Kokkos::parallel_for(
-        "halo_pack", policy,
-        KOKKOS_LAMBDA(int v, int f, int a, int b) {
+        "halo_pack", policy, KOKKOS_LAMBDA(int v, int f, int a, int b) {
           int i = 0;
           int j = 0;
           int k = 0;
@@ -169,11 +168,10 @@ class FaceExchange {
     const int hi1 = box.hi[1];
     const int hi2 = box.hi[2];
 
-    const auto policy = make_mdrange4<ExecSpace>(
-        Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
+    const auto policy =
+        make_mdrange4<ExecSpace>(Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
     Kokkos::parallel_for(
-        "halo_unpack", policy,
-        KOKKOS_LAMBDA(int v, int f, int a, int b) {
+        "halo_unpack", policy, KOKKOS_LAMBDA(int v, int f, int a, int b) {
           int i = 0;
           int j = 0;
           int k = 0;

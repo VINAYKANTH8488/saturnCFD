@@ -38,8 +38,8 @@ int main(int argc, char** argv) {
     const bool periodic[3] = {true, true, true};
     const auto dec = saturn::Decomposition::create(
         saturn::Box::from_extents(n, n, n), periodic);
-    const auto grid = saturn::UniformGrid::from_cells_local(
-        n, n, n, 1.0, 1.0, 1.0, ng, dec.local);
+    const auto grid = saturn::UniformGrid::from_cells_local(n, n, n, 1.0, 1.0,
+                                                            1.0, ng, dec.local);
 
     using exec_space = Kokkos::DefaultExecutionSpace;
     using field_type = saturn::PatchField<exec_space>;
@@ -66,8 +66,8 @@ int main(int argc, char** argv) {
     ok = ok && saturn::read_checkpoint(base, q2, step, time, dec);
 
     double local_error = 0.0;
-    auto hq2 = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
-                                                   q2.data());
+    auto hq2 =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q2.data());
     for (int k = dec.local.lo[2]; k <= dec.local.hi[2]; ++k) {
       for (int j = dec.local.lo[1]; j <= dec.local.hi[1]; ++j) {
         for (int i = dec.local.lo[0]; i <= dec.local.hi[0]; ++i) {
@@ -75,8 +75,7 @@ int main(int argc, char** argv) {
           local_error = std::max(
               local_error,
               std::abs(hq2(0, k - dec.local.lo[2] + ng,
-                           j - dec.local.lo[1] + ng,
-                           i - dec.local.lo[0] + ng) -
+                           j - dec.local.lo[1] + ng, i - dec.local.lo[0] + ng) -
                        expected));
         }
       }
@@ -86,15 +85,14 @@ int main(int argc, char** argv) {
          (std::abs(time - 1.25) < 1.0e-12);
 
     const std::array<double, 3> origin{{0.0, 0.0, 0.0}};
-    const std::array<double, 3> spacing{
-        {grid.h[0], grid.h[1], grid.h[2]}};
+    const std::array<double, 3> spacing{{grid.h[0], grid.h[1], grid.h[2]}};
     ok = ok && saturn::write_vti(base + "_field", q, origin, spacing,
                                  dec.global, 1.25);
 
     const std::string vti =
-        (dec.size > 1) ? (base + "_field" + saturn::rank_suffix(dec.rank) +
-                          ".vti")
-                       : (base + "_field.vti");
+        (dec.size > 1)
+            ? (base + "_field" + saturn::rank_suffix(dec.rank) + ".vti")
+            : (base + "_field.vti");
     std::error_code ec;
     const auto vti_size = std::filesystem::file_size(vti, ec);
     ok = ok && !ec && vti_size > 0;
@@ -107,8 +105,7 @@ int main(int argc, char** argv) {
       }
       std::printf(
           "io test: ranks=%d step=%d time=%.2f max_error=%.3e vti=%lld bytes\n",
-          dec.size, step, time, max_error,
-          static_cast<long long>(vti_size));
+          dec.size, step, time, max_error, static_cast<long long>(vti_size));
     }
 
     const bool global_ok = saturn::mpi_all(ok);

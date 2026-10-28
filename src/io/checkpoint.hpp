@@ -48,8 +48,7 @@ bool write_checkpoint(const std::string& base, const PatchField<ExecSpace>& q,
   header.step = step;
   header.time = time;
 
-  const std::string path =
-      base + rank_suffix(decomposition.rank) + ".bin";
+  const std::string path = base + rank_suffix(decomposition.rank) + ".bin";
   ensure_parent(path);
   std::ofstream out(path, std::ios::binary);
   if (!out) {
@@ -82,8 +81,7 @@ template <class ExecSpace>
 bool read_checkpoint(const std::string& base, PatchField<ExecSpace>& q,
                      int& step, double& time,
                      const Decomposition& decomposition) {
-  const std::string path =
-      base + rank_suffix(decomposition.rank) + ".bin";
+  const std::string path = base + rank_suffix(decomposition.rank) + ".bin";
   std::ifstream in(path, std::ios::binary);
   if (!in) {
     return false;
@@ -94,11 +92,10 @@ bool read_checkpoint(const std::string& base, PatchField<ExecSpace>& q,
   if (!in) {
     return false;
   }
-  const bool magic_ok =
-      header.magic[0] == 'S' && header.magic[1] == 'A' &&
-      header.magic[2] == 'T' && header.magic[3] == 'U' &&
-      header.magic[4] == 'R' && header.magic[5] == 'N' &&
-      header.magic[6] == 'C' && header.magic[7] == 'K';
+  const bool magic_ok = header.magic[0] == 'S' && header.magic[1] == 'A' &&
+                        header.magic[2] == 'T' && header.magic[3] == 'U' &&
+                        header.magic[4] == 'R' && header.magic[5] == 'N' &&
+                        header.magic[6] == 'C' && header.magic[7] == 'K';
   if (!magic_ok || header.version != 1 || header.rank != decomposition.rank ||
       header.size != decomposition.size || header.nvar != q.nvar() ||
       header.ng != q.ng()) {
@@ -106,8 +103,7 @@ bool read_checkpoint(const std::string& base, PatchField<ExecSpace>& q,
   }
   const Box box = q.box();
   for (int d = 0; d < 3; ++d) {
-    if (header.local_lo[d] != box.lo[d] ||
-        header.local_hi[d] != box.hi[d] ||
+    if (header.local_lo[d] != box.lo[d] || header.local_hi[d] != box.hi[d] ||
         header.global_lo[d] != decomposition.global.lo[d] ||
         header.global_hi[d] != decomposition.global.hi[d]) {
       return false;

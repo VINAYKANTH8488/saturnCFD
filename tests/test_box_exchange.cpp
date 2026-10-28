@@ -63,8 +63,8 @@ int main(int argc, char** argv) {
     saturn::BoxExchange<exec_space> exchange(decomposition, 1, ng);
     exchange.exchange(q);
 
-    auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
-                                                    q.data());
+    auto host =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());
     int local_errors = 0;
     double max_error = 0.0;
     for (int kp = 0; kp < decomposition.local.length(2) + 2 * ng; ++kp) {
@@ -73,16 +73,15 @@ int main(int argc, char** argv) {
           const int i = decomposition.local.lo[0] + ip - ng;
           const int j = decomposition.local.lo[1] + jp - ng;
           const int k = decomposition.local.lo[2] + kp - ng;
-          const double expected =
-              value(wrap(i, n), wrap(j, n), wrap(k, n));
+          const double expected = value(wrap(i, n), wrap(j, n), wrap(k, n));
           const double error = std::fabs(host(0, kp, jp, ip) - expected);
           max_error = std::max(max_error, error);
           if (error > 1.0e-12) {
             if (local_errors < 5) {
-              std::printf("rank %d ghost (%d,%d,%d) actual %.3f expected "
-                          "%.3f\n",
-                          decomposition.rank, i, j, k,
-                          host(0, kp, jp, ip), expected);
+              std::printf(
+                  "rank %d ghost (%d,%d,%d) actual %.3f expected "
+                  "%.3f\n",
+                  decomposition.rank, i, j, k, host(0, kp, jp, ip), expected);
             }
             ++local_errors;
           }

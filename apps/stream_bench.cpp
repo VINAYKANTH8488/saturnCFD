@@ -36,16 +36,15 @@ struct Params {
 };
 
 void usage(const char* argv0) {
-  std::cout
-      << "Usage: " << argv0 << " [options]\n"
-      << "  --n N                  number of doubles (default 32M)\n"
-      << "  --kernel NAME          copy | triad (default copy)\n"
-      << "  --iters N              timed iterations (default 50)\n"
-      << "  --warmup N             warmup iterations (default 3)\n"
-      << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
-      << "  --json PATH            write results as JSON\n"
-      << "  --verbose              print the full Kokkos configuration\n"
-      << "  --help                 show this help\n";
+  std::cout << "Usage: " << argv0 << " [options]\n"
+            << "  --n N                  number of doubles (default 32M)\n"
+            << "  --kernel NAME          copy | triad (default copy)\n"
+            << "  --iters N              timed iterations (default 50)\n"
+            << "  --warmup N             warmup iterations (default 3)\n"
+            << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
+            << "  --json PATH            write results as JSON\n"
+            << "  --verbose              print the full Kokkos configuration\n"
+            << "  --help                 show this help\n";
 }
 
 int parse_int(const std::string& flag, const std::string& value) {
@@ -123,9 +122,8 @@ Params parse(int argc, char** argv) {
 
 template <class ExecSpace>
 int run_impl(const Params& p) {
-  using view_type =
-      Kokkos::View<double*, Kokkos::LayoutRight,
-                   typename ExecSpace::memory_space>;
+  using view_type = Kokkos::View<double*, Kokkos::LayoutRight,
+                                 typename ExecSpace::memory_space>;
 
   const bool triad = (p.kernel == Kernel::Triad);
   view_type a("a", p.n);
@@ -143,14 +141,9 @@ int run_impl(const Params& p) {
   auto launch = [&]() {
     if (triad) {
       Kokkos::parallel_for(
-          "triad", p.n, KOKKOS_LAMBDA(int i) {
-            c(i) = a(i) + 0.5 * b(i);
-          });
+          "triad", p.n, KOKKOS_LAMBDA(int i) { c(i) = a(i) + 0.5 * b(i); });
     } else {
-      Kokkos::parallel_for(
-          "copy", p.n, KOKKOS_LAMBDA(int i) {
-            c(i) = a(i);
-          });
+      Kokkos::parallel_for("copy", p.n, KOKKOS_LAMBDA(int i) { c(i) = a(i); });
     }
   };
 
@@ -168,8 +161,8 @@ int run_impl(const Params& p) {
 
   double checksum = 0.0;
   Kokkos::parallel_reduce(
-      "checksum", p.n,
-      KOKKOS_LAMBDA(int i, double& acc) { acc += c(i); }, checksum);
+      "checksum", p.n, KOKKOS_LAMBDA(int i, double& acc) { acc += c(i); },
+      checksum);
   ExecSpace().fence();
 
   const double elements = static_cast<double>(p.n) * p.iters;
@@ -177,7 +170,8 @@ int run_impl(const Params& p) {
   const double gbps = bytes_per_element * elements / seconds / 1.0e9;
   const double ns_per_element_iter = seconds / elements * 1.0e9;
 
-  std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion << "\n"
+  std::cout << "\n"
+            << saturn::kProjectName << " " << saturn::kVersion << "\n"
             << "Kokkos:      " << ExecSpace::name() << " (concurrency "
             << ExecSpace{}.concurrency() << ")\n";
   if (p.verbose) {
@@ -202,8 +196,7 @@ int run_impl(const Params& p) {
       std::fprintf(stderr, "could not open %s for writing\n", p.json.c_str());
       return 2;
     }
-    out << std::setprecision(10)
-        << "{\n"
+    out << std::setprecision(10) << "{\n"
         << "  \"code\": \"" << saturn::kProjectName << "\",\n"
         << "  \"version\": \"" << saturn::kVersion << "\",\n"
         << "  \"backend\": \"" << ExecSpace::name() << "\",\n"

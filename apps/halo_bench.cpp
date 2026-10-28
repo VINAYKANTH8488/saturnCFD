@@ -129,8 +129,7 @@ int run_impl(const Params& p) {
     for (int j = box.lo[1]; j <= box.hi[1]; ++j) {
       for (int i = box.lo[0]; i <= box.hi[0]; ++i) {
         hq(0, k - box.lo[2] + p.ng, j - box.lo[1] + p.ng,
-           i - box.lo[0] + p.ng) =
-            static_cast<double>(i + 10 * j + 100 * k);
+           i - box.lo[0] + p.ng) = static_cast<double>(i + 10 * j + 100 * k);
       }
     }
   }
@@ -154,10 +153,9 @@ int run_impl(const Params& p) {
   long long local_bytes = 0;
   for (int d = 0; d < 3; ++d) {
     const int n1 = (d == 0) ? box.length(1) : box.length(0);
-    const int n2 = (d == 0) ? box.length(2)
-                            : ((d == 1) ? box.length(2) : box.length(1));
-    const long long face_bytes =
-        static_cast<long long>(p.ng) * n1 * n2 * 8;
+    const int n2 =
+        (d == 0) ? box.length(2) : ((d == 1) ? box.length(2) : box.length(1));
+    const long long face_bytes = static_cast<long long>(p.ng) * n1 * n2 * 8;
     for (int side_sign = -1; side_sign <= 1; side_sign += 2) {
       const int partner = decomposition.partner(d, side_sign);
 #ifdef SATURN_ENABLE_MPI
@@ -167,6 +165,7 @@ int run_impl(const Params& p) {
       local_bytes += 2 * face_bytes;
 #else
       (void)partner;
+      (void)face_bytes;
 #endif
     }
   }
@@ -183,18 +182,19 @@ int run_impl(const Params& p) {
   const double gbps = total_bytes * p.iters / seconds / 1.0e9;
 
   if (decomposition.rank == 0) {
-    std::cout << "\n" << saturn::kProjectName << " " << saturn::kVersion
+    std::cout << "\n"
+              << saturn::kProjectName << " " << saturn::kVersion
               << " halo benchmark\n"
               << "Kokkos:      " << ExecSpace::name() << " (concurrency "
               << ExecSpace{}.concurrency() << ")\n";
     if (p.verbose) {
       Kokkos::print_configuration(std::cout, true);
     }
-    std::cout << "ranks:       " << decomposition.size << "  dims="
-              << decomposition.dims[0] << "x" << decomposition.dims[1] << "x"
-              << decomposition.dims[2] << "\n"
-              << "grid:        " << p.n << "^3, local " << box.length(0)
-              << "x" << box.length(1) << "x" << box.length(2) << "\n"
+    std::cout << "ranks:       " << decomposition.size
+              << "  dims=" << decomposition.dims[0] << "x"
+              << decomposition.dims[1] << "x" << decomposition.dims[2] << "\n"
+              << "grid:        " << p.n << "^3, local " << box.length(0) << "x"
+              << box.length(1) << "x" << box.length(2) << "\n"
               << "ghosts:      " << p.ng << "\n"
               << "time:        " << std::fixed << std::setprecision(3)
               << us_per_exchange << " us/exchange\n"
@@ -213,8 +213,7 @@ int run_impl(const Params& p) {
       std::fprintf(stderr, "could not open %s for writing\n", p.json.c_str());
       return 2;
     }
-    out << std::setprecision(10)
-        << "{\n"
+    out << std::setprecision(10) << "{\n"
         << "  \"code\": \"" << saturn::kProjectName << "\",\n"
         << "  \"version\": \"" << saturn::kVersion << "\",\n"
         << "  \"backend\": \"" << ExecSpace::name() << "\",\n"

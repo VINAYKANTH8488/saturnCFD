@@ -18,18 +18,16 @@ class PatchField {
  public:
   using execution_space = ExecSpace;
   using memory_space = typename ExecSpace::memory_space;
-  using view_type =
-      Kokkos::View<double****, Kokkos::LayoutRight, memory_space>;
+  using view_type = Kokkos::View<double****, Kokkos::LayoutRight, memory_space>;
 
   PatchField() = default;
 
-  PatchField(const Box& box, int nvar, int ng,
-             const std::string& label = "q")
+  PatchField(const Box& box, int nvar, int ng, const std::string& label = "q")
       : box_(box),
         nvar_(nvar),
         ng_(ng),
-        data_(label, nvar, box.length(2) + 2 * ng,
-              box.length(1) + 2 * ng, box.length(0) + 2 * ng) {}
+        data_(label, nvar, box.length(2) + 2 * ng, box.length(1) + 2 * ng,
+              box.length(0) + 2 * ng) {}
 
   KOKKOS_INLINE_FUNCTION
   double& operator()(int v, int i, int j, int k) const {
@@ -60,8 +58,7 @@ class PatchField {
         make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
 
     Kokkos::parallel_for(
-        "periodic_fill", policy,
-        KOKKOS_LAMBDA(int kp, int jp, int ip) {
+        "periodic_fill", policy, KOKKOS_LAMBDA(int kp, int jp, int ip) {
           const int ii = wrap(ip - ng, n0);
           const int jj = wrap(jp - ng, n1);
           const int kk = wrap(kp - ng, n2);

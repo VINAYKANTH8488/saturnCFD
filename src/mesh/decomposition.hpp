@@ -76,8 +76,7 @@ struct Decomposition {
       dec.dims[d] = dims[d];
     }
 
-    int periods[3] = {dec.periodic[0] ? 1 : 0,
-                      dec.periodic[1] ? 1 : 0,
+    int periods[3] = {dec.periodic[0] ? 1 : 0, dec.periodic[1] ? 1 : 0,
                       dec.periodic[2] ? 1 : 0};
     MPI_Cart_create(MPI_COMM_WORLD, 3, dec.dims, periods, 0, &dec.comm);
     MPI_Cart_coords(dec.comm, dec.rank, 3, dec.coords);
@@ -90,8 +89,7 @@ struct Decomposition {
       const int n = global_box.length(d);
       const int base = n / dec.dims[d];
       const int rem = n % dec.dims[d];
-      const int start =
-          dec.coords[d] * base + std::min(dec.coords[d], rem);
+      const int start = dec.coords[d] * base + std::min(dec.coords[d], rem);
       const int len = base + (dec.coords[d] < rem ? 1 : 0);
       dec.local.lo[d] = global_box.lo[d] + start;
       dec.local.hi[d] = dec.local.lo[d] + len - 1;

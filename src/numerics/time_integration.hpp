@@ -16,11 +16,9 @@ void field_combine(Field& destination, double a, const Field& x, double b,
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "field_combine", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "field_combine", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < destination.nvar(); ++v) {
-          destination(v, i, j, k) =
-              a * x(v, i, j, k) + b * y(v, i, j, k);
+          destination(v, i, j, k) = a * x(v, i, j, k) + b * y(v, i, j, k);
         }
       });
 }
@@ -33,8 +31,7 @@ void field_add_scaled(Field& destination, double scale, const Field& x) {
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "field_add_scaled", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "field_add_scaled", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < destination.nvar(); ++v) {
           destination(v, i, j, k) += scale * x(v, i, j, k);
         }
@@ -49,8 +46,7 @@ void field_copy(const Field& source, Field& destination) {
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "field_copy", policy,
-      KOKKOS_LAMBDA(int k, int j, int i) {
+      "field_copy", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < source.nvar(); ++v) {
           destination(v, i, j, k) = source(v, i, j, k);
         }

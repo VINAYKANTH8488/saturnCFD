@@ -78,8 +78,7 @@ double sine_average(int j, int n, double phase) {
   const int wrapped = ((j % n) + n) % n;
   const double a = static_cast<double>(wrapped) * h;
   const double b = static_cast<double>(wrapped + 1) * h;
-  return (std::cos(2.0 * kPi * a + phase) -
-          std::cos(2.0 * kPi * b + phase)) /
+  return (std::cos(2.0 * kPi * a + phase) - std::cos(2.0 * kPi * b + phase)) /
          (2.0 * kPi * h);
 }
 
@@ -92,8 +91,8 @@ std::array<double, 6> stencil_at(const Cell& cell, int i) {
 void test_constant() {
   const auto v = make_stencil(2.5, 2.5, 2.5, 2.5, 2.5, 2.5);
   for (const auto scheme : kAllSchemes) {
-    check_near("constant left", scheme_name(scheme), left_value(scheme, v),
-               2.5, 1.0e-15);
+    check_near("constant left", scheme_name(scheme), left_value(scheme, v), 2.5,
+               1.0e-15);
     check_near("constant right", scheme_name(scheme), right_value(scheme, v),
                2.5, 1.0e-15);
   }
@@ -102,12 +101,11 @@ void test_constant() {
 void test_polynomial_exactness(int degree,
                                std::initializer_list<Reconstruction> schemes) {
   constexpr double h = 0.1;
-  const auto cell = [&](int j) {
-    return polynomial_average(j, degree, h);
-  };
+  const auto cell = [&](int j) { return polynomial_average(j, degree, h); };
   const int face_index = 3;
   const auto v = stencil_at(cell, face_index);
-  const double exact = std::pow(static_cast<double>(face_index + 1) * h, degree);
+  const double exact =
+      std::pow(static_cast<double>(face_index + 1) * h, degree);
 
   char label[64];
   std::snprintf(label, sizeof(label), "degree-%d", degree);
@@ -138,10 +136,11 @@ void test_convergence() {
     Reconstruction scheme;
     double order;
   };
-  const Expectation expectations[] = {
-      {Reconstruction::Central2, 2.0}, {Reconstruction::Central4, 4.0},
-      {Reconstruction::Central6, 6.0}, {Reconstruction::Weno5Z, 5.0},
-      {Reconstruction::Teno6, 6.0}};
+  const Expectation expectations[] = {{Reconstruction::Central2, 2.0},
+                                      {Reconstruction::Central4, 4.0},
+                                      {Reconstruction::Central6, 6.0},
+                                      {Reconstruction::Weno5Z, 5.0},
+                                      {Reconstruction::Teno6, 6.0}};
 
   for (const auto& expectation : expectations) {
     const double coarse = smooth_face_error(expectation.scheme, 32);
@@ -222,8 +221,8 @@ void test_device_kernel() {
       "reconstruction_device", kSchemeCount, KOKKOS_LAMBDA(int index) {
         const auto scheme = static_cast<Reconstruction>(index);
         output(2 * index) =
-            reconstruct_left(scheme, values(0), values(1), values(2),
-                             values(3), values(4), values(5));
+            reconstruct_left(scheme, values(0), values(1), values(2), values(3),
+                             values(4), values(5));
         output(2 * index + 1) =
             reconstruct_right(scheme, values(0), values(1), values(2),
                               values(3), values(4), values(5));
@@ -248,20 +247,18 @@ int main(int argc, char** argv) {
   {
     std::printf("Reconstruction exactness:\n");
     test_constant();
-    test_polynomial_exactness(1, {Reconstruction::Central2,
-                                  Reconstruction::Central4,
-                                  Reconstruction::Central6,
-                                  Reconstruction::Weno5Z,
-                                  Reconstruction::Teno6});
-    test_polynomial_exactness(2, {Reconstruction::Central4,
-                                  Reconstruction::Central6,
-                                  Reconstruction::Weno5Z,
-                                  Reconstruction::Teno6});
-    test_polynomial_exactness(3, {Reconstruction::Central4,
-                                  Reconstruction::Central6,
-                                  Reconstruction::Teno6});
-    test_polynomial_exactness(5, {Reconstruction::Central6,
-                                  Reconstruction::Teno6});
+    test_polynomial_exactness(
+        1, {Reconstruction::Central2, Reconstruction::Central4,
+            Reconstruction::Central6, Reconstruction::Weno5Z,
+            Reconstruction::Teno6});
+    test_polynomial_exactness(
+        2, {Reconstruction::Central4, Reconstruction::Central6,
+            Reconstruction::Weno5Z, Reconstruction::Teno6});
+    test_polynomial_exactness(
+        3, {Reconstruction::Central4, Reconstruction::Central6,
+            Reconstruction::Teno6});
+    test_polynomial_exactness(
+        5, {Reconstruction::Central6, Reconstruction::Teno6});
 
     std::printf("Smooth-flow convergence (periodic sine):\n");
     test_convergence();

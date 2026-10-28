@@ -66,8 +66,8 @@ class GlobalExchange {
       total += counts[static_cast<std::size_t>(rank)];
     }
 
-    auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
-                                                    q.data());
+    auto host =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());
     std::vector<double> send(static_cast<std::size_t>(local_count));
     int index = 0;
     for (int v = 0; v < nvar_; ++v) {
@@ -97,8 +97,8 @@ class GlobalExchange {
           const int j = local.lo[1] - ng_ + jp;
           const int k = local.lo[2] - ng_ + kp;
           const bool outside = i < local.lo[0] || i > local.hi[0] ||
-                              j < local.lo[1] || j > local.hi[1] ||
-                              k < local.lo[2] || k > local.hi[2];
+                               j < local.lo[1] || j > local.hi[1] ||
+                               k < local.lo[2] || k > local.hi[2];
           if (!outside) {
             continue;
           }
@@ -132,9 +132,8 @@ class GlobalExchange {
           int owner = -1;
           for (int rank = 0; rank < decomposition_.size; ++rank) {
             const int* m = &all_meta[static_cast<std::size_t>(rank) * 6];
-            if (source[0] >= m[0] && source[0] <= m[3] &&
-                source[1] >= m[1] && source[1] <= m[4] &&
-                source[2] >= m[2] && source[2] <= m[5]) {
+            if (source[0] >= m[0] && source[0] <= m[3] && source[1] >= m[1] &&
+                source[1] <= m[4] && source[2] >= m[2] && source[2] <= m[5]) {
               owner = rank;
               break;
             }
@@ -148,9 +147,10 @@ class GlobalExchange {
           const int base = displacements[static_cast<std::size_t>(owner)];
           for (int v = 0; v < nvar_; ++v) {
             const int source_index =
-                base + ((v * (m[5] - m[2] + 1) + (source[2] - m[2])) * len1 +
-                        (source[1] - m[1])) *
-                           len0 +
+                base +
+                ((v * (m[5] - m[2] + 1) + (source[2] - m[2])) * len1 +
+                 (source[1] - m[1])) *
+                    len0 +
                 (source[0] - m[0]);
             double value = global[static_cast<std::size_t>(source_index)];
             if ((v == 1 && flip[0]) || (v == 2 && flip[1]) ||

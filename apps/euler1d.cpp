@@ -78,8 +78,7 @@ struct ExactRiemann {
 
     const auto star_density = [&](const PrimitiveState& state) {
       if (p_star > state.p) {
-        return state.rho *
-               (p_star / state.p + (gamma - 1.0) / (gamma + 1.0)) /
+        return state.rho * (p_star / state.p + (gamma - 1.0) / (gamma + 1.0)) /
                ((gamma - 1.0) / (gamma + 1.0) * p_star / state.p + 1.0);
       }
       return state.rho * std::pow(p_star / state.p, 1.0 / gamma);
@@ -101,10 +100,9 @@ struct ExactRiemann {
     if (xi <= u_star) {
       if (p_star > left.p) {
         const double shock_speed =
-            left.u - c_left *
-                         std::sqrt((gamma + 1.0) / (2.0 * gamma) * p_star /
-                                       left.p +
-                                   (gamma - 1.0) / (2.0 * gamma));
+            left.u -
+            c_left * std::sqrt((gamma + 1.0) / (2.0 * gamma) * p_star / left.p +
+                               (gamma - 1.0) / (2.0 * gamma));
         if (xi >= shock_speed) {
           return PrimitiveState{rho_star_left, u_star, 0.0, 0.0, p_star};
         }
@@ -120,11 +118,9 @@ struct ExactRiemann {
         return PrimitiveState{rho_star_left, u_star, 0.0, 0.0, p_star};
       }
       const double u =
-          2.0 / (gamma + 1.0) *
-          (c_left + 0.5 * (gamma - 1.0) * left.u + xi);
+          2.0 / (gamma + 1.0) * (c_left + 0.5 * (gamma - 1.0) * left.u + xi);
       const double c =
-          2.0 / (gamma + 1.0) *
-          (c_left + 0.5 * (gamma - 1.0) * (left.u - xi));
+          2.0 / (gamma + 1.0) * (c_left + 0.5 * (gamma - 1.0) * (left.u - xi));
       return PrimitiveState{
           left.rho * std::pow(c / c_left, 2.0 / (gamma - 1.0)), u, 0.0, 0.0,
           left.p * std::pow(c / c_left, 2.0 * gamma / (gamma - 1.0))};
@@ -132,10 +128,9 @@ struct ExactRiemann {
 
     if (p_star > right.p) {
       const double shock_speed =
-          right.u + c_right *
-                        std::sqrt((gamma + 1.0) / (2.0 * gamma) * p_star /
-                                      right.p +
-                                  (gamma - 1.0) / (2.0 * gamma));
+          right.u +
+          c_right * std::sqrt((gamma + 1.0) / (2.0 * gamma) * p_star / right.p +
+                              (gamma - 1.0) / (2.0 * gamma));
       if (xi <= shock_speed) {
         return PrimitiveState{rho_star_right, u_star, 0.0, 0.0, p_star};
       }
@@ -151,11 +146,9 @@ struct ExactRiemann {
       return PrimitiveState{rho_star_right, u_star, 0.0, 0.0, p_star};
     }
     const double u =
-        2.0 / (gamma + 1.0) *
-        (-c_right + 0.5 * (gamma - 1.0) * right.u + xi);
+        2.0 / (gamma + 1.0) * (-c_right + 0.5 * (gamma - 1.0) * right.u + xi);
     const double c =
-        2.0 / (gamma + 1.0) *
-        (c_right - 0.5 * (gamma - 1.0) * (right.u - xi));
+        2.0 / (gamma + 1.0) * (c_right - 0.5 * (gamma - 1.0) * (right.u - xi));
     return PrimitiveState{
         right.rho * std::pow(c / c_right, 2.0 / (gamma - 1.0)), u, 0.0, 0.0,
         right.p * std::pow(c / c_right, 2.0 * gamma / (gamma - 1.0))};
@@ -167,8 +160,7 @@ struct ExactRiemann {
 // ---------------------------------------------------------------------------
 
 ConservativeState add_scaled(const ConservativeState& base,
-                             const ConservativeState& increment,
-                             double scale) {
+                             const ConservativeState& increment, double scale) {
   return ConservativeState{base.rho + scale * increment.rho,
                            base.mom_n + scale * increment.mom_n,
                            base.mom_t1 + scale * increment.mom_t1,
@@ -178,8 +170,7 @@ ConservativeState add_scaled(const ConservativeState& base,
 
 ConservativeState linear_combination(double a, const ConservativeState& x,
                                      double b, const ConservativeState& y) {
-  return ConservativeState{a * x.rho + b * y.rho,
-                           a * x.mom_n + b * y.mom_n,
+  return ConservativeState{a * x.rho + b * y.rho, a * x.mom_n + b * y.mom_n,
                            a * x.mom_t1 + b * y.mom_t1,
                            a * x.mom_t2 + b * y.mom_t2,
                            a * x.energy + b * y.energy};
@@ -255,9 +246,8 @@ class Euler1D {
         return false;
       }
       for (int i = 0; i < n_; ++i) {
-        cells_[i] = linear_combination(
-            1.0 / 3.0, cells_[i], 2.0 / 3.0,
-            add_scaled(next[i], stage_rhs[i], dt));
+        cells_[i] = linear_combination(1.0 / 3.0, cells_[i], 2.0 / 3.0,
+                                       add_scaled(next[i], stage_rhs[i], dt));
       }
 
       time += dt;
@@ -307,14 +297,14 @@ class Euler1D {
       PrimitiveState left{
           saturn::recon::reconstruct_left(scheme_, rho[0], rho[1], rho[2],
                                           rho[3], rho[4], rho[5]),
-          saturn::recon::reconstruct_left(scheme_, u[0], u[1], u[2], u[3],
-                                          u[4], u[5]),
-          saturn::recon::reconstruct_left(scheme_, v[0], v[1], v[2], v[3],
-                                          v[4], v[5]),
-          saturn::recon::reconstruct_left(scheme_, w[0], w[1], w[2], w[3],
-                                          w[4], w[5]),
-          saturn::recon::reconstruct_left(scheme_, p[0], p[1], p[2], p[3],
-                                          p[4], p[5])};
+          saturn::recon::reconstruct_left(scheme_, u[0], u[1], u[2], u[3], u[4],
+                                          u[5]),
+          saturn::recon::reconstruct_left(scheme_, v[0], v[1], v[2], v[3], v[4],
+                                          v[5]),
+          saturn::recon::reconstruct_left(scheme_, w[0], w[1], w[2], w[3], w[4],
+                                          w[5]),
+          saturn::recon::reconstruct_left(scheme_, p[0], p[1], p[2], p[3], p[4],
+                                          p[5])};
       PrimitiveState right{
           saturn::recon::reconstruct_right(scheme_, rho[0], rho[1], rho[2],
                                            rho[3], rho[4], rho[5]),
@@ -337,12 +327,12 @@ class Euler1D {
     }
 
     for (int i = 0; i < n_; ++i) {
-      rhs[i] = ConservativeState{
-          -(faces[i + 1].rho - faces[i].rho) / dx_,
-          -(faces[i + 1].mom_n - faces[i].mom_n) / dx_,
-          -(faces[i + 1].mom_t1 - faces[i].mom_t1) / dx_,
-          -(faces[i + 1].mom_t2 - faces[i].mom_t2) / dx_,
-          -(faces[i + 1].energy - faces[i].energy) / dx_};
+      rhs[i] =
+          ConservativeState{-(faces[i + 1].rho - faces[i].rho) / dx_,
+                            -(faces[i + 1].mom_n - faces[i].mom_n) / dx_,
+                            -(faces[i + 1].mom_t1 - faces[i].mom_t1) / dx_,
+                            -(faces[i + 1].mom_t2 - faces[i].mom_t2) / dx_,
+                            -(faces[i + 1].energy - faces[i].energy) / dx_};
     }
     return true;
   }
@@ -525,16 +515,14 @@ int main(int argc, char** argv) {
 
   std::printf("scheme: %s, solver: %s, n: %d, t: %.3f\n", scheme_name(scheme),
               solver_name(solver), n, t_end);
-  std::printf("exact: p*=%.8f u*=%.8f rho*L=%.8f rho*R=%.8f\n",
-              exact.p_star, exact.u_star, exact.rho_star_left,
-              exact.rho_star_right);
+  std::printf("exact: p*=%.8f u*=%.8f rho*L=%.8f rho*R=%.8f\n", exact.p_star,
+              exact.u_star, exact.rho_star_left, exact.rho_star_right);
   std::printf("L1: rho %.6e, u %.6e, p %.6e; Linf rho %.6e\n", l1_rho, l1_u,
               l1_p, linf_rho);
 
   // Plateau checks, well inside the star regions and away from the waves.
   const auto sample_value = [&](double x) {
-    const int index = std::min(
-        n - 1, std::max(0, static_cast<int>(x / dx)));
+    const int index = std::min(n - 1, std::max(0, static_cast<int>(x / dx)));
     return saturn::riemann::to_primitive(cells[index], exact.gamma).rho;
   };
   const double left_plateau = sample_value(0.60);

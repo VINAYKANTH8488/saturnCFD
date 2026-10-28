@@ -365,10 +365,9 @@ saturn::PrimitiveState initial_state(const Params& p, double x, double y,
     const double u = std::sin(x) * std::cos(y) * std::cos(z);
     const double v = -std::cos(x) * std::sin(y) * std::cos(z);
     const double w = 0.0;
-    const double pressure =
-        1.0 / (p.gamma * p.mach * p.mach) +
-        (std::cos(2.0 * x) + std::cos(2.0 * y)) *
-            (std::cos(2.0 * z) + 2.0) / 16.0;
+    const double pressure = 1.0 / (p.gamma * p.mach * p.mach) +
+                            (std::cos(2.0 * x) + std::cos(2.0 * y)) *
+                                (std::cos(2.0 * z) + 2.0) / 16.0;
     return saturn::PrimitiveState{rho, u, v, w, pressure};
   }
   if (p.case_name == "acoustic") {
@@ -390,9 +389,9 @@ saturn::PrimitiveState initial_state(const Params& p, double x, double y,
     const double g = std::exp(0.5 * (1.0 - r2));
     const double u = 0.1 - beta / (2.0 * kPi) * dy * g;
     const double v = beta / (2.0 * kPi) * dx * g;
-    const double temperature =
-        1.0 - (p.gamma - 1.0) * beta * beta / (8.0 * p.gamma * kPi * kPi) *
-                  std::exp(1.0 - r2);
+    const double temperature = 1.0 - (p.gamma - 1.0) * beta * beta /
+                                         (8.0 * p.gamma * kPi * kPi) *
+                                         std::exp(1.0 - r2);
     const double rho = std::pow(temperature, 1.0 / (p.gamma - 1.0));
     const double pressure = rho * temperature;
     return saturn::PrimitiveState{rho, u, v, 0.0, pressure};
@@ -429,10 +428,9 @@ void apply_double_mach_bc(saturn::PatchField<ExecSpace>& q,
   const saturn::Box global = decomposition.global;
   const int ng = q.ng();
   const double hx = grid.h[0];
-  const double x_front =
-      1.0 / 6.0 + (1.0 + 20.0 * time) / std::sqrt(3.0);
-  const saturn::PrimitiveState post_primitive{
-      8.0, 8.25 * std::sqrt(3.0) / 2.0, -4.125, 0.0, 116.5};
+  const double x_front = 1.0 / 6.0 + (1.0 + 20.0 * time) / std::sqrt(3.0);
+  const saturn::PrimitiveState post_primitive{8.0, 8.25 * std::sqrt(3.0) / 2.0,
+                                              -4.125, 0.0, 116.5};
   const saturn::PrimitiveState pre_primitive{1.4, 0.0, 0.0, 0.0, 1.0};
   const saturn::ConservativeState post =
       saturn::riemann::to_conservative(post_primitive, gas.gamma);
@@ -446,8 +444,7 @@ void apply_double_mach_bc(saturn::PatchField<ExecSpace>& q,
       saturn::Int3{{0, 0, 0}}, saturn::Int3{{np2, np1, np0}});
 
   Kokkos::parallel_for(
-      "double_mach_bc", policy,
-      KOKKOS_LAMBDA(int kp, int jp, int ip) {
+      "double_mach_bc", policy, KOKKOS_LAMBDA(int kp, int jp, int ip) {
         const int i = box.lo[0] - ng + ip;
         const int j = box.lo[1] - ng + jp;
         const int k = box.lo[2] - ng + kp;
@@ -579,8 +576,8 @@ int run(const Params& params) {
     if (params.case_name == "dm") {
       apply_double_mach_bc(state, decomposition, grid, rhs_time, gas);
     }
-    saturn::compressible::compressible_rhs(
-        state, workspace, out, grid, gas, scheme, solver, false);
+    saturn::compressible::compressible_rhs(state, workspace, out, grid, gas,
+                                           scheme, solver, false);
   };
 
   const double hmin = std::min({grid.h[0], grid.h[1], grid.h[2]});
@@ -615,15 +612,14 @@ int run(const Params& params) {
     double max_mach = 0.0;
     Kokkos::parallel_reduce(
         "diagnostics", interior_policy,
-        KOKKOS_LAMBDA(int k, int j, int i, double& m, double& mom,
-                      double& kin, double& internal_energy, double& mach) {
+        KOKKOS_LAMBDA(int k, int j, int i, double& m, double& mom, double& kin,
+                      double& internal_energy, double& mach) {
           const saturn::PrimitiveState state =
               saturn::compressible::load_primitive(q, i, j, k, gas);
-          const double speed2 = state.u * state.u + state.v * state.v +
-                                state.w * state.w;
+          const double speed2 =
+              state.u * state.u + state.v * state.v + state.w * state.w;
           const double speed = Kokkos::sqrt(speed2);
-          const double c =
-              Kokkos::sqrt(gas.gamma * state.p / state.rho);
+          const double c = Kokkos::sqrt(gas.gamma * state.p / state.rho);
           m += state.rho;
           mom += state.rho * speed;
           kin += 0.5 * state.rho * speed2;
@@ -648,8 +644,8 @@ int run(const Params& params) {
           max_mach);
       if (history.is_open()) {
         history << std::setprecision(12) << current_time << "," << step << ","
-                << mass << "," << momentum << "," << kinetic << ","
-                << internal << "," << total << "," << max_mach << "\n";
+                << mass << "," << momentum << "," << kinetic << "," << internal
+                << "," << total << "," << max_mach << "\n";
         history.flush();
       }
     }
@@ -673,11 +669,10 @@ int run(const Params& params) {
     char suffix[64];
     std::snprintf(suffix, sizeof(suffix), "_%06d", snapshot_step);
     const std::array<double, 3> origin{{0.0, 0.0, 0.0}};
-    const std::array<double, 3> spacing{
-        {grid.h[0], grid.h[1], grid.h[2]}};
-    saturn::write_vti_fields(
-        base + suffix, primitive, {"rho", "u", "v", "w", "p"}, origin,
-        spacing, decomposition.global, time);
+    const std::array<double, 3> spacing{{grid.h[0], grid.h[1], grid.h[2]}};
+    saturn::write_vti_fields(base + suffix, primitive,
+                             {"rho", "u", "v", "w", "p"}, origin, spacing,
+                             decomposition.global, time);
   };
 
   if (!params.output.empty()) {
@@ -730,8 +725,7 @@ int run(const Params& params) {
     }
     if (!params.checkpoint.empty() && params.checkpoint_every > 0 &&
         step % params.checkpoint_every == 0) {
-      saturn::write_checkpoint(params.checkpoint, q, step, time,
-                               decomposition);
+      saturn::write_checkpoint(params.checkpoint, q, step, time, decomposition);
     }
   }
   Kokkos::fence();
@@ -774,12 +768,12 @@ int run(const Params& params) {
       !expect_energy_conservation || energy_drift <= params.energy_tol;
 
   if (root) {
-    std::printf("finished: steps=%d time=%.6f dt_last=%.3e wall=%.3fs\n",
-                step, time, last_dt, seconds);
-    std::printf(
-        "valid=%s K=%.8e e=%.8e E=%.10e Mach_max=%.3e dE/E=%.2e\n",
-        valid ? "yes" : "no", final_diagnostics[2], final_diagnostics[3],
-        final_diagnostics[4], final_diagnostics[5], energy_drift);
+    std::printf("finished: steps=%d time=%.6f dt_last=%.3e wall=%.3fs\n", step,
+                time, last_dt, seconds);
+    std::printf("valid=%s K=%.8e e=%.8e E=%.10e Mach_max=%.3e dE/E=%.2e\n",
+                valid ? "yes" : "no", final_diagnostics[2],
+                final_diagnostics[3], final_diagnostics[4],
+                final_diagnostics[5], energy_drift);
   }
   if (params.check && (!valid || !conservation_ok)) {
     if (root && !conservation_ok) {

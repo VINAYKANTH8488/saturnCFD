@@ -85,26 +85,22 @@ double central4(double /*vm2*/, double vm1, double v0, double vp1, double vp2,
 KOKKOS_INLINE_FUNCTION
 double central6(double vm2, double vm1, double v0, double vp1, double vp2,
                 double vp3) {
-  return (vm2 - 8.0 * vm1 + 37.0 * v0 + 37.0 * vp1 - 8.0 * vp2 + vp3) /
-         60.0;
+  return (vm2 - 8.0 * vm1 + 37.0 * v0 + 37.0 * vp1 - 8.0 * vp2 + vp3) / 60.0;
 }
 
 // Jiang-Shu smoothness indicators for the three 3-point WENO5 candidates.
 // Ordered backward ({-2,-1,0}), central ({-1,0,1}), forward ({0,1,2}).
 KOKKOS_INLINE_FUNCTION
-void weno5_smoothness(double vm2, double vm1, double v0, double vp1,
-                      double vp2, double& beta0, double& beta1,
-                      double& beta2) {
+void weno5_smoothness(double vm2, double vm1, double v0, double vp1, double vp2,
+                      double& beta0, double& beta1, double& beta2) {
   const double d0 = vm2 - 2.0 * vm1 + v0;
   const double d1 = vm1 - 2.0 * v0 + vp1;
   const double d2 = v0 - 2.0 * vp1 + vp2;
   beta0 = (13.0 / 12.0) * d0 * d0 +
-          0.25 * (vm2 - 4.0 * vm1 + 3.0 * v0) *
-              (vm2 - 4.0 * vm1 + 3.0 * v0);
+          0.25 * (vm2 - 4.0 * vm1 + 3.0 * v0) * (vm2 - 4.0 * vm1 + 3.0 * v0);
   beta1 = (13.0 / 12.0) * d1 * d1 + 0.25 * (vm1 - vp1) * (vm1 - vp1);
   beta2 = (13.0 / 12.0) * d2 * d2 +
-          0.25 * (3.0 * v0 - 4.0 * vp1 + vp2) *
-              (3.0 * v0 - 4.0 * vp1 + vp2);
+          0.25 * (3.0 * v0 - 4.0 * vp1 + vp2) * (3.0 * v0 - 4.0 * vp1 + vp2);
 }
 
 // WENO5-Z (Borges et al. 2008) with finite-volume linear weights.
@@ -159,10 +155,8 @@ double stencil6_smoothness(double vm2, double vm1, double v0, double vp1,
   const double kNumerator[6][6] = {
       {271779.0, -1190400.0, 2043176.0, -1731126.0, 729381.0, -122810.0},
       {-1190400.0, 5653317.0, -10213942.0, 8952516.0, -3863994.0, 662503.0},
-      {2043176.0, -10213942.0, 19510972.0, -17908832.0, 7964956.0,
-       -1396330.0},
-      {-1731126.0, 8952516.0, -17908832.0, 17195652.0, -7940202.0,
-       1431992.0},
+      {2043176.0, -10213942.0, 19510972.0, -17908832.0, 7964956.0, -1396330.0},
+      {-1731126.0, 8952516.0, -17908832.0, 17195652.0, -7940202.0, 1431992.0},
       {729381.0, -3863994.0, 7964956.0, -7940202.0, 3824847.0, -714988.0},
       {-122810.0, 662503.0, -1396330.0, 1431992.0, -714988.0, 139633.0}};
 
@@ -241,8 +235,8 @@ double teno6(double vm2, double vm1, double v0, double vp1, double vp2,
 
 // Reconstruct the left state at the face between v0 and vp1.
 KOKKOS_INLINE_FUNCTION
-double reconstruct_left(Reconstruction scheme, double vm2, double vm1, double v0,
-                        double vp1, double vp2, double vp3) {
+double reconstruct_left(Reconstruction scheme, double vm2, double vm1,
+                        double v0, double vp1, double vp2, double vp3) {
   switch (scheme) {
     case Reconstruction::Central2:
       return central2(vm2, vm1, v0, vp1, vp2, vp3);

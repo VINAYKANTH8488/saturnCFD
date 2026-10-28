@@ -9,8 +9,7 @@
 namespace saturn {
 
 inline int unavailable_backend(const std::string& name) {
-  std::fprintf(stderr,
-               "backend '%s' is not enabled in this Kokkos build\n",
+  std::fprintf(stderr, "backend '%s' is not enabled in this Kokkos build\n",
                name.c_str());
   return 2;
 }
@@ -20,14 +19,14 @@ inline int unavailable_backend(const std::string& name) {
 // The callable is invoked as f(Kokkos::SomeExecutionSpace{}), so a generic
 // lambda can recover the type with decltype and instantiate a template:
 //
-//   saturn::dispatch_execution_space(space, SATURN_DEFAULT_SPACE, [&](auto tag) {
+//   saturn::dispatch_execution_space(space, SATURN_DEFAULT_SPACE, [&](auto tag)
+//   {
 //     using space_type = decltype(tag);
 //     return run_impl<space_type>(params);
 //   });
 template <class F>
 int dispatch_execution_space(const std::string& requested,
-                             const char* default_space,
-                             F&& f) {
+                             const char* default_space, F&& f) {
   std::string space = requested;
   if (space == "default") {
     space = default_space;

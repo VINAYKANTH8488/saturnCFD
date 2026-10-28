@@ -840,7 +840,8 @@ an exit criterion; do not start the next phase until it is met.
 - [x] Create a **new git repo** in `saturnCFD/`.
 - [x] Install CMake 3.31.6, Kokkos 5.2.2 (Serial + OpenMP), CUDA 12.2, and a
       Kokkos-CUDA build (sm_61).
-- [x] CMake skeleton, presets, strict warnings; CI and clang-format pending.
+- [x] CMake skeleton, presets, strict warnings; CI workflow (Kokkos build +
+      full CTest) and clang-format configuration added.
 - [x] `core/`: version and execution-space dispatch; config/logging pending.
 - [x] Stencil + STREAM microbenchmarks on CPU and the Quadro P600; roofline
       measured (see `benchmarks/results/`).

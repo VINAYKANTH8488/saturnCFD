@@ -39,8 +39,8 @@ int main(int argc, char** argv) {
     const bool periodic[3] = {true, true, true};
     const auto dec = saturn::Decomposition::create(
         saturn::Box::from_extents(n, n, n), periodic);
-    const auto grid = saturn::UniformGrid::from_cells_local(
-        n, n, n, 1.0, 1.0, 1.0, ng, dec.local);
+    const auto grid = saturn::UniformGrid::from_cells_local(n, n, n, 1.0, 1.0,
+                                                            1.0, ng, dec.local);
     (void)grid;
 
     using exec_space = Kokkos::DefaultExecutionSpace;
@@ -92,7 +92,8 @@ int main(int argc, char** argv) {
           if (error > 1.0e-12) {
             if (face_errors[face] < 3) {
               std::printf(
-                  "rank %d face %d: ghost (%d,%d,%d) actual %.1f expected %.1f\n",
+                  "rank %d face %d: ghost (%d,%d,%d) actual %.1f expected "
+                  "%.1f\n",
                   dec.rank, face, i, j, k, h(0, kp, jp, ip), expected);
             }
             ++face_errors[face];

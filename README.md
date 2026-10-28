@@ -340,4 +340,18 @@ benchmarks/  case definitions and recorded results
 experiments/ numerical de-risk prototypes (EDAC TGV)
 scripts/     environment setup and run scripts
 docs/        design notes (added as the project grows)
+.github/     CI (Kokkos build + full CTest + clang-format check)
 ```
+
+## Style and CI
+
+C++ is formatted with `clang-format` 23.1.3 using the Google base style in
+`.clang-format` (`IncludeBlocks: Preserve`). Format `src/`, `apps/`, and
+`tests/` before submitting changes:
+
+```bash
+clang-format -i $(git ls-files 'src/*.hpp' 'apps/*.cpp' 'tests/*.cpp')
+```
+
+`.github/workflows/ci.yml` builds Kokkos 5.2.2 (Serial + OpenMP), configures
+with MPI, runs the full CTest suite, and checks formatting.
