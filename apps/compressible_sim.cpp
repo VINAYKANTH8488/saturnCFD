@@ -4,11 +4,12 @@
 //   tgv        3D Taylor-Green vortex on a periodic box
 //   acoustic   small pressure pulse on a periodic box
 //   vortex     low-Mach isentropic vortex on a periodic box
-//   dm         double Mach reflection setup (single-rank; approximate BCs)
+//   dm         Woodward-Colella double Mach reflection (standard 60-degree
+//              shock, exact time-dependent top inflow)
 //
 // The driver supports VTK snapshots of primitive fields and binary
-// checkpoints. Multi-rank runs currently require all-periodic boundaries;
-// single-rank runs may use transmissive/slip boundaries as well.
+// checkpoints. Multi-rank runs use the full 3D halo exchange; the double-Mach
+// case has time-dependent analytic inflow boundaries.
 
 #include <Kokkos_Core.hpp>
 
@@ -190,7 +191,7 @@ void configure_case(Params& p, bool mu_set, bool scheme_set) {
     p.nx = 128;
     p.ny = 32;
     p.nz = 4;
-    p.tend = 0.1;
+    p.tend = 0.2;
     p.mu = mu_set ? p.mu : 0.0;
     p.scheme = scheme_set ? p.scheme : "weno5z";
     p.bc[0][0] = saturn::BoundaryType::Transmissive;
@@ -388,12 +389,94 @@ saturn::PrimitiveState initial_state(const Params& p, double x, double y,
     const double pressure = rho * temperature;
     return saturn::PrimitiveState{rho, u, v, 0.0, pressure};
   }
-  // Double Mach reflection: post-shock state for x < 1/6, pre-shock after.
-  const bool post_shock = x < 1.0 / 6.0;
-  if (post_shock) {
-    return saturn::PrimitiveState{8.0, 8.25, 0.0, 0.0, 116.5};
+  // Standard Woodward-Colella double Mach reflection: a Mach-10 shock
+  // inclined 30 degrees to the x-axis, with the standard oblique-shock
+  // post-shock state (normal velocity 8.25).
+  const double u_post = 8.25 * std::sqrt(3.0) / 2.0;  // 7.1447
+  const double v_post = -8.25 / 2.0;                  // -4.125
+  const double x_shock = 1.0 / 6.0 + y / std::sqrt(3.0);
+  if (x < x_shock) {
+    return saturn::PrimitiveState{8.0, u_post, v_post, 0.0, 116.5};
   }
   return saturn::PrimitiveState{1.4, 0.0, 0.0, 0.0, 1.0};
+}
+
+// Time-dependent boundaries for the standard double Mach reflection.
+//
+//   left          fixed post-shock inflow
+//   bottom        post-shock inflow for x <= 1/6, reflecting wall otherwise
+//   top           oblique shock front x_f(t) = 1/6 + (1 + 20 t)/sqrt(3)
+//   right         transmissive outflow
+//
+// The base boundary types in `Params` fill everything first; this routine
+// then overwrites the global-domain ghosts that need the analytic inflow
+// state. Ghost cells between ranks are never touched (they already hold
+// neighbor data).
+template <class ExecSpace>
+void apply_double_mach_bc(saturn::PatchField<ExecSpace>& q,
+                          const saturn::Decomposition& decomposition,
+                          const saturn::UniformGrid& grid, double time,
+                          const saturn::compressible::GasProperties& gas) {
+  const saturn::Box box = q.box();
+  const saturn::Box global = decomposition.global;
+  const int ng = q.ng();
+  const double hx = grid.h[0];
+  const double x_front =
+      1.0 / 6.0 + (1.0 + 20.0 * time) / std::sqrt(3.0);
+  const saturn::PrimitiveState post_primitive{
+      8.0, 8.25 * std::sqrt(3.0) / 2.0, -4.125, 0.0, 116.5};
+  const saturn::PrimitiveState pre_primitive{1.4, 0.0, 0.0, 0.0, 1.0};
+  const saturn::ConservativeState post =
+      saturn::riemann::to_conservative(post_primitive, gas.gamma);
+  const saturn::ConservativeState pre =
+      saturn::riemann::to_conservative(pre_primitive, gas.gamma);
+
+  const int np0 = box.length(0) + 2 * ng;
+  const int np1 = box.length(1) + 2 * ng;
+  const int np2 = box.length(2) + 2 * ng;
+  const auto policy = saturn::make_mdrange3<ExecSpace>(
+      saturn::Int3{{0, 0, 0}}, saturn::Int3{{np2, np1, np0}});
+
+  Kokkos::parallel_for(
+      "double_mach_bc", policy,
+      KOKKOS_LAMBDA(int kp, int jp, int ip) {
+        const int i = box.lo[0] - ng + ip;
+        const int j = box.lo[1] - ng + jp;
+        const int k = box.lo[2] - ng + kp;
+        (void)k;
+
+        const bool x_low = i < global.lo[0];
+        const bool y_high = j > global.hi[1];
+        const bool y_low = j < global.lo[1];
+        if (!x_low && !y_high && !y_low) {
+          return;
+        }
+
+        const double x = (i + 0.5) * hx;
+        bool set = false;
+        bool post_shock = false;
+        if (x_low) {
+          set = true;
+          post_shock = true;
+        } else if (y_high) {
+          set = true;
+          post_shock = x < x_front;
+        } else if (y_low) {
+          set = x <= 1.0 / 6.0;
+          post_shock = true;
+        }
+        if (!set) {
+          return;  // reflecting wall / outflow already filled
+        }
+
+        const saturn::ConservativeState state = post_shock ? post : pre;
+        auto data = q.data();
+        data(0, kp, jp, ip) = state.rho;
+        data(1, kp, jp, ip) = state.mom_n;
+        data(2, kp, jp, ip) = state.mom_t1;
+        data(3, kp, jp, ip) = state.mom_t2;
+        data(4, kp, jp, ip) = state.energy;
+      });
 }
 
 template <class ExecSpace>
@@ -477,13 +560,16 @@ int run(const Params& params) {
 
   const bool use_box_exchange = mpi_size > 1 && all_periodic;
   const bool use_global_exchange = mpi_size > 1 && !all_periodic;
-  auto compute_rhs = [&](field_type& state, field_type& out) {
+  auto compute_rhs = [&](field_type& state, field_type& out, double rhs_time) {
     if (use_box_exchange) {
       exchange.exchange(state);
     } else if (use_global_exchange) {
       global_exchange.exchange(state, params.bc);
     } else {
       saturn::apply_boundary_conditions(state, params.bc);
+    }
+    if (params.case_name == "dm") {
+      apply_double_mach_bc(state, decomposition, grid, rhs_time, gas);
     }
     saturn::compressible::compressible_rhs(
         state, workspace, out, grid, gas, scheme, solver, false);
@@ -613,9 +699,9 @@ int run(const Params& params) {
     last_dt = dt;
 
     if (params.time == "rk4") {
-      saturn::advance_rk4(q, stage, rhs, k1, k2, k3, dt, compute_rhs);
+      saturn::advance_rk4(q, stage, rhs, k1, k2, k3, dt, time, compute_rhs);
     } else {
-      saturn::advance_ssprk3(q, stage, next, rhs, dt, compute_rhs);
+      saturn::advance_ssprk3(q, stage, next, rhs, dt, time, compute_rhs);
     }
 
     time += dt;

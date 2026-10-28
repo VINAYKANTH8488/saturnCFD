@@ -885,9 +885,10 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
       path (inviscid + 4th-order viscous fluxes) implemented with
       entropy/shear MMS at 4th order (`docs/verification/compressible_mms.md`).
       Production-style driver with TGV, acoustic pulse, low-Mach vortex, and
-      double-Mach setup, VTK/checkpoint, full 3D halo exchange, and
-      periodic/transmissive/slip BCs (`docs/verification/compressible_driver.md`).
-      Physical BC validation and GPU scaling pending.
+      the standard Woodward–Colella double-Mach setup with exact
+      time-dependent inflow boundaries, VTK/checkpoint, and full 3D halo
+      exchange (`docs/verification/compressible_driver.md`). Reference-data
+      comparisons for double Mach and TGV, and GPU scaling, pending.
 - [x] MMS 4th/6th order; energy conservation check (entropy-wave MMS at
       `central4`/WENO5-Z/`central6`; periodic inviscid mass and total-energy
       drift ≤ 1e-15 enforced by `--energy-tol`).
@@ -895,9 +896,10 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
 
 **Current:** reconstruction, all four Riemann solvers, and the 1D Sod gate are
 passing on CPU Serial/OpenMP. The 3D Navier–Stokes path has smooth MMS at
-4th–6th order and exact conservation on periodic inviscid runs. Next: GPU
-performance baseline, physical-BC validation, and reference comparisons for the
-shock/acoustic/TGV cases.
+4th–6th order, exact conservation on periodic inviscid runs, and the standard
+double-Mach setup with exact time-dependent inflow boundaries. Next: GPU
+performance baseline, reference comparisons for double Mach and TGV, and
+multi-rank tests of the new boundaries.
 
 **Exit:** 4th-order MMS ≥ 3.8; Sod correct; low-Mach vortex stable; strong
 scaling to 8 GPUs.

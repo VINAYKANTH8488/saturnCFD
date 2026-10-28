@@ -1,9 +1,11 @@
 # 3D compressible driver and cases
 
 **Date:** 2026-10-27
-**Status:** CPU Serial/OpenMP; single-rank non-periodic cases; multi-rank
-all-periodic runs use the full 3D halo exchange, verified on 2 and 4 ranks.
-CUDA validation pending.
+**Status:** CPU Serial/OpenMP; single- and multi-rank non-periodic cases.
+All-periodic runs use the full 3D halo exchange (`BoxExchange`), verified on 2
+and 4 ranks; non-periodic runs use the `GlobalExchange` all-gather fallback.
+The double-Mach analytic inflow is applied on top of either path. CUDA
+validation and an MPI regression after the double-Mach BC change are pending.
 **Code:** `apps/compressible_sim.cpp`, `src/halo/box_exchange.hpp`,
 `src/fields/boundary_conditions.hpp`
 
@@ -31,11 +33,32 @@ host-staged; this is correct but not yet a fused/scalable exchange.
 | `tgv` | `[0,2pi]^3` | periodic | 3D Taylor–Green vortex |
 | `acoustic` | `[0,1]^3` | periodic | small pressure pulse |
 | `vortex` | `[0,10]x[0,10]x[0,1]` | periodic | low-Mach isentropic vortex |
-| `dm` | `[0,4]x[0,1]x[0,0.25]` | transmissive/slip/periodic | double Mach setup; approximate top BC |
+| `dm` | `[0,4]x[0,1]x[0,0.25]` | inflow/slip/transmissive/periodic | Woodward–Colella double Mach |
 
-The `dm` case is an initial-condition/stability setup, not yet a validated
-double-Mach benchmark: the top boundary uses a simple transmissive condition
-instead of the exact post-shock inflow profile.
+### Double Mach
+
+Standard Woodward–Colella setup: a Mach-10 shock inclined 30° to the x-axis
+impinges on the reflecting bottom wall at `x = 1/6`; `gamma = 1.4`. The
+pre-shock state is `rho=1.4`, `p=1`, `u=v=0`. The oblique post-shock state has
+normal velocity 8.25, i.e. `u = 8.25 cos(30°) = 7.1447`,
+`v = -8.25 sin(30°) = -4.125`, `rho=8`, `p=116.5`. Initially the post-shock
+state fills `x < 1/6 + y/sqrt(3)`.
+
+Boundaries (implemented in `apply_double_mach_bc`):
+
+- left: fixed post-shock inflow;
+- bottom: fixed post-shock inflow for `x <= 1/6`, reflecting slip wall after;
+- top: time-dependent oblique shock at
+  `x_f(t) = 1/6 + (1 + 20 t)/sqrt(3)`, post-shock for `x < x_f` and pre-shock
+  after;
+- right: transmissive outflow; z: periodic.
+
+The stage-time boundary is evaluated at the correct RK stage time (the time
+integrators pass the stage time to the RHS). The wave structure is the
+standard double-Mach pattern (incident shock, Mach stem, reflected shock,
+triple point, slip line and Kelvin–Helmholtz roll-up). Quantitative comparison
+against reference data (e.g. along the bottom wall at `t=0.2`) is still
+pending.
 
 ### Taylor–Green vortex
 
@@ -66,11 +89,12 @@ that kinetic energy remains small.
 Standard isentropic vortex with `beta = 0.1` and base velocity `u = 0.1` on a
 `10 x 10` periodic domain; it is advected and should remain smooth.
 
-### Double Mach
+### Double Mach (continued)
 
-Post-shock state (`rho=8`, `p=116.5`, `u=8.25`) for `x < 1/6`, pre-shock
-(`rho=1.4`, `p=1`, `u=0`) otherwise; `gamma=1.4`. Bottom is a slip wall, z is
-periodic, other sides are transmissive.
+The default case uses `128 x 32 x 4` cells and runs to `t=0.2`; the resolution
+study in the original paper uses `240 x 60` and `480 x 120`. The thin periodic
+z direction and `w=0` initialization make the problem two-dimensional while
+exercising the 3D solver.
 
 ## Diagnostics
 
@@ -129,10 +153,12 @@ Observed on OpenMP (16³ unless noted):
 | TGV, t=0.05 | 1 | <1e-12 | 3.10004e+01 | 0.950 |
 | acoustic, t=0.05 | 3 | <1e-12 | 8.08e-10 | 2.95e-04 |
 | vortex, t=0.05 | 5 | <1e-12 | 5.00007e+01 | ~0.1 |
-| double Mach, t=0.005 (32x16x4) | 6 | inflow/outflow | 1.112e+01 | 1.83 |
+| double Mach, t=0.005 (32x16x4) | 5 | inflow/outflow | 3.403e+01 | 1.83 |
+| double Mach, t=0.2 (256x64x4) | 653 | inflow/outflow | 2.264e+02 | 3.85 |
 
 Mass is conserved to round-off in the periodic cases. The double-Mach mass
-changes because the left/right boundaries are transmissive.
+grows because post-shock inflow enters through the left, bottom (`x <= 1/6`),
+and top boundaries.
 
 ## Multi-rank notes
 
@@ -141,8 +167,9 @@ changes because the left/right boundaries are transmissive.
 - Multi-rank all-periodic runs pass the entropy MMS, viscous-shear MMS, and
   TGV stability tests on 2 and 4 ranks.
 - Multi-rank non-periodic boundaries use `GlobalExchange`, an all-gather
-  fallback that fills all ghosts/BCs consistently; the double-Mach case gives
-  the same result on 2/4 ranks as on one rank.
+  fallback that fills all ghosts/BCs consistently; the double-Mach analytic
+  inflow is applied on top of it. The pre-BC-change 2/4-rank check matched the
+  single-rank result; a rerun after the standard-setup change is pending.
 - All-periodic runs use the 26-neighbor `BoxExchange`.
 - MPI is host-staged, as in `FaceExchange`. A fused neighbor exchange and
   GPU-aware MPI are later optimizations; `GlobalExchange` is O(N) and should be
@@ -150,9 +177,9 @@ changes because the left/right boundaries are transmissive.
 
 ## Remaining work
 
-- Validate the double-Mach top boundary and compare against reference data.
+- Compare the double-Mach wave structure and wall pressure against reference
+  data at `t=0.2`.
 - Compare the Taylor–Green energy-dissipation curve from `--history` against
   reference data at production resolutions (64–256).
 - HDF5/ADIOS2 output and parallel checkpointing.
-- Physical inflow/outflow/wall boundary conditions for multi-rank runs.
 - GPU runs and performance tuning of reconstruction + flux fusion.

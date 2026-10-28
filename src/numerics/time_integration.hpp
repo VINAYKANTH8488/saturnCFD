@@ -57,39 +57,42 @@ void field_copy(const Field& source, Field& destination) {
       });
 }
 
-// SSP-RK3. `compute_rhs(state, rhs)` must fill rhs with L(state).
+// SSP-RK3. `compute_rhs(state, rhs, time)` must fill rhs with
+// L(state, time). Boundary conditions that depend on time are evaluated at
+// the stage time.
 template <class Field, class ComputeRhs>
 void advance_ssprk3(Field& q, Field& stage, Field& next, Field& rhs, double dt,
-                    ComputeRhs& compute_rhs) {
-  compute_rhs(q, rhs);
+                    double time, ComputeRhs& compute_rhs) {
+  compute_rhs(q, rhs, time);
   field_combine(stage, 1.0, q, dt, rhs);
 
-  compute_rhs(stage, rhs);
+  compute_rhs(stage, rhs, time + dt);
   field_combine(next, 0.75, q, 0.25, stage);
   field_add_scaled(next, 0.25 * dt, rhs);
 
-  compute_rhs(next, rhs);
+  compute_rhs(next, rhs, time + 0.5 * dt);
   field_combine(q, 1.0 / 3.0, q, 2.0 / 3.0, next);
   field_add_scaled(q, (2.0 / 3.0) * dt, rhs);
 }
 
-// Classical RK4. `compute_rhs(state, rhs)` must fill rhs with L(state).
+// Classical RK4. `compute_rhs(state, rhs, time)` must fill rhs with
+// L(state, time).
 template <class Field, class ComputeRhs>
 void advance_rk4(Field& q, Field& stage, Field& rhs, Field& k1, Field& k2,
-                 Field& k3, double dt, ComputeRhs& compute_rhs) {
-  compute_rhs(q, rhs);
+                 Field& k3, double dt, double time, ComputeRhs& compute_rhs) {
+  compute_rhs(q, rhs, time);
   field_copy(rhs, k1);
   field_combine(stage, 1.0, q, 0.5 * dt, k1);
 
-  compute_rhs(stage, rhs);
+  compute_rhs(stage, rhs, time + 0.5 * dt);
   field_copy(rhs, k2);
   field_combine(stage, 1.0, q, 0.5 * dt, k2);
 
-  compute_rhs(stage, rhs);
+  compute_rhs(stage, rhs, time + 0.5 * dt);
   field_copy(rhs, k3);
   field_combine(stage, 1.0, q, dt, k3);
 
-  compute_rhs(stage, rhs);
+  compute_rhs(stage, rhs, time + dt);
   field_add_scaled(q, dt / 6.0, k1);
   field_add_scaled(q, dt / 3.0, k2);
   field_add_scaled(q, dt / 3.0, k3);

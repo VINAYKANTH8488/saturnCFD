@@ -43,8 +43,9 @@ Progress:
 - Periodic inviscid runs conserve mass and total energy to round-off
   (**≤1.1e-15** relative drift); `--check` enforces this via `--energy-tol`.
 - Phase 2 3D compressible driver with TGV, acoustic-pulse, low-Mach-vortex, and
-  double-Mach setups; VTK primitive snapshots, binary checkpoint/restart,
-  per-step CSV diagnostics for energy-dissipation curves, and
+  standard Woodward–Colella double-Mach setups; VTK primitive snapshots, binary
+  checkpoint/restart, per-step CSV diagnostics for energy-dissipation curves,
+  exact time-dependent double-Mach inflow boundaries, and
   full 3D halo exchange (faces, edges, corners), verified on 2 and 4 MPI ranks;
   multi-rank non-periodic BCs use an all-gather fallback
   (`docs/verification/compressible_driver.md`).
