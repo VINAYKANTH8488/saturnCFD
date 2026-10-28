@@ -4,10 +4,10 @@ Performance-portable, block-structured, high-order finite-volume DNS code for
 CPU and multiple GPUs, built on Kokkos. Basilisk-inspired in physics and
 workflow, designed for GPU-first scaling.
 
-**Status:** Phase 0 (foundation). The full design, numerics, and roadmap are in
-[PLAN.md](PLAN.md).
+**Status:** Phase 1 complete; Phase 2 (high-order compressible) in progress. The
+full design, numerics, and roadmap are in [PLAN.md](PLAN.md).
 
-Phase 0 progress:
+Progress:
 
 - CPU and CUDA toolchains verified: Kokkos 5.2.2 (Serial + OpenMP) and CUDA
   12.2 (sm_61, Quadro P600).
@@ -26,6 +26,25 @@ Phase 0 progress:
 - VTK snapshots and binary checkpoint/restart pass on 1–2 ranks on CPU and CUDA
   (`docs/verification/io.md`); HDF5/ADIOS2 are later.
 - HIP/SYCL presets scaffolded; tuning waits for hardware access.
+- Phase 2 face reconstruction implemented: `central2/4/6`, WENO5-Z, and TENO6,
+  with unit tests for polynomial exactness, 2nd–6th order convergence,
+  symmetry, and shock-boundedness (`docs/verification/reconstruction.md`).
+- Phase 2 Riemann solvers implemented: LLF, HLLC, HLLC-low-Mach, and
+  AUSM+-up, with consistency, contact, symmetry, shock, and low-Mach tests
+  (`docs/verification/riemann.md`).
+- Phase 2 1D Sod shock tube passes end-to-end with WENO5-Z/TENO6
+  reconstruction and every Riemann solver; L1 density error is 1.1e-3 at 400
+  cells (`docs/verification/sod.md`).
+- Phase 2 3D compressible Navier–Stokes path implemented: inviscid reconstruction
+  + Riemann fluxes, 4th-order viscous stress/heat-flux terms, RK3/RK4. The
+  entropy-wave and viscous-shear MMS give observed orders **3.92–3.98** with
+  `central4`, **5.14–5.27** with WENO5-Z, and **5.87–5.95** with `central6`
+  (`docs/verification/compressible_mms.md`).
+- Phase 2 3D compressible driver with TGV, acoustic-pulse, low-Mach-vortex, and
+  double-Mach setups; VTK primitive snapshots, binary checkpoint/restart, and
+  full 3D halo exchange (faces, edges, corners), verified on 2 and 4 MPI ranks;
+  multi-rank non-periodic BCs use an all-gather fallback
+  (`docs/verification/compressible_driver.md`).
 
 ## Requirements
 
@@ -167,6 +186,101 @@ advection–diffusion on a periodic 3D box:
 
 Expected: observed order **2.00** and machine-precision mass conservation.
 Details are in `docs/verification/scalar_mms.md`.
+
+## High-order reconstruction (Phase 2)
+
+`src/numerics/reconstruction.hpp` provides device-callable left/right face
+reconstruction for `central2`, `central4`, `central6`, `weno5z`, and `teno6`.
+The unit test checks polynomial exactness, 2nd–6th order convergence, symmetry,
+and non-oscillatory behaviour at a step:
+
+```bash
+ctest --test-dir build/cpu-openmp -R saturn.reconstruction --output-on-failure
+```
+
+Observed orders are 2.00, 4.00, 5.99, 5.06, and 5.99 respectively. Details and
+the TENO6 formulation are in `docs/verification/reconstruction.md`.
+
+## Riemann solvers (Phase 2)
+
+`src/numerics/riemann.hpp` provides device-callable LLF, HLLC, HLLC-low-Mach,
+and AUSM+-up fluxes for the ideal-gas Euler equations in face-normal
+coordinates:
+
+```cpp
+auto f = saturn::riemann::flux(
+    saturn::RiemannSolver::Hllc, left, right, /*gamma=*/1.4);
+```
+
+```bash
+ctest --test-dir build/cpu-openmp -R saturn.riemann --output-on-failure
+```
+
+The tests cover uniform-state consistency, stationary and moving contacts,
+mirror symmetry, Sod-state fluxes, and the low-Mach pressure-diffusion
+behaviour. Details are in `docs/verification/riemann.md`.
+
+## Sod verification (Phase 2)
+
+The 1D Euler driver combines reconstruction, a Riemann solver, and SSP-RK3 and
+compares against the exact Sod solution:
+
+```bash
+./build/cpu-openmp/apps/saturn_euler1d --n 400 --check
+./build/cpu-openmp/apps/saturn_euler1d \
+  --n 400 --scheme teno6 --solver hllc_lm --check
+```
+
+Observed L1 density error is `1.1e-3` (WENO5-Z + HLLC) and `1.0e-3`
+(TENO6 + HLLC) at 400 cells; the left/right star densities match the exact
+values to about 1e-4. Details and the full scheme/solver table are in
+`docs/verification/sod.md`.
+
+## Compressible Navier–Stokes (Phase 2)
+
+`src/numerics/compressible_ns.hpp` implements the 3D ideal-gas compressible
+Navier–Stokes RHS: reconstruction + Riemann inviscid fluxes, 4th-order viscous
+stress and heat-flux terms, and a periodic multi-dimensional update. The
+verification driver has two exact cases:
+
+```bash
+# Inviscid entropy wave: tests reconstruction + Riemann in 3D.
+./build/cpu-openmp/apps/saturn_compressible_mms \
+  --case entropy --n-list 8 16 32 --scheme central4 --time rk4 --cfl 0.3
+
+# Viscous shear: tests the full stress tensor and energy terms.
+./build/cpu-openmp/apps/saturn_compressible_mms \
+  --case shear --n-list 8 16 32 --scheme central4 --time rk4 --cfl 0.3
+```
+
+Observed orders: `central4` 3.92–3.98, WENO5-Z 5.14–5.27, `central6`
+5.87–5.95. See `docs/verification/compressible_mms.md`. The driver is
+periodic-only in multi-rank mode; single-rank transmissive/slip boundaries are
+supported, and TGV/acoustic/vortex/double-Mach drivers plus VTK snapshots and
+checkpoint/restart are implemented. See `docs/verification/compressible_driver.md`.
+
+## 3D compressible driver
+
+`apps/compressible_sim.cpp` is the production-style 3D driver. It supports
+`tgv`, `acoustic`, `vortex`, and `dm` cases, VTK snapshots of primitive fields,
+and checkpoint/restart:
+
+```bash
+./build/cpu-openmp/apps/saturn_compressible_sim \
+  --case tgv --n 32 --tend 1.0 --output /tmp/tgv --plot-every 20
+```
+
+Short stability gates:
+
+```bash
+ctest --test-dir build/cpu-openmp -R 'saturn.compressible_(tgv|acoustic|vortex|double_mach)'   --output-on-failure
+```
+
+The full halo exchange (`src/halo/box_exchange.hpp`) fills faces, edges, and
+corners for the fourth-order viscous stencil. Multi-rank runs currently require
+all-periodic boundaries; non-periodic single-rank runs use
+`src/fields/boundary_conditions.hpp`. Details:
+`docs/verification/compressible_driver.md`.
 
 ## MPI
 

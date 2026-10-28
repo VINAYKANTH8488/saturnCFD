@@ -873,12 +873,27 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
 
 ### Phase 2 — High-order compressible (3–4 weeks)
 
-- [ ] WENO5-Z, TENO6, central 4/6 reconstruction.
-- [ ] Riemann solvers: HLLC, HLLC-low-Mach, AUSM⁺-up, LLF fallback.
+- [x] WENO5-Z, TENO6, central 4/6 reconstruction
+      (`src/numerics/reconstruction.hpp`; orders 5.06 and 5.99 measured,
+      `docs/verification/reconstruction.md`).
+- [x] Riemann solvers: HLLC, HLLC-low-Mach, AUSM⁺-up, LLF fallback
+      (`src/numerics/riemann.hpp`; unit-tested, full Sod/MMS validation in a
+      time-dependent solver is the next step).
 - [ ] Compressible NS + ideal gas; Sod, double Mach, low-Mach vortex,
-      acoustic pulse.
+      acoustic pulse. 1D inviscid Euler Sod gate passing
+      (`apps/euler1d.cpp`, `docs/verification/sod.md`); 3D compressible NS
+      path (inviscid + 4th-order viscous fluxes) implemented with
+      entropy/shear MMS at 4th order (`docs/verification/compressible_mms.md`).
+      Production-style driver with TGV, acoustic pulse, low-Mach vortex, and
+      double-Mach setup, VTK/checkpoint, full 3D halo exchange, and
+      periodic/transmissive/slip BCs (`docs/verification/compressible_driver.md`).
+      Physical BC validation and GPU scaling pending.
 - [ ] MMS 4th/6th order; energy conservation check.
 - [ ] GPU performance baseline; register/occupancy tuning.
+
+**Current:** reconstruction, all four Riemann solvers, and the 1D Sod gate are
+passing on CPU Serial/OpenMP. Next: 3D compressible Navier-Stokes, smooth
+high-order MMS, and the remaining shock/acoustic cases.
 
 **Exit:** 4th-order MMS ≥ 3.8; Sod correct; low-Mach vortex stable; strong
 scaling to 8 GPUs.

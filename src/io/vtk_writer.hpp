@@ -32,17 +32,19 @@ inline void ensure_parent(const std::string& path) {
   }
 }
 
-// Write a cell-centered field as VTK ImageData.
+// Write a cell-centered multi-variable field as VTK ImageData.
 //
 // Single rank:   <base>.vti
 // Multiple ranks: <base>.rankNNNN.vti + <base>.pvti (rank 0)
 //
-// The Interpreter can open the .pvti collection directly in ParaView.
+// `names` must contain at least q.nvar() entries.
 template <class ExecSpace>
-bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
-               const std::array<double, 3>& origin,
-               const std::array<double, 3>& spacing, const Box& global,
-               double time) {
+bool write_vti_fields(const std::string& base,
+                      const PatchField<ExecSpace>& q,
+                      const std::vector<std::string>& names,
+                      const std::array<double, 3>& origin,
+                      const std::array<double, 3>& spacing, const Box& global,
+                      double time) {
   (void)time;  // a time-series .pvd can be added later
   const Box local = q.box();
   const int ng = q.ng();
@@ -77,6 +79,14 @@ bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
                         local.lo[1], local.hi[1] + 1,
                         local.lo[2], local.hi[2] + 1};
 
+  auto name_of = [&](int v) -> const std::string& {
+    static const std::string fallback = "var";
+    if (v < static_cast<int>(names.size())) {
+      return names[static_cast<std::size_t>(v)];
+    }
+    return fallback;
+  };
+
   out << std::setprecision(17);
   out << "<?xml version=\"1.0\"?>\n"
       << "<VTKFile type=\"ImageData\" version=\"0.1\" "
@@ -89,21 +99,23 @@ bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
       << "    <Piece Extent=\"" << piece[0] << " " << piece[1] << " "
       << piece[2] << " " << piece[3] << " " << piece[4] << " " << piece[5]
       << "\">\n"
-      << "      <CellData Scalars=\"c\">\n"
-      << "        <DataArray type=\"Float64\" Name=\"c\" format=\"ascii\">\n";
+      << "      <CellData Scalars=\"" << name_of(0) << "\">\n";
 
-  out << "         ";
-  for (int k = local.lo[2]; k <= local.hi[2]; ++k) {
-    for (int j = local.lo[1]; j <= local.hi[1]; ++j) {
-      for (int i = local.lo[0]; i <= local.hi[0]; ++i) {
-        out << " " << host(0, k - local.lo[2] + ng, j - local.lo[1] + ng,
-                           i - local.lo[0] + ng);
+  for (int v = 0; v < nvar; ++v) {
+    out << "        <DataArray type=\"Float64\" Name=\"" << name_of(v)
+        << "\" format=\"ascii\">\n         ";
+    for (int k = local.lo[2]; k <= local.hi[2]; ++k) {
+      for (int j = local.lo[1]; j <= local.hi[1]; ++j) {
+        for (int i = local.lo[0]; i <= local.hi[0]; ++i) {
+          out << " "
+              << host(v, k - local.lo[2] + ng, j - local.lo[1] + ng,
+                      i - local.lo[0] + ng);
+        }
       }
     }
+    out << "\n        </DataArray>\n";
   }
-  out << "\n"
-      << "        </DataArray>\n"
-      << "      </CellData>\n"
+  out << "      </CellData>\n"
       << "    </Piece>\n"
       << "  </ImageData>\n"
       << "</VTKFile>\n";
@@ -112,11 +124,10 @@ bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
     return true;
   }
 
-  // Gather local extents so rank 0 can write the parallel collection.
-  int local_extent[6] = {piece[0], piece[1], piece[2],
-                         piece[3], piece[4], piece[5]};
   std::vector<int> extents;
 #ifdef SATURN_ENABLE_MPI
+  int local_extent[6] = {piece[0], piece[1], piece[2],
+                         piece[3], piece[4], piece[5]};
   if (rank == 0) {
     extents.resize(static_cast<std::size_t>(6) * size);
   }
@@ -142,9 +153,12 @@ bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
                << "Origin=\"" << origin[0] << " " << origin[1] << " "
                << origin[2] << "\" Spacing=\"" << spacing[0] << " "
                << spacing[1] << " " << spacing[2] << "\">\n"
-               << "    <PCellData Scalars=\"c\">\n"
-               << "      <PDataArray type=\"Float64\" Name=\"c\"/>\n"
-               << "    </PCellData>\n";
+               << "    <PCellData Scalars=\"" << name_of(0) << "\">\n";
+    for (int v = 0; v < nvar; ++v) {
+      collection << "      <PDataArray type=\"Float64\" Name=\"" << name_of(v)
+                 << "\"/>\n";
+    }
+    collection << "    </PCellData>\n";
     for (int r = 0; r < size; ++r) {
       const int* e = &extents[static_cast<std::size_t>(r) * 6];
       collection << "    <Piece Extent=\"" << e[0] << " " << e[1] << " "
@@ -156,6 +170,16 @@ bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
   }
 
   return true;
+}
+
+// Scalar convenience wrapper.
+template <class ExecSpace>
+bool write_vti(const std::string& base, const PatchField<ExecSpace>& q,
+               const std::array<double, 3>& origin,
+               const std::array<double, 3>& spacing, const Box& global,
+               double time) {
+  return write_vti_fields(base, q, std::vector<std::string>{"c"}, origin,
+                          spacing, global, time);
 }
 
 }  // namespace saturn

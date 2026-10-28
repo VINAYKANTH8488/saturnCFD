@@ -99,6 +99,22 @@ struct Decomposition {
     return dec;
   }
 
+  // Box owned by the given Cartesian coordinates. The same split rule is
+  // used for every rank, so this can reconstruct any rank's interior box.
+  Box box_for_coords(const int coords_in[3]) const {
+    Box result;
+    for (int d = 0; d < 3; ++d) {
+      const int n = global.length(d);
+      const int base = n / dims[d];
+      const int rem = n % dims[d];
+      const int start = coords_in[d] * base + std::min(coords_in[d], rem);
+      const int len = base + (coords_in[d] < rem ? 1 : 0);
+      result.lo[d] = global.lo[d] + start;
+      result.hi[d] = result.lo[d] + len - 1;
+    }
+    return result;
+  }
+
   // Neighbor rank on the given side (-1 = low, +1 = high). Returns
   // MPI_PROC_NULL for a non-periodic physical boundary (or -1 without MPI).
   int partner(int d, int side) const {
