@@ -914,9 +914,11 @@ scaling to 8 GPUs.
       ABC (Beltrami) flow at 2nd order
       (`docs/verification/incompressible.md`). The MAC grid avoids the
       checkerboard mode, so Rhie–Chow is not needed on this path.
-- [x] Periodic cell-centered geometric-multigrid Poisson solver; 7-point
+- [x] Cell-centered geometric-multigrid Poisson solver with periodic,
+      homogeneous-Neumann, and homogeneous-Dirichlet boundaries; 7-point
       Laplacian, red-black Gauss-Seidel, full-weighting restriction, trilinear
-      prolongation, 2nd-order MMS convergence (`docs/verification/poisson.md`).
+      prolongation, 2nd-order convergence on periodic and Neumann boxes
+      (`docs/verification/poisson.md`).
 - [ ] FFT Poisson backend for periodic uniform grids (fast path).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
 - [ ] TGV Re=1600, channel Re_τ=180/395, cavity on both paths.

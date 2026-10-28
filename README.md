@@ -57,9 +57,10 @@ Progress:
   drift `≤2e-13`. `central4` is unstable at this resolution
   (`docs/verification/tgv.md`).
 - Phase 3 started: a cell-centered geometric-multigrid Poisson solver for
-  periodic boxes with a 7-point Laplacian, red-black Gauss-Seidel smoothing,
-  full-weighting restriction, and trilinear prolongation; 2nd-order MMS
-  convergence at 16/32/48³ (`docs/verification/poisson.md`).
+  periodic, Neumann-wall, and Dirichlet-wall boxes with a 7-point Laplacian,
+  red-black Gauss-Seidel smoothing, full-weighting restriction, and trilinear
+  prolongation; 2nd-order convergence on periodic and Neumann MMS
+  (`docs/verification/poisson.md`).
 - Phase 3 staggered-MAC projection solver with SSP-RK3 and projection after
   every stage; the exact 2D Taylor–Green vortex and the 3D ABC (Beltrami) flow
   converge at second order (TGV L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at
@@ -314,17 +315,19 @@ dissipation diagnostics and the WENO5-Z/central4 stability comparison are in
 ## Poisson solver (Phase 3)
 
 `src/numerics/poisson.hpp` provides a matrix-free geometric-multigrid solver
-for the cell-centered periodic Poisson problem `laplacian(p) = f`. It is the
+for the cell-centered Poisson problem `laplacian(p) = f`, with periodic,
+homogeneous-Neumann, and homogeneous-Dirichlet boundaries. It is the
 pressure-solver building block for the incompressible projection path:
 
 ```bash
 ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
 ```
 
-The manufactured-solution test gives second-order convergence (2.01 and 2.00
-at 32³ and 48³; final relative residual `~1e-10`). The solver is currently
-single-rank, constant-coefficient, and periodic-only. Details and limitations
-are in `docs/verification/poisson.md`.
+The manufactured-solution tests give second-order convergence for both a
+periodic sine and a Neumann-wall cosine (2.00–2.01 at 32³ and 48³; final
+relative residual `~1e-10`). The solver is currently single-rank and
+constant-coefficient. Details and limitations are in
+`docs/verification/poisson.md`.
 
 ## Incompressible solver (Phase 3)
 
