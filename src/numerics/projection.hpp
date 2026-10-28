@@ -118,7 +118,6 @@ poisson::Result project(ScalarView<ExecSpace>& u, ScalarView<ExecSpace>& v,
       "projection_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         scratch(k, j, i) = -scratch(k, j, i) / dt;
       });
-  Kokkos::deep_copy(phi, 0.0);
   const poisson::Result result = solver.solve(phi, scratch, options);
 
   Kokkos::parallel_for(

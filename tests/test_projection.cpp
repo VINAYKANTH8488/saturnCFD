@@ -68,6 +68,7 @@ int check(int n) {
   view_type v("v", n, n, n);
   view_type w("w", n, n, n);
   view_type phi("phi", n, n, n);
+  Kokkos::deep_copy(phi, 0.0);
   view_type scratch("scratch", n, n, n);
 
   saturn::poisson::Options options;

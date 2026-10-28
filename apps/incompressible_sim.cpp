@@ -208,6 +208,7 @@ CaseResult run_case(int n, const Params& params) {
   view_type kv("kv", nz, n, n);
   view_type kw("kw", nz, n, n);
   view_type phi("phi", nz, n, n);
+  Kokkos::deep_copy(phi, 0.0);
   view_type scratch("scratch", nz, n, n);
 
   const auto policy = saturn::make_mdrange3<ExecSpace>(

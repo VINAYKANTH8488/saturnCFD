@@ -923,9 +923,12 @@ scaling to 8 GPUs.
 - [x] Wall-bounded MAC channel (periodic x/z, no-slip y walls): Couette is an
       exact discrete steady state and plane Poiseuille converges at second
       order (`docs/verification/channel.md`).
+- [x] Lid-driven cavity with x/y no-slip walls and a moving lid; Re=100
+      centreline profiles match Ghia et al. (RMS 7.6e-3 u, 9.9e-3 v),
+      `max|div| ~ 3e-11` (`docs/verification/cavity.md`).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
-- [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity on both paths.
-      The 3D TGV case is implemented; the central MAC advection becomes
+- [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity at higher Re on both
+      paths. The 3D TGV case is implemented; the central MAC advection becomes
       unstable after transition at n=32 and needs dealiasing/upwinding or a
       higher resolution (`docs/verification/incompressible.md`).
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).

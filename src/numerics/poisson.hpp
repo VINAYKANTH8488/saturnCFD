@@ -180,8 +180,9 @@ class GeometricMultigrid {
     Result result;
     result.initial_residual = residual_norm(0);
     result.final_residual = result.initial_residual;
-    const double target = options.tolerance * result.initial_residual;
-    if (result.initial_residual == 0.0) {
+    const double rhs_norm = norm(levels_[0].b);
+    const double target = options.tolerance * rhs_norm;
+    if (result.initial_residual == 0.0 || result.initial_residual <= target) {
       result.converged = true;
     }
 
@@ -453,6 +454,23 @@ class GeometricMultigrid {
                      wj1 * (wi0 * xc(k1, j1, i0) + wi1 * xc(k1, j1, i1)));
           xf(k, j, i) += value;
         });
+  }
+
+  double norm(const view_type& v) const {
+    const int n0 = static_cast<int>(v.extent(2));
+    const int n1 = static_cast<int>(v.extent(1));
+    const int n2 = static_cast<int>(v.extent(0));
+    const long long cells = static_cast<long long>(n0) * n1 * n2;
+    double sum = 0.0;
+    const auto policy =
+        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+    Kokkos::parallel_reduce(
+        "poisson_norm", policy,
+        KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
+          acc += v(k, j, i) * v(k, j, i);
+        },
+        Kokkos::Sum<double>{sum});
+    return std::sqrt(sum / static_cast<double>(cells));
   }
 
   double residual_norm(int level_index) const {

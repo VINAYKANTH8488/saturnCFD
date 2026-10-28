@@ -69,6 +69,9 @@ Progress:
 - Phase 3 wall-bounded channel: no-slip y walls with Neumann pressure. Couette
   flow is steady to round-off and plane Poiseuille converges at second order
   (`9.96e-4 → 2.55e-4 → 6.40e-5` at NY 16/32/64; `docs/verification/channel.md`).
+- Phase 3 lid-driven cavity with x/y no-slip walls: Re=100 centreline profiles
+  match Ghia et al. to RMS 7.6e-3 (u) and 9.9e-3 (v), with `max|div| ~3e-11`
+  (`docs/verification/cavity.md`).
 
 ## Requirements
 
@@ -367,6 +370,21 @@ Neumann pressure.
 Couette flow is an exact discrete steady state (L2 error `~1e-17`), and plane
 Poiseuille flow converges at second order (`9.96e-4`, `2.55e-4`, `6.40e-5` at
 NY 16/32/64) with zero divergence. Details: `docs/verification/channel.md`.
+
+## Lid-driven cavity (Phase 3)
+
+`apps/cavity_sim.cpp` adds walls in x and y plus a moving lid. Re=100
+centreline profiles are compared with Ghia, Ghia & Shin (1982):
+
+```bash
+./build/cpu-openmp/apps/saturn_cavity_sim \
+  --n 16 --re 100 --tend 5 --rms-tol 0.08 --check
+./build/cpu-openmp/apps/saturn_cavity_sim --n 32 --re 100 --tend 15 --check
+```
+
+At `n=32` the RMS difference from Ghia is **7.6e-3** (u) and **9.9e-3** (v),
+with `max|div| ~3e-11`. The fast `n=16` gate runs in about 10 s. Details:
+`docs/verification/cavity.md`.
 
 ## MPI
 

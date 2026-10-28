@@ -1,0 +1,247 @@
+#pragma once
+
+#include <Kokkos_Core.hpp>
+
+#include <array>
+#include <cmath>
+
+#include "core/parallel.hpp"
+#include "numerics/incompressible.hpp"
+#include "numerics/poisson.hpp"
+#include "numerics/projection.hpp"
+
+namespace saturn {
+namespace cavity {
+
+// Lid-driven cavity on a staggered MAC grid.
+//
+//   x, y: no-slip walls; the top wall moves in x with speed `u_lid`
+//   z:    periodic
+//
+// Layout (same extents as the cell-centered pressure):
+//
+//   u(i,j,k): x-face; u(0)=0 at the left wall, u(n0)=0 (implicit) at the right
+//   v(i,j,k): y-face; v(0)=0 at the bottom, v(n1)=0 (implicit) at the top
+//   w(i,j,k): z-face; tangential no-slip ghosts in x and y
+//
+// Pressure uses homogeneous Neumann conditions on the x/y walls and periodic
+// conditions in z.
+
+struct Geometry {
+  int n0 = 1;
+  int n1 = 1;
+  int n2 = 1;
+  double hx = 1.0;
+  double hy = 1.0;
+  double hz = 1.0;
+  double u_lid = 1.0;
+};
+
+template <class ExecSpace>
+void divergence(const projection::ScalarView<ExecSpace>& u,
+                const projection::ScalarView<ExecSpace>& v,
+                const projection::ScalarView<ExecSpace>& w,
+                projection::ScalarView<ExecSpace>& div, const Geometry& g) {
+  const int n0 = g.n0;
+  const int n1 = g.n1;
+  const int n2 = g.n2;
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+  Kokkos::parallel_for(
+      "cavity_divergence", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        const int ip = (i + 1 == n0) ? -1 : i + 1;
+        const int jp = (j + 1 == n1) ? -1 : j + 1;
+        const int kp = (k + 1 == n2) ? 0 : k + 1;
+        const double up = (ip < 0) ? 0.0 : u(k, j, ip);
+        const double vp = (jp < 0) ? 0.0 : v(k, jp, i);
+        div(k, j, i) = (up - u(k, j, i)) / g.hx + (vp - v(k, j, i)) / g.hy +
+                       (w(kp, j, i) - w(k, j, i)) / g.hz;
+      });
+}
+
+template <class ExecSpace>
+void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
+                  const projection::ScalarView<ExecSpace>& v,
+                  const projection::ScalarView<ExecSpace>& w,
+                  projection::ScalarView<ExecSpace>& du,
+                  projection::ScalarView<ExecSpace>& dv,
+                  projection::ScalarView<ExecSpace>& dw, const Geometry& g,
+                  double nu) {
+  const int n0 = g.n0;
+  const int n1 = g.n1;
+  const int n2 = g.n2;
+  const double hx = g.hx;
+  const double hy = g.hy;
+  const double hz = g.hz;
+  const double hx2 = hx * hx;
+  const double hy2 = hy * hy;
+  const double hz2 = hz * hz;
+  const double u_lid = g.u_lid;
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+  Kokkos::parallel_for(
+      "cavity_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        const int im = (i == 0) ? -1 : i - 1;
+        const int ip = (i + 1 == n0) ? -1 : i + 1;
+        const int jm = (j == 0) ? -1 : j - 1;
+        const int jp = (j + 1 == n1) ? -1 : j + 1;
+        const int km = (k == 0) ? n2 - 1 : k - 1;
+        const int kp = (k + 1 == n2) ? 0 : k + 1;
+        const double u_here = u(k, j, i);
+        const double v_here = v(k, j, i);
+        const double w_here = w(k, j, i);
+
+        // ----- u-momentum (interior x-faces only) -----
+        if (i == 0) {
+          du(k, j, i) = 0.0;
+        } else {
+          const double u_im = (im < 0) ? 0.0 : u(k, j, im);
+          const double u_ip = (ip < 0) ? 0.0 : u(k, j, ip);
+          const double u_jm = (jm < 0) ? -u_here : u(k, jm, i);
+          const double u_jp = (jp < 0) ? 2.0 * u_lid - u_here : u(k, jp, i);
+          const double dudx = (u_ip - u_im) / (2.0 * hx);
+          const double dudy = (u_jp - u_jm) / (2.0 * hy);
+          const double dudz = (u(kp, j, i) - u(km, j, i)) / (2.0 * hz);
+          const double v_jm = (jm < 0) ? 0.0 : v(k, jm, i);
+          const double v_jp = (jp < 0) ? 0.0 : v(k, jp, i);
+          const double v_jm_im = (jm < 0) ? 0.0 : v(k, jm, im);
+          const double v_jp_im = (jp < 0) ? 0.0 : v(k, jp, im);
+          const double v_at_u = 0.25 * (v_jm_im + v_jm + v_jp_im + v_jp);
+          const double w_at_u =
+              0.25 * (w(k, j, im) + w(k, j, i) + w(kp, j, im) + w(kp, j, i));
+          const double lap_u = (u_ip - 2.0 * u_here + u_im) / hx2 +
+                               (u_jp - 2.0 * u_here + u_jm) / hy2 +
+                               (u(kp, j, i) - 2.0 * u_here + u(km, j, i)) / hz2;
+          du(k, j, i) =
+              -(u_here * dudx + v_at_u * dudy + w_at_u * dudz) + nu * lap_u;
+        }
+
+        // ----- v-momentum (interior y-faces only) -----
+        if (j == 0) {
+          dv(k, j, i) = 0.0;
+        } else {
+          const double v_im = (im < 0) ? -v_here : v(k, j, im);
+          const double v_ip = (ip < 0) ? -v_here : v(k, j, ip);
+          const double v_jm = (jm < 0) ? 0.0 : v(k, jm, i);
+          const double v_jp = (jp < 0) ? 0.0 : v(k, jp, i);
+          const double dvdx = (v_ip - v_im) / (2.0 * hx);
+          const double dvdy = (v_jp - v_jm) / (2.0 * hy);
+          const double dvdz = (v(kp, j, i) - v(km, j, i)) / (2.0 * hz);
+          const double u_here_i = (i == 0) ? 0.0 : u(k, j, i);
+          const double u_here_ip = (ip < 0) ? 0.0 : u(k, j, ip);
+          const double u_jm_i = (jm < 0) ? 0.0 : u(k, jm, i);
+          const double u_jm_ip = (jm < 0 || ip < 0) ? 0.0 : u(k, jm, ip);
+          const double u_at_v =
+              0.25 * (u_jm_i + u_here_i + u_jm_ip + u_here_ip);
+          const double w_at_v =
+              0.25 * (w(k, jm, i) + w(k, j, i) + w(kp, jm, i) + w(kp, j, i));
+          const double lap_v = (v_ip - 2.0 * v_here + v_im) / hx2 +
+                               (v_jp - 2.0 * v_here + v_jm) / hy2 +
+                               (v(kp, j, i) - 2.0 * v_here + v(km, j, i)) / hz2;
+          dv(k, j, i) =
+              -(u_at_v * dvdx + v_here * dvdy + w_at_v * dvdz) + nu * lap_v;
+        }
+
+        // ----- w-momentum -----
+        const double w_im = (im < 0) ? -w_here : w(k, j, im);
+        const double w_ip = (ip < 0) ? -w_here : w(k, j, ip);
+        const double w_jm = (jm < 0) ? -w_here : w(k, jm, i);
+        const double w_jp = (jp < 0) ? -w_here : w(k, jp, i);
+        const double dwdx = (w_ip - w_im) / (2.0 * hx);
+        const double dwdy = (w_jp - w_jm) / (2.0 * hy);
+        const double dwdz = (w(kp, j, i) - w(km, j, i)) / (2.0 * hz);
+        const double u_ip = (ip < 0) ? 0.0 : u(k, j, ip);
+        const double u_km_ip = (ip < 0) ? 0.0 : u(km, j, ip);
+        const double u_at_w =
+            0.25 * (u(km, j, i) + u(k, j, i) + u_km_ip + u_ip);
+        const double v_jp_local = (jp < 0) ? 0.0 : v(k, jp, i);
+        const double v_km_jp = (jp < 0) ? 0.0 : v(km, jp, i);
+        const double v_at_w =
+            0.25 * (v(km, j, i) + v(k, j, i) + v_km_jp + v_jp_local);
+        const double lap_w = (w_ip - 2.0 * w_here + w_im) / hx2 +
+                             (w_jp - 2.0 * w_here + w_jm) / hy2 +
+                             (w(kp, j, i) - 2.0 * w_here + w(km, j, i)) / hz2;
+        dw(k, j, i) =
+            -(u_at_w * dwdx + v_at_w * dwdy + w_here * dwdz) + nu * lap_w;
+      });
+}
+
+template <class ExecSpace, class PoissonSolver>
+poisson::Result project(projection::ScalarView<ExecSpace>& u,
+                        projection::ScalarView<ExecSpace>& v,
+                        projection::ScalarView<ExecSpace>& w,
+                        projection::ScalarView<ExecSpace>& phi,
+                        projection::ScalarView<ExecSpace>& scratch,
+                        const Geometry& g, PoissonSolver& solver,
+                        const poisson::Options& options) {
+  divergence<ExecSpace>(u, v, w, scratch, g);
+  const int n0 = g.n0;
+  const int n1 = g.n1;
+  const int n2 = g.n2;
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+  const double dt = 1.0;
+  Kokkos::parallel_for(
+      "cavity_projection_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        scratch(k, j, i) = -scratch(k, j, i) / dt;
+      });
+  const poisson::Result result = solver.solve(phi, scratch, options);
+
+  Kokkos::parallel_for(
+      "cavity_projection_update", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        const int im = (i == 0) ? n0 - 1 : i - 1;
+        const int jm = (j == 0) ? n1 - 1 : j - 1;
+        const int km = (k == 0) ? n2 - 1 : k - 1;
+        if (i > 0) {
+          u(k, j, i) += dt * (phi(k, j, i) - phi(k, j, im)) / g.hx;
+        } else {
+          u(k, j, i) = 0.0;
+        }
+        if (j > 0) {
+          v(k, j, i) += dt * (phi(k, j, i) - phi(k, jm, i)) / g.hy;
+        } else {
+          v(k, j, i) = 0.0;
+        }
+        w(k, j, i) += dt * (phi(k, j, i) - phi(km, j, i)) / g.hz;
+      });
+  return result;
+}
+
+template <class ExecSpace, class Project>
+void advance_ssprk3(projection::ScalarView<ExecSpace>& u,
+                    projection::ScalarView<ExecSpace>& v,
+                    projection::ScalarView<ExecSpace>& w,
+                    projection::ScalarView<ExecSpace>& u1,
+                    projection::ScalarView<ExecSpace>& v1,
+                    projection::ScalarView<ExecSpace>& w1,
+                    projection::ScalarView<ExecSpace>& u2,
+                    projection::ScalarView<ExecSpace>& v2,
+                    projection::ScalarView<ExecSpace>& w2,
+                    projection::ScalarView<ExecSpace>& ku,
+                    projection::ScalarView<ExecSpace>& kv,
+                    projection::ScalarView<ExecSpace>& kw, const Geometry& g,
+                    double nu, double dt, Project& project) {
+  momentum_rhs<ExecSpace>(u, v, w, ku, kv, kw, g, nu);
+  incompressible::combine<ExecSpace>(u, 1.0, ku, dt, ku, 0.0, u1);
+  incompressible::combine<ExecSpace>(v, 1.0, kv, dt, ku, 0.0, v1);
+  incompressible::combine<ExecSpace>(w, 1.0, kw, dt, ku, 0.0, w1);
+  project(u1, v1, w1);
+
+  momentum_rhs<ExecSpace>(u1, v1, w1, ku, kv, kw, g, nu);
+  incompressible::combine<ExecSpace>(u, 0.75, u1, 0.25, ku, 0.25 * dt, u2);
+  incompressible::combine<ExecSpace>(v, 0.75, v1, 0.25, kv, 0.25 * dt, v2);
+  incompressible::combine<ExecSpace>(w, 0.75, w1, 0.25, kw, 0.25 * dt, w2);
+  project(u2, v2, w2);
+
+  momentum_rhs<ExecSpace>(u2, v2, w2, ku, kv, kw, g, nu);
+  incompressible::combine<ExecSpace>(u, 1.0 / 3.0, u2, 2.0 / 3.0, ku,
+                                     (2.0 / 3.0) * dt, u);
+  incompressible::combine<ExecSpace>(v, 1.0 / 3.0, v2, 2.0 / 3.0, kv,
+                                     (2.0 / 3.0) * dt, v);
+  incompressible::combine<ExecSpace>(w, 1.0 / 3.0, w2, 2.0 / 3.0, kw,
+                                     (2.0 / 3.0) * dt, w);
+  project(u, v, w);
+}
+
+}  // namespace cavity
+}  // namespace saturn

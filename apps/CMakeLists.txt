@@ -32,3 +32,8 @@ add_executable(saturn_channel_sim channel_sim.cpp)
 target_link_libraries(saturn_channel_sim PRIVATE saturn_core)
 target_compile_definitions(saturn_channel_sim PRIVATE
   SATURN_DEFAULT_SPACE="${SATURN_DEFAULT_SPACE}")
+
+add_executable(saturn_cavity_sim cavity_sim.cpp)
+target_link_libraries(saturn_cavity_sim PRIVATE saturn_core)
+target_compile_definitions(saturn_cavity_sim PRIVATE
+  SATURN_DEFAULT_SPACE="${SATURN_DEFAULT_SPACE}")
