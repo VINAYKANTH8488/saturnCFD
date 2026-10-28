@@ -4,8 +4,9 @@ Performance-portable, block-structured, high-order finite-volume DNS code for
 CPU and multiple GPUs, built on Kokkos. Basilisk-inspired in physics and
 workflow, designed for GPU-first scaling.
 
-**Status:** Phase 1 complete; Phase 2 (high-order compressible) in progress. The
-full design, numerics, and roadmap are in [PLAN.md](PLAN.md).
+**Status:** Phase 2 essentially complete on CPU (GPU scaling pending); Phase 3
+(incompressible) started with the periodic geometric-multigrid Poisson solver.
+The full design, numerics, and roadmap are in [PLAN.md](PLAN.md).
 
 Progress:
 
@@ -54,6 +55,10 @@ Progress:
   (reference `~1.25e-2` near `t≈9`, 4.4% low as expected at 64³); total-energy
   drift `≤2e-13`. `central4` is unstable at this resolution
   (`docs/verification/tgv.md`).
+- Phase 3 started: a cell-centered geometric-multigrid Poisson solver for
+  periodic boxes with a 7-point Laplacian, red-black Gauss-Seidel smoothing,
+  full-weighting restriction, and trilinear prolongation; 2nd-order MMS
+  convergence at 16/32/48³ (`docs/verification/poisson.md`).
 
 ## Requirements
 
@@ -299,6 +304,21 @@ all-periodic boundaries; non-periodic single-rank runs use
 `docs/verification/compressible_driver.md`. Long-time Taylor–Green
 dissipation diagnostics and the WENO5-Z/central4 stability comparison are in
 `docs/verification/tgv.md`.
+
+## Poisson solver (Phase 3)
+
+`src/numerics/poisson.hpp` provides a matrix-free geometric-multigrid solver
+for the cell-centered periodic Poisson problem `laplacian(p) = f`. It is the
+pressure-solver building block for the incompressible projection path:
+
+```bash
+ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
+```
+
+The manufactured-solution test gives second-order convergence (2.01 and 2.00
+at 32³ and 48³; final relative residual `~1e-10`). The solver is currently
+single-rank, constant-coefficient, and periodic-only. Details and limitations
+are in `docs/verification/poisson.md`.
 
 ## MPI
 

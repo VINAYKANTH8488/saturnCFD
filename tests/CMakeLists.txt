@@ -19,6 +19,9 @@ target_link_libraries(saturn_test_box_exchange PRIVATE saturn_core)
 add_executable(saturn_test_boundary_conditions test_boundary_conditions.cpp)
 target_link_libraries(saturn_test_boundary_conditions PRIVATE saturn_core)
 
+add_executable(saturn_test_poisson test_poisson.cpp)
+target_link_libraries(saturn_test_poisson PRIVATE saturn_core)
+
 add_test(NAME saturn.smoke COMMAND saturn_test_smoke)
 set_tests_properties(saturn.smoke PROPERTIES LABELS "unit")
 
@@ -40,6 +43,9 @@ set_tests_properties(saturn.box_exchange PROPERTIES LABELS "unit;halo")
 add_test(NAME saturn.boundary_conditions COMMAND saturn_test_boundary_conditions)
 set_tests_properties(saturn.boundary_conditions
   PROPERTIES LABELS "unit;numerics")
+
+add_test(NAME saturn.poisson COMMAND saturn_test_poisson)
+set_tests_properties(saturn.poisson PROPERTIES LABELS "unit;numerics;poisson")
 
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)

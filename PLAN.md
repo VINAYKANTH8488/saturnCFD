@@ -909,6 +909,9 @@ scaling to 8 GPUs.
 ### Phase 3 — Incompressible: projection + GMG, EDAC experiment (4–5 weeks)
 
 - [ ] Projection + GMG production solver (RK3, Rhie–Chow).
+- [x] Periodic cell-centered geometric-multigrid Poisson solver; 7-point
+      Laplacian, red-black Gauss-Seidel, full-weighting restriction, trilinear
+      prolongation, 2nd-order MMS convergence (`docs/verification/poisson.md`).
 - [ ] FFT Poisson backend for periodic uniform grids (fast path).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
 - [ ] TGV Re=1600, channel Re_τ=180/395, cavity on both paths.
