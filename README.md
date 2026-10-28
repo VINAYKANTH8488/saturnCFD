@@ -49,6 +49,9 @@ Progress:
   full 3D halo exchange (faces, edges, corners), verified on 2 and 4 MPI ranks;
   multi-rank non-periodic BCs use an all-gather fallback
   (`docs/verification/compressible_driver.md`).
+- Long-time TGV diagnostics at 64³: WENO5-Z is stable to `t=10` with peak
+  dissipation `1.28e-2` at `t=8.49` and total-energy drift `7e-14`; `central4`
+  is unstable at this resolution (`docs/verification/tgv.md`).
 
 ## Requirements
 
@@ -278,6 +281,7 @@ and checkpoint/restart:
 # Global diagnostics every 10 steps (CSV for dissipation curves).
 ./build/cpu-openmp/apps/saturn_compressible_sim \
   --case tgv --n 64 --tend 10 --diag-every 10 --history tgv.csv
+python3 scripts/tgv_dissipation.py tgv.csv --volume 248.0502134
 ```
 
 Short stability gates:
@@ -290,7 +294,9 @@ The full halo exchange (`src/halo/box_exchange.hpp`) fills faces, edges, and
 corners for the fourth-order viscous stencil. Multi-rank runs currently require
 all-periodic boundaries; non-periodic single-rank runs use
 `src/fields/boundary_conditions.hpp`. Details:
-`docs/verification/compressible_driver.md`.
+`docs/verification/compressible_driver.md`. Long-time Taylor–Green
+dissipation diagnostics and the WENO5-Z/central4 stability comparison are in
+`docs/verification/tgv.md`.
 
 ## MPI
 

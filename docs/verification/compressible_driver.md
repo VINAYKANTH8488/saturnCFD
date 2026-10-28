@@ -71,7 +71,10 @@ p = 1/gamma + (cos(2x)+cos(2y))(cos(2z)+2)/16
 ```
 
 Default `mu = 1/1600` (Re = 1600 on the unit box), `t_end = 1` for quick runs;
-production TGV runs typically use `t_end = 10` and `n = 64..256`.
+production TGV runs typically use `t_end = 10` and `n = 64..256`. The base
+pressure `1/gamma` gives sound speed 1, so the default is `M ≈ 1`;
+`--mach 0.1` sets `p0 = 1/(gamma M^2)` for the standard low-Mach reference
+case (at the cost of ~10x more time steps).
 
 ### Acoustic pulse
 
@@ -112,7 +115,13 @@ steps, which gives the Taylor–Green kinetic-energy dissipation curve:
 ```bash
 ./build/cpu-openmp/apps/saturn_compressible_sim \
   --case tgv --n 64 --tend 10 --diag-every 10 --history tgv_dissipation.csv
+
+python3 scripts/tgv_dissipation.py tgv_dissipation.csv \
+  --volume 248.0502134 --out tgv_eps.csv
 ```
+
+The script differentiates the kinetic energy and reports the peak `-dK/dt` and
+its time; `--volume` normalizes by the box volume (`(2 pi)^3` for TGV).
 
 `--check` fails if any final cell has non-positive density/pressure or a
 non-finite state. For an all-periodic inviscid run (`mu = 0`) it also requires
@@ -180,6 +189,7 @@ and top boundaries.
 - Compare the double-Mach wave structure and wall pressure against reference
   data at `t=0.2`.
 - Compare the Taylor–Green energy-dissipation curve from `--history` against
-  reference data at production resolutions (64–256).
+  reference data at production resolutions (64–256); the current M≈1
+  diagnostic run is in `docs/verification/tgv.md`.
 - HDF5/ADIOS2 output and parallel checkpointing.
 - GPU runs and performance tuning of reconstruction + flux fusion.

@@ -64,6 +64,7 @@ struct Params {
   double gas_constant = 1.0;
   double mu = 1.0 / 1600.0;
   double prandtl = 0.72;
+  double mach = 1.0;
   double energy_tol = 1.0e-10;
   std::string scheme = "central4";
   std::string solver = "hllc";
@@ -95,6 +96,7 @@ void usage(const char* argv0) {
       << "  --gamma G            ratio of specific heats (1.4)\n"
       << "  --mu VALUE           dynamic viscosity (case default)\n"
       << "  --prandtl VALUE      Prandtl number (0.72)\n"
+      << "  --mach M             TGV reference Mach number (default 1)\n"
       << "  --scheme NAME        central4|central6|weno5z|teno6\n"
       << "  --solver NAME        llf|hllc|hllc_lm|ausm_up\n"
       << "  --time NAME          rk3|rk4 (default rk3)\n"
@@ -246,6 +248,8 @@ Params parse(int argc, char** argv) {
       mu_set = true;
     } else if (a == "--prandtl") {
       p.prandtl = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--mach") {
+      p.mach = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--scheme") {
       p.scheme = require_value(i, argc, argv, a);
       scheme_set = true;
@@ -285,6 +289,10 @@ Params parse(int argc, char** argv) {
 
   if (n_set && (nx_set || ny_set || nz_set)) {
     std::fprintf(stderr, "do not combine --n with --nx/--ny/--nz\n");
+    std::exit(2);
+  }
+  if (p.mach <= 0.0) {
+    std::fprintf(stderr, "--mach must be positive\n");
     std::exit(2);
   }
   const int user_nx = p.nx;
@@ -358,7 +366,7 @@ saturn::PrimitiveState initial_state(const Params& p, double x, double y,
     const double v = -std::cos(x) * std::sin(y) * std::cos(z);
     const double w = 0.0;
     const double pressure =
-        1.0 / p.gamma +
+        1.0 / (p.gamma * p.mach * p.mach) +
         (std::cos(2.0 * x) + std::cos(2.0 * y)) *
             (std::cos(2.0 * z) + 2.0) / 16.0;
     return saturn::PrimitiveState{rho, u, v, w, pressure};

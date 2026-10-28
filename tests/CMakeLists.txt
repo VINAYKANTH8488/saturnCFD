@@ -83,6 +83,12 @@ add_test(NAME saturn.compressible_tgv
 set_tests_properties(saturn.compressible_tgv
   PROPERTIES LABELS "verification;compressible")
 
+add_test(NAME saturn.compressible_tgv_lowmach
+  COMMAND saturn_compressible_sim --case tgv --n 16 --tend 0.01
+          --mach 0.1 --check)
+set_tests_properties(saturn.compressible_tgv_lowmach
+  PROPERTIES LABELS "verification;compressible")
+
 add_test(NAME saturn.compressible_acoustic
   COMMAND saturn_compressible_sim --case acoustic --n 16 --tend 0.05 --check)
 set_tests_properties(saturn.compressible_acoustic
