@@ -49,9 +49,11 @@ Progress:
   full 3D halo exchange (faces, edges, corners), verified on 2 and 4 MPI ranks;
   multi-rank non-periodic BCs use an all-gather fallback
   (`docs/verification/compressible_driver.md`).
-- Long-time TGV diagnostics at 64³: WENO5-Z is stable to `t=10` with peak
-  dissipation `1.28e-2` at `t=8.49` and total-energy drift `7e-14`; `central4`
-  is unstable at this resolution (`docs/verification/tgv.md`).
+- Long-time TGV diagnostics at 64³: WENO5-Z is stable to `t=10` for `M≈1` and
+  the standard `M=0.1` setup. The low-Mach run peaks at `1.195e-2` at `t=7.04`
+  (reference `~1.25e-2` near `t≈9`, 4.4% low as expected at 64³); total-energy
+  drift `≤2e-13`. `central4` is unstable at this resolution
+  (`docs/verification/tgv.md`).
 
 ## Requirements
 

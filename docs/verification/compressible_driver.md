@@ -189,7 +189,7 @@ and top boundaries.
 - Compare the double-Mach wave structure and wall pressure against reference
   data at `t=0.2`.
 - Compare the Taylor–Green energy-dissipation curve from `--history` against
-  reference data at production resolutions (64–256); the current M≈1
-  diagnostic run is in `docs/verification/tgv.md`.
+  reference data at production resolutions (64–256); the 64³ low-Mach
+  comparison is in `docs/verification/tgv.md`.
 - HDF5/ADIOS2 output and parallel checkpointing.
 - GPU runs and performance tuning of reconstruction + flux fusion.

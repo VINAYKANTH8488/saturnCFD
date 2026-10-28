@@ -898,9 +898,10 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
 **Current:** reconstruction, all four Riemann solvers, and the 1D Sod gate are
 passing on CPU Serial/OpenMP. The 3D Navier–Stokes path has smooth MMS at
 4th–6th order, exact conservation on periodic inviscid runs, the standard
-double-Mach setup with exact time-dependent inflow boundaries, and long-time
-TGV dissipation diagnostics. Next: a low-Mach TGV reference comparison, GPU
-performance baseline, and multi-rank tests of the new boundaries.
+double-Mach setup with exact time-dependent inflow boundaries, and a low-Mach
+TGV comparison at 64³ (peak 4.4% below the reference). Next: TGV resolution
+convergence, GPU performance baseline, and multi-rank tests of the new
+boundaries.
 
 **Exit:** 4th-order MMS ≥ 3.8; Sod correct; low-Mach vortex stable; strong
 scaling to 8 GPUs.
