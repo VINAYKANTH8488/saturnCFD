@@ -4,8 +4,9 @@
 **Status:** CPU Serial/OpenMP; single- and multi-rank non-periodic cases.
 All-periodic runs use the full 3D halo exchange (`BoxExchange`), verified on 2
 and 4 ranks; non-periodic runs use the `GlobalExchange` all-gather fallback.
-The double-Mach analytic inflow is applied on top of either path. CUDA
-validation and an MPI regression after the double-Mach BC change are pending.
+The double-Mach analytic inflow is applied on top of either path and gives
+bitwise-identical diagnostics on 1, 2, and 4 ranks. CUDA validation is
+pending.
 **Code:** `apps/compressible_sim.cpp`, `src/halo/box_exchange.hpp`,
 `src/fields/boundary_conditions.hpp`
 
@@ -177,8 +178,9 @@ and top boundaries.
   TGV stability tests on 2 and 4 ranks.
 - Multi-rank non-periodic boundaries use `GlobalExchange`, an all-gather
   fallback that fills all ghosts/BCs consistently; the double-Mach analytic
-  inflow is applied on top of it. The pre-BC-change 2/4-rank check matched the
-  single-rank result; a rerun after the standard-setup change is pending.
+  inflow is applied on top of it. A 64x16x4 short run gives bitwise-identical
+  mass, momentum, K, e, and max Mach on 1, 2, and 4 ranks
+  (`saturn.compressible_double_mach_mpi2/mpi4`).
 - All-periodic runs use the 26-neighbor `BoxExchange`.
 - MPI is host-staged, as in `FaceExchange`. A fused neighbor exchange and
   GPU-aware MPI are later optimizations; `GlobalExchange` is O(N) and should be

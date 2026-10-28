@@ -167,6 +167,15 @@ if(SATURN_HAVE_MPI)
     LABELS "verification;compressible;mpi"
     ENVIRONMENT "DISPLAY=;OMP_NUM_THREADS=1;OMP_PROC_BIND=false")
 
+  add_test(NAME saturn.compressible_double_mach_mpi4
+    COMMAND ${SATURN_MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 4
+            ${MPIEXEC_PREFLAGS} $<TARGET_FILE:saturn_compressible_sim>
+            --case dm --nx 64 --ny 16 --nz 4 --tend 0.02 --cfl 0.2
+            --check --kokkos-num-threads=1)
+  set_tests_properties(saturn.compressible_double_mach_mpi4 PROPERTIES
+    LABELS "verification;compressible;mpi"
+    ENVIRONMENT "DISPLAY=;OMP_NUM_THREADS=1;OMP_PROC_BIND=false")
+
   add_test(NAME saturn.compressible_shear_mpi2
     COMMAND ${SATURN_MPIEXEC} ${MPIEXEC_NUMPROC_FLAG} 2
             ${MPIEXEC_PREFLAGS} $<TARGET_FILE:saturn_compressible_mms>
