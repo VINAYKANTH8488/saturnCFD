@@ -84,6 +84,12 @@ add_test(NAME saturn.incompressible_tgv3d_smoke
 set_tests_properties(saturn.incompressible_tgv3d_smoke
   PROPERTIES LABELS "verification;incompressible")
 
+add_test(NAME saturn.incompressible_tgv3d_filtered
+  COMMAND saturn_incompressible_sim --case tgv3d --n 32 --tend 5
+          --nu 0.000625 --cfl 0.3 --filter 0.1 --check)
+set_tests_properties(saturn.incompressible_tgv3d_filtered
+  PROPERTIES LABELS "verification;incompressible")
+
 add_test(NAME saturn.cavity
   COMMAND saturn_cavity_sim --n 16 --re 100 --tend 5 --rms-tol 0.08 --check)
 set_tests_properties(saturn.cavity

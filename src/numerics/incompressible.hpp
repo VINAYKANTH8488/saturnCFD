@@ -111,6 +111,77 @@ void combine(const projection::ScalarView<ExecSpace>& a, double alpha,
       });
 }
 
+// Fourth-order periodic filter along one dimension:
+//
+//   out = in - alpha/16 (in_{d-2} - 4 in_{d-1} + 6 in - 4 in_{d+1} + in_{d+2})
+//
+// The symbol is 1 - alpha sin^4(k h / 2), so grid-scale modes are damped while
+// well-resolved modes are barely touched. This is a numerical stabilization
+// for under-resolved transitional flows, not part of the physical model.
+template <class ExecSpace>
+void filter_dimension(const projection::ScalarView<ExecSpace>& in,
+                      projection::ScalarView<ExecSpace>& out, double alpha,
+                      int dimension) {
+  const int n0 = static_cast<int>(in.extent(2));
+  const int n1 = static_cast<int>(in.extent(1));
+  const int n2 = static_cast<int>(in.extent(0));
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+  Kokkos::parallel_for(
+      "incompressible_filter", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        double value = 0.0;
+        if (dimension == 0) {
+          const int im2 = (i - 2 + n0) % n0;
+          const int im1 = (i - 1 + n0) % n0;
+          const int ip1 = (i + 1) % n0;
+          const int ip2 = (i + 2) % n0;
+          value = in(k, j, im2) - 4.0 * in(k, j, im1) + 6.0 * in(k, j, i) -
+                  4.0 * in(k, j, ip1) + in(k, j, ip2);
+        } else if (dimension == 1) {
+          const int jm2 = (j - 2 + n1) % n1;
+          const int jm1 = (j - 1 + n1) % n1;
+          const int jp1 = (j + 1) % n1;
+          const int jp2 = (j + 2) % n1;
+          value = in(k, jm2, i) - 4.0 * in(k, jm1, i) + 6.0 * in(k, j, i) -
+                  4.0 * in(k, jp1, i) + in(k, jp2, i);
+        } else {
+          const int km2 = (k - 2 + n2) % n2;
+          const int km1 = (k - 1 + n2) % n2;
+          const int kp1 = (k + 1) % n2;
+          const int kp2 = (k + 2) % n2;
+          value = in(km2, j, i) - 4.0 * in(km1, j, i) + 6.0 * in(k, j, i) -
+                  4.0 * in(kp1, j, i) + in(kp2, j, i);
+        }
+        out(k, j, i) = in(k, j, i) - (alpha / 16.0) * value;
+      });
+}
+
+template <class ExecSpace>
+void filter4(projection::ScalarView<ExecSpace>& u,
+             projection::ScalarView<ExecSpace>& v,
+             projection::ScalarView<ExecSpace>& w,
+             projection::ScalarView<ExecSpace>& tu,
+             projection::ScalarView<ExecSpace>& tv,
+             projection::ScalarView<ExecSpace>& tw, double alpha) {
+  if (alpha <= 0.0) {
+    return;
+  }
+  filter_dimension<ExecSpace>(u, tu, alpha, 0);
+  filter_dimension<ExecSpace>(tu, u, alpha, 1);
+  filter_dimension<ExecSpace>(u, tu, alpha, 2);
+  Kokkos::deep_copy(u, tu);
+
+  filter_dimension<ExecSpace>(v, tv, alpha, 0);
+  filter_dimension<ExecSpace>(tv, v, alpha, 1);
+  filter_dimension<ExecSpace>(v, tv, alpha, 2);
+  Kokkos::deep_copy(v, tv);
+
+  filter_dimension<ExecSpace>(w, tw, alpha, 0);
+  filter_dimension<ExecSpace>(tw, w, alpha, 1);
+  filter_dimension<ExecSpace>(w, tw, alpha, 2);
+  Kokkos::deep_copy(w, tw);
+}
+
 // SSP-RK3 for the three face-velocity components, with a projection applied
 // after every stage. The projection callback takes the three velocity views
 // and must make them discretely divergence-free.

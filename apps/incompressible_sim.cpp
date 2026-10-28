@@ -25,6 +25,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -47,7 +48,10 @@ struct Params {
   double cfl = 0.3;
   double min_order = 1.7;
   double poisson_tol = 1.0e-10;
+  double filter_alpha = 0.0;
   std::string space = "default";
+  std::string history;
+  int diag_every = 0;
   bool check = false;
   bool verbose = false;
 };
@@ -63,6 +67,9 @@ void usage(const char* argv0) {
       "  --tend VALUE       final time (default 1.0)\n"
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --min-order VALUE  check threshold (default 1.7)\n"
+      "  --filter ALPHA     4th-order periodic filter strength per step\n"
+      "  --history FILE     append t,kinetic,max_div diagnostics as CSV\n"
+      "  --diag-every N     history interval in steps (default 0 = endpoints)\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
       "  --check            fail if convergence or divergence is bad\n"
       "  --verbose          print the Kokkos configuration\n"
@@ -141,6 +148,12 @@ Params parse(int argc, char** argv) {
       p.min_order = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--poisson-tol") {
       p.poisson_tol = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--filter") {
+      p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--history") {
+      p.history = require_value(i, argc, argv, a);
+    } else if (a == "--diag-every") {
+      p.diag_every = parse_int(a, require_value(i, argc, argv, a));
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--check") {
@@ -251,6 +264,46 @@ CaseResult run_case(int n, const Params& params) {
                                            solver, poptions);
   };
 
+  const bool root = saturn::mpi_rank() == 0;
+  std::ofstream history;
+  if (root && !params.history.empty()) {
+    history.open(params.history);
+    if (!history) {
+      std::fprintf(stderr, "could not open history file %s\n",
+                   params.history.c_str());
+      std::exit(2);
+    }
+    history << "t,kinetic,max_div\n";
+  }
+  auto record = [&](double current_time) {
+    double sum_kinetic = 0.0;
+    double max_div = 0.0;
+    Kokkos::parallel_reduce(
+        "history_diagnostics", policy,
+        KOKKOS_LAMBDA(int k, int j, int i, double& kin, double& div) {
+          const int ip = (i + 1 == n) ? 0 : i + 1;
+          const int jp = (j + 1 == n) ? 0 : j + 1;
+          const int kp = (k + 1 == nz) ? 0 : k + 1;
+          const double uc = 0.5 * (u(k, j, i) + u(k, j, ip));
+          const double vc = 0.5 * (v(k, j, i) + v(k, jp, i));
+          const double wc = 0.5 * (w(k, j, i) + w(kp, j, i));
+          kin += uc * uc + vc * vc + wc * wc;
+          const double d = Kokkos::abs((u(k, j, ip) - u(k, j, i)) / hx +
+                                       (v(k, jp, i) - v(k, j, i)) / hy +
+                                       (w(kp, j, i) - w(k, j, i)) / hz);
+          div = d > div ? d : div;
+        },
+        Kokkos::Sum<double>{sum_kinetic}, Kokkos::Max<double>{max_div});
+    const double kinetic = 0.5 * saturn::mpi_sum(sum_kinetic) * hx * hy * hz;
+    const double divergence = saturn::mpi_max(max_div);
+    if (root && history.is_open()) {
+      history << current_time << "," << kinetic << "," << divergence << "\n";
+      history.flush();
+    }
+  };
+  record(0.0);
+  int last_record_step = 0;
+
   const double hmin = std::min({hx, hy, hz});
   Kokkos::Timer timer;
   double time = 0.0;
@@ -290,10 +343,22 @@ CaseResult run_case(int n, const Params& params) {
     saturn::incompressible::advance_ssprk3<ExecSpace>(
         u, v, w, u1, v1, w1, u2, v2, w2, ku, kv, kw, h, params.nu, dt,
         do_project);
+    if (params.filter_alpha > 0.0) {
+      saturn::incompressible::filter4<ExecSpace>(u, v, w, u1, v1, w1,
+                                                 params.filter_alpha);
+      do_project(u, v, w);
+    }
     time += dt;
     ++steps;
+    if (params.diag_every > 0 && steps % params.diag_every == 0) {
+      record(time);
+      last_record_step = steps;
+    }
   }
   Kokkos::fence();
+  if (steps != last_record_step) {
+    record(time);
+  }
   const double seconds = saturn::mpi_max(timer.seconds());
 
   // Cell-centered velocities and the exact solution at t_end.

@@ -66,6 +66,9 @@ Progress:
   converge at second order (TGV L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at
   16/32/64²; ABC 6.1e-4 / 1.5e-4 at 16/32³) with divergence at round-off
   (`docs/verification/incompressible.md`).
+- Phase 3 3D Taylor–Green vortex: the unfiltered central scheme is unstable at
+  n=32, while a 4th-order filter (`--filter 0.1`) stabilizes a run to t=10 with
+  peak dissipation `1.52e-2` at `t=5.9` (`docs/verification/incompressible.md`).
 - Phase 3 wall-bounded channel: no-slip y walls with Neumann pressure. Couette
   flow is steady to round-off and plane Poiseuille converges at second order
   (`9.96e-4 → 2.55e-4 → 6.40e-5` at NY 16/32/64; `docs/verification/channel.md`).
@@ -349,9 +352,10 @@ pressure correction after every RK stage.
 The exact 2D Taylor–Green vortex converges at **2.00** order (L2 velocity
 `7.2e-3`, `1.8e-3`, `4.5e-4` at 16/32/64²) with `max|div| ~ 1e-12`. The 3D ABC
 (Beltrami) flow also converges at second order (`6.1e-4`, `1.5e-4` at
-16/32³). A 3D Taylor–Green case is implemented; its central advection scheme
-is unstable after transition at `n=32` and needs a stabilized/dealiased scheme
-or a higher resolution. The prototype is single-rank and periodic-only.
+16/32³). A 3D Taylor–Green case is implemented; the unfiltered central scheme
+is unstable at `n=32`, while a 4th-order filter (`--filter 0.1`) stabilizes it
+(peak dissipation `1.52e-2` at `t=5.9`, still an under-resolved filtered run,
+not a DNS benchmark). The prototype is single-rank and periodic-only.
 Details are in `docs/verification/incompressible.md`.
 
 ## Channel flows (Phase 3)

@@ -928,16 +928,17 @@ scaling to 8 GPUs.
       `max|div| ~ 3e-11` (`docs/verification/cavity.md`).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
 - [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity at higher Re on both
-      paths. The 3D TGV case is implemented; the central MAC advection becomes
-      unstable after transition at n=32 and needs dealiasing/upwinding or a
-      higher resolution (`docs/verification/incompressible.md`).
+      paths. The 3D TGV is implemented; a 4th-order filter (`alpha=0.1`)
+      stabilizes it at n=32 (peak `-dK/dt/V = 1.52e-2` at `t=5.9`) but it
+      remains an under-resolved filtered exercise, not a quantitative DNS
+      benchmark (`docs/verification/incompressible.md`).
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
-**Current:** periodic GMG and the staggered-MAC projection solver are verified
-on the exact 2D TGV and 3D ABC flow. Next: non-periodic and
-variable-coefficient Poisson operators (channel/cavity), the 3D TGV at
-Re=1600, and a distributed multigrid solve.
+**Current:** periodic GMG, the staggered-MAC projection solver, wall-bounded
+channel flow, and the Ghia Re=100 cavity are verified. The 3D TGV is stable
+with a 4th-order filter at n=32. Next: turbulent channel, higher-Re cavity, a
+dealiased 3D TGV, and a distributed multigrid solve.
 
 **Exit:** projection + GMG validated against references and ≥ 70%
 strong-scaling efficiency at 8 GPUs for 512³; EDAC measured against the
