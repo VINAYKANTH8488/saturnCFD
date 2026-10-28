@@ -66,6 +66,9 @@ Progress:
   converge at second order (TGV L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at
   16/32/64²; ABC 6.1e-4 / 1.5e-4 at 16/32³) with divergence at round-off
   (`docs/verification/incompressible.md`).
+- Phase 3 wall-bounded channel: no-slip y walls with Neumann pressure. Couette
+  flow is steady to round-off and plane Poiseuille converges at second order
+  (`9.96e-4 → 2.55e-4 → 6.40e-5` at NY 16/32/64; `docs/verification/channel.md`).
 
 ## Requirements
 
@@ -345,6 +348,23 @@ The exact 2D Taylor–Green vortex converges at **2.00** order (L2 velocity
 (Beltrami) flow also converges at second order (`6.1e-4`, `1.5e-4` at
 16/32³). The prototype is single-rank and periodic-only. Details are in
 `docs/verification/incompressible.md`.
+
+## Channel flows (Phase 3)
+
+`apps/channel_sim.cpp` adds no-slip y walls on top of the MAC projection
+solver: periodic x/z, no penetration on the wall faces, and homogeneous
+Neumann pressure.
+
+```bash
+./build/cpu-openmp/apps/saturn_channel_sim \
+  --case couette --n-list 16 32 --tend 0.1 --nu 0.1 --u-top 1 --check
+./build/cpu-openmp/apps/saturn_channel_sim \
+  --case poiseuille --n-list 16 32 64 --tend 0.1 --nu 0.1 --gx 1 --check
+```
+
+Couette flow is an exact discrete steady state (L2 error `~1e-17`), and plane
+Poiseuille flow converges at second order (`9.96e-4`, `2.55e-4`, `6.40e-5` at
+NY 16/32/64) with zero divergence. Details: `docs/verification/channel.md`.
 
 ## MPI
 

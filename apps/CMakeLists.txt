@@ -27,3 +27,8 @@ add_executable(saturn_incompressible_sim incompressible_sim.cpp)
 target_link_libraries(saturn_incompressible_sim PRIVATE saturn_core)
 target_compile_definitions(saturn_incompressible_sim PRIVATE
   SATURN_DEFAULT_SPACE="${SATURN_DEFAULT_SPACE}")
+
+add_executable(saturn_channel_sim channel_sim.cpp)
+target_link_libraries(saturn_channel_sim PRIVATE saturn_core)
+target_compile_definitions(saturn_channel_sim PRIVATE
+  SATURN_DEFAULT_SPACE="${SATURN_DEFAULT_SPACE}")

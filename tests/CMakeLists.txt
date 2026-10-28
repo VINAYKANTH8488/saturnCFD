@@ -66,6 +66,18 @@ add_test(NAME saturn.incompressible_abc
 set_tests_properties(saturn.incompressible_abc
   PROPERTIES LABELS "verification;incompressible")
 
+add_test(NAME saturn.channel_couette
+  COMMAND saturn_channel_sim --case couette --n-list 16 32 --tend 0.1
+          --nu 0.1 --u-top 1 --check)
+set_tests_properties(saturn.channel_couette
+  PROPERTIES LABELS "verification;incompressible;channel")
+
+add_test(NAME saturn.channel_poiseuille
+  COMMAND saturn_channel_sim --case poiseuille --n-list 16 32 --tend 0.1
+          --nu 0.1 --gx 1 --check)
+set_tests_properties(saturn.channel_poiseuille
+  PROPERTIES LABELS "verification;incompressible;channel")
+
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)
 set_tests_properties(saturn.scalar_mms PROPERTIES LABELS "verification")

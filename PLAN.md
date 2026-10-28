@@ -920,8 +920,11 @@ scaling to 8 GPUs.
       prolongation, 2nd-order convergence on periodic and Neumann boxes
       (`docs/verification/poisson.md`).
 - [ ] FFT Poisson backend for periodic uniform grids (fast path).
+- [x] Wall-bounded MAC channel (periodic x/z, no-slip y walls): Couette is an
+      exact discrete steady state and plane Poiseuille converges at second
+      order (`docs/verification/channel.md`).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
-- [ ] TGV Re=1600, channel Re_τ=180/395, cavity on both paths.
+- [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity on both paths.
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
