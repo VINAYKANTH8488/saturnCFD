@@ -72,6 +72,12 @@ add_test(NAME saturn.compressible_weno5
 set_tests_properties(saturn.compressible_weno5
   PROPERTIES LABELS "verification;compressible")
 
+add_test(NAME saturn.compressible_energy
+  COMMAND saturn_compressible_mms --case entropy --n 16 --tend 0.5
+          --scheme weno5z --time rk4 --cfl 0.3 --energy-tol 1e-11 --check)
+set_tests_properties(saturn.compressible_energy
+  PROPERTIES LABELS "verification;compressible")
+
 add_test(NAME saturn.compressible_tgv
   COMMAND saturn_compressible_sim --case tgv --n 16 --tend 0.05 --check)
 set_tests_properties(saturn.compressible_tgv

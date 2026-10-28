@@ -77,11 +77,23 @@ periodic, other sides are transmissive.
 Every snapshot and the final state print:
 
 ```
-t, step, total mass, |momentum|, kinetic energy, internal energy, max Mach
+t, step, total mass, |momentum|, kinetic energy, internal energy,
+total energy, max Mach
+```
+
+`--history FILE --diag-every N` additionally appends the same quantities as CSV
+(`t,step,mass,momentum,kinetic,internal,total_energy,max_mach`) every `N`
+steps, which gives the Taylor–Green kinetic-energy dissipation curve:
+
+```bash
+./build/cpu-openmp/apps/saturn_compressible_sim \
+  --case tgv --n 64 --tend 10 --diag-every 10 --history tgv_dissipation.csv
 ```
 
 `--check` fails if any final cell has non-positive density/pressure or a
-non-finite state.
+non-finite state. For an all-periodic inviscid run (`mu = 0`) it also requires
+total energy to be conserved to `--energy-tol` (default `1e-10`); the acoustic
+and low-Mach-vortex cases exercise this.
 
 ## VTK and restart
 
@@ -139,7 +151,8 @@ changes because the left/right boundaries are transmissive.
 ## Remaining work
 
 - Validate the double-Mach top boundary and compare against reference data.
-- Add a full 3D Taylor–Green benchmark comparison and energy-dissipation curve.
+- Compare the Taylor–Green energy-dissipation curve from `--history` against
+  reference data at production resolutions (64–256).
 - HDF5/ADIOS2 output and parallel checkpointing.
 - Physical inflow/outflow/wall boundary conditions for multi-rank runs.
 - GPU runs and performance tuning of reconstruction + flux fusion.

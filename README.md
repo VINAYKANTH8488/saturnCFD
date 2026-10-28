@@ -40,8 +40,11 @@ Progress:
   entropy-wave and viscous-shear MMS give observed orders **3.92–3.98** with
   `central4`, **5.14–5.27** with WENO5-Z, and **5.87–5.95** with `central6`
   (`docs/verification/compressible_mms.md`).
+- Periodic inviscid runs conserve mass and total energy to round-off
+  (**≤1.1e-15** relative drift); `--check` enforces this via `--energy-tol`.
 - Phase 2 3D compressible driver with TGV, acoustic-pulse, low-Mach-vortex, and
-  double-Mach setups; VTK primitive snapshots, binary checkpoint/restart, and
+  double-Mach setups; VTK primitive snapshots, binary checkpoint/restart,
+  per-step CSV diagnostics for energy-dissipation curves, and
   full 3D halo exchange (faces, edges, corners), verified on 2 and 4 MPI ranks;
   multi-rank non-periodic BCs use an all-gather fallback
   (`docs/verification/compressible_driver.md`).
@@ -254,7 +257,9 @@ verification driver has two exact cases:
 ```
 
 Observed orders: `central4` 3.92–3.98, WENO5-Z 5.14–5.27, `central6`
-5.87–5.95. See `docs/verification/compressible_mms.md`. The driver is
+5.87–5.95. On the periodic inviscid case mass and total energy are conserved to
+round-off (`|dM/M| ≤ 1e-16`, `|dE/E| ≤ 1.1e-15`); `--check` enforces the
+`--energy-tol` limit. See `docs/verification/compressible_mms.md`. The driver is
 periodic-only in multi-rank mode; single-rank transmissive/slip boundaries are
 supported, and TGV/acoustic/vortex/double-Mach drivers plus VTK snapshots and
 checkpoint/restart are implemented. See `docs/verification/compressible_driver.md`.
@@ -268,6 +273,10 @@ and checkpoint/restart:
 ```bash
 ./build/cpu-openmp/apps/saturn_compressible_sim \
   --case tgv --n 32 --tend 1.0 --output /tmp/tgv --plot-every 20
+
+# Global diagnostics every 10 steps (CSV for dissipation curves).
+./build/cpu-openmp/apps/saturn_compressible_sim \
+  --case tgv --n 64 --tend 10 --diag-every 10 --history tgv.csv
 ```
 
 Short stability gates:

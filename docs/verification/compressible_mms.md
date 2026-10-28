@@ -119,6 +119,26 @@ MPI CTest entries:
 - `saturn.box_exchange_mpi2/4`: every ghost cell (including corners) checked on
   2 and 4 ranks.
 
+## Conservation
+
+On a periodic domain the conservative face fluxes telescope exactly, so an
+inviscid run must conserve mass and total energy to round-off. This holds
+independently of the reconstruction, the Riemann solver, and the RK order; it
+is a direct check that the flux assembly is conservative. The app reports
+`|dM/M|` and `|dE/E|` for every resolution, and `--check` enforces
+`--energy-tol` (default `1e-10`) for the entropy case.
+
+| Case | Scheme | N | t_end | steps | abs(dM/M) | abs(dE/E) |
+|---|---|---|---|---|---|---|
+| entropy | central4 | 8 | 0.2 | 13 | 0 | 2.8e-16 |
+| entropy | central4 | 16 | 0.2 | 25 | 1.1e-16 | 1.1e-15 |
+| entropy | central4 | 32 | 0.2 | 50 | 0 | 0 |
+| entropy | weno5z | 16 | 0.5 | 62 | 0 | 1.1e-15 |
+
+The shear case reports the drift as well, but `--check` does not enforce it:
+the optional isothermal sink and physical viscous dissipation change the total
+energy by design.
+
 ## Commands
 
 ```bash
@@ -131,22 +151,20 @@ MPI CTest entries:
 ctest --test-dir build/cpu-openmp -R saturn.compressible --output-on-failure
 ```
 
-`--check` fails if the observed order is below `--min-order` (default 3.7).
-`--json` records the convergence table.
+`--check` fails if the observed order is below `--min-order` (default 3.7),
+or if the periodic inviscid entropy case drifts in mass or total energy above
+`--energy-tol`. `--json` records the convergence table and both drifts.
 
 ## Limitations and next steps
 
-- The driver is periodic-only; physical inlet/outlet/wall boundary conditions
-  are not implemented yet.
-- Multi-rank all-periodic runs use `BoxExchange` (26 neighbor blocks, including
-  edges/corners). Non-periodic multi-rank runs use the `GlobalExchange`
-  all-gather fallback; this is correct but not scalable.
+- Multi-rank non-periodic runs use the `GlobalExchange` all-gather fallback;
+  this is correct but not scalable.
 - Constant `mu` and `Pr`; variable transport coefficients and Sutherland's law
   are future work.
 - The isothermal energy sink is a manufactured-verification device. Production
   runs use the physical viscous heating term.
-- The 3D driver is a verification app, not yet a production case driver:
-  restart, VTK output of the five conserved fields, diagnostics, and MPI/CUDA
-  scaling runs are next.
-- The next physics gates are the double Mach reflection, low-Mach vortex,
-  acoustic pulse, and a 3D Taylor–Green vortex.
+- CUDA verification and GPU scaling are pending hardware access; the kernels
+  are device-callable.
+- The remaining physics gates are quantitative comparisons against reference
+  data for the double Mach reflection, low-Mach vortex, acoustic pulse, and
+  Taylor–Green vortex dissipation curve (`docs/verification/compressible_driver.md`).

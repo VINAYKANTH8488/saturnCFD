@@ -35,6 +35,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -61,6 +63,7 @@ struct Params {
   double gas_constant = 1.0;
   double mu = 1.0 / 1600.0;
   double prandtl = 0.72;
+  double energy_tol = 1.0e-10;
   std::string scheme = "central4";
   std::string solver = "hllc";
   std::string time = "rk3";
@@ -68,8 +71,10 @@ struct Params {
   std::string output;
   std::string checkpoint;
   std::string restart;
+  std::string history;
   int plot_every = 100;
   int checkpoint_every = 0;
+  int diag_every = 0;
   bool verbose = false;
   bool check = false;
   saturn::BoundaryType bc[3][2] = {
@@ -96,9 +101,13 @@ void usage(const char* argv0) {
       << "  --plot-every N       snapshot interval (default 100 steps)\n"
       << "  --checkpoint BASE    write binary checkpoints\n"
       << "  --checkpoint-every N checkpoint interval (default 0 = off)\n"
+      << "  --history FILE       append global diagnostics as CSV\n"
+      << "  --diag-every N       diagnostics interval (default 0 = snapshots)\n"
       << "  --restart BASE       restart from a checkpoint\n"
       << "  --space NAME         serial|openmp|cuda|hip|sycl|default\n"
-      << "  --check              fail if the final state is invalid\n"
+      << "  --check              fail if the final state is invalid or a\n"
+      << "                       periodic inviscid run drifts in energy\n"
+      << "  --energy-tol VALUE   |dE/E| limit for the check (default 1e-10)\n"
       << "  --verbose            print the Kokkos configuration\n"
       << "  --help               show this help\n";
 }
@@ -251,6 +260,12 @@ Params parse(int argc, char** argv) {
       p.checkpoint = require_value(i, argc, argv, a);
     } else if (a == "--checkpoint-every") {
       p.checkpoint_every = parse_int(a, require_value(i, argc, argv, a));
+    } else if (a == "--history") {
+      p.history = require_value(i, argc, argv, a);
+    } else if (a == "--diag-every") {
+      p.diag_every = parse_int(a, require_value(i, argc, argv, a));
+    } else if (a == "--energy-tol") {
+      p.energy_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--restart") {
       p.restart = require_value(i, argc, argv, a);
     } else if (a == "--space") {
@@ -480,6 +495,24 @@ int run(const Params& params) {
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
 
+  const bool root = saturn::mpi_rank() == 0;
+  std::ofstream history;
+  if (!params.history.empty() && root) {
+    const std::filesystem::path path(params.history);
+    if (path.has_parent_path()) {
+      std::filesystem::create_directories(path.parent_path());
+    }
+    history.open(params.history);
+    if (!history) {
+      std::fprintf(stderr, "could not open history file %s\n",
+                   params.history.c_str());
+      return 2;
+    }
+    history << "t,step,mass,momentum,kinetic,internal,total_energy,max_mach\n";
+  }
+
+  // Returns {mass, momentum, kinetic, internal, total, max Mach}; the total
+  // energy is kinetic + internal and is conserved for periodic inviscid flow.
   auto diagnostics = [&](double current_time) {
     double mass = 0.0;
     double momentum = 0.0;
@@ -512,12 +545,22 @@ int run(const Params& params) {
     kinetic = saturn::mpi_sum(kinetic) * cell_volume;
     internal = saturn::mpi_sum(internal) * cell_volume;
     max_mach = saturn::mpi_max(max_mach);
-    if (saturn::mpi_rank() == 0) {
+    const double total = kinetic + internal;
+    if (root) {
       std::printf(
-          "t=%.4f step=%d mass=%.8e |p|=%.6e K=%.8e e=%.8e Mach_max=%.3e\n",
-          current_time, step, mass, momentum, kinetic, internal, max_mach);
+          "t=%.4f step=%d mass=%.8e |p|=%.6e K=%.8e e=%.8e E=%.10e "
+          "Mach_max=%.3e\n",
+          current_time, step, mass, momentum, kinetic, internal, total,
+          max_mach);
+      if (history.is_open()) {
+        history << std::setprecision(12) << current_time << "," << step << ","
+                << mass << "," << momentum << "," << kinetic << ","
+                << internal << "," << total << "," << max_mach << "\n";
+        history.flush();
+      }
     }
-    return std::array<double, 4>{mass, kinetic, internal, max_mach};
+    return std::array<double, 6>{mass,     momentum, kinetic,
+                                 internal, total,    max_mach};
   };
 
   auto write_snapshot = [&](const std::string& base, int snapshot_step) {
@@ -551,6 +594,8 @@ int run(const Params& params) {
   }
   int last_diagnostics_step = step;
   auto last_diagnostics = diagnostics(time);
+  const double initial_total_energy = last_diagnostics[4];
+  const bool expect_energy_conservation = all_periodic && params.mu == 0.0;
 
   Kokkos::Timer timer;
   double last_dt = 0.0;
@@ -583,6 +628,11 @@ int run(const Params& params) {
         last_diagnostics = diagnostics(time);
         last_diagnostics_step = step;
       }
+    }
+    if (params.diag_every > 0 && step % params.diag_every == 0 &&
+        step != last_diagnostics_step) {
+      last_diagnostics = diagnostics(time);
+      last_diagnostics_step = step;
     }
     if (!params.checkpoint.empty() && params.checkpoint_every > 0 &&
         step % params.checkpoint_every == 0) {
@@ -621,15 +671,28 @@ int run(const Params& params) {
       Kokkos::Sum<double>{local_invalid});
   local_invalid = saturn::mpi_sum(local_invalid);
   valid = local_invalid == 0.0;
+  const double energy_drift =
+      initial_total_energy > 0.0
+          ? std::abs(final_diagnostics[4] - initial_total_energy) /
+                initial_total_energy
+          : 0.0;
+  const bool conservation_ok =
+      !expect_energy_conservation || energy_drift <= params.energy_tol;
 
-  if (saturn::mpi_rank() == 0) {
+  if (root) {
     std::printf("finished: steps=%d time=%.6f dt_last=%.3e wall=%.3fs\n",
                 step, time, last_dt, seconds);
-    std::printf("valid=%s K=%.8e e=%.8e Mach_max=%.3e\n",
-                valid ? "yes" : "no", final_diagnostics[1],
-                final_diagnostics[2], final_diagnostics[3]);
+    std::printf(
+        "valid=%s K=%.8e e=%.8e E=%.10e Mach_max=%.3e dE/E=%.2e\n",
+        valid ? "yes" : "no", final_diagnostics[2], final_diagnostics[3],
+        final_diagnostics[4], final_diagnostics[5], energy_drift);
   }
-  if (params.check && !valid) {
+  if (params.check && (!valid || !conservation_ok)) {
+    if (root && !conservation_ok) {
+      std::fprintf(stderr,
+                   "energy conservation check failed: |dE/E| = %.2e > %.2e\n",
+                   energy_drift, params.energy_tol);
+    }
     return 1;
   }
   return 0;

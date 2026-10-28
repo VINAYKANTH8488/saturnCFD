@@ -56,6 +56,7 @@ struct Params {
   double tend = 0.2;
   double cfl = 0.4;
   double min_order = 3.7;
+  double energy_tol = 1.0e-10;
   std::string scheme = "central4";
   std::string solver = "hllc";
   std::string time = "rk4";
@@ -75,6 +76,8 @@ struct CaseResult {
   double l2_u = 0.0;
   double l2_p = 0.0;
   double order = 0.0;
+  double mass_drift = 0.0;
+  double energy_drift = 0.0;
   double seconds = 0.0;
 };
 
@@ -118,6 +121,8 @@ void usage(const char* argv0) {
       << "  --time NAME            rk3|rk4 (default rk4)\n"
       << "  --no-sink              disable the isothermal energy sink (shear)\n"
       << "  --min-order VALUE      check threshold (default 3.7)\n"
+      << "  --energy-tol VALUE     |dE/E| limit for the inviscid entropy case\n"
+      << "                         (default 1e-10)\n"
       << "  --space NAME           serial|openmp|cuda|hip|sycl|default\n"
       << "  --json PATH            write results as JSON\n"
       << "  --check                fail if the observed order is too low\n"
@@ -204,6 +209,8 @@ Params parse(int argc, char** argv) {
       p.sink = false;
     } else if (a == "--min-order") {
       p.min_order = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--energy-tol") {
+      p.energy_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--json") {
@@ -421,6 +428,25 @@ CaseResult run_case(int n, const Params& params,
   };
 
   const double hmin = std::min({grid.h[0], grid.h[1], grid.h[2]});
+  const double cell_volume = grid.h[0] * grid.h[1] * grid.h[2];
+  const auto policy = saturn::make_mdrange3<ExecSpace>(
+      saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
+      saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
+
+  // Conservative totals before the time loop. For periodic inviscid flow the
+  // fluxes telescope and these must not change (up to round-off).
+  double initial_mass = 0.0;
+  double initial_energy = 0.0;
+  Kokkos::parallel_reduce(
+      "conservation_initial", policy,
+      KOKKOS_LAMBDA(int k, int j, int i, double& m, double& e) {
+        m += q(0, i, j, k);
+        e += q(4, i, j, k);
+      },
+      Kokkos::Sum<double>{initial_mass}, Kokkos::Sum<double>{initial_energy});
+  initial_mass = saturn::mpi_sum(initial_mass) * cell_volume;
+  initial_energy = saturn::mpi_sum(initial_energy) * cell_volume;
+
   Kokkos::Timer timer;
   double time = 0.0;
   int steps = 0;
@@ -473,9 +499,6 @@ CaseResult run_case(int n, const Params& params,
   exchange.exchange(q);
 
   const double seconds = saturn::mpi_max(timer.seconds());
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
-      saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
-      saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
 
   double sum_rho = 0.0;
   double sum_u = 0.0;
@@ -506,6 +529,18 @@ CaseResult run_case(int n, const Params& params,
   const double l2_u = std::sqrt(saturn::mpi_sum(sum_u) / cells);
   const double l2_p = std::sqrt(saturn::mpi_sum(sum_p) / cells);
 
+  double final_mass = 0.0;
+  double final_energy = 0.0;
+  Kokkos::parallel_reduce(
+      "conservation_final", policy,
+      KOKKOS_LAMBDA(int k, int j, int i, double& m, double& e) {
+        m += q(0, i, j, k);
+        e += q(4, i, j, k);
+      },
+      Kokkos::Sum<double>{final_mass}, Kokkos::Sum<double>{final_energy});
+  final_mass = saturn::mpi_sum(final_mass) * cell_volume;
+  final_energy = saturn::mpi_sum(final_energy) * cell_volume;
+
   CaseResult result;
   result.n = n;
   result.h = hmin;
@@ -514,6 +549,10 @@ CaseResult run_case(int n, const Params& params,
   result.l2_rho = l2_rho;
   result.l2_u = l2_u;
   result.l2_p = l2_p;
+  result.mass_drift =
+      std::abs(final_mass - initial_mass) / std::abs(initial_mass);
+  result.energy_drift =
+      std::abs(final_energy - initial_energy) / std::abs(initial_energy);
   result.seconds = seconds;
   return result;
 }
@@ -540,6 +579,7 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
               << std::setw(12) << "dt" << std::setw(8) << "steps"
               << std::setw(14) << "L2 rho" << std::setw(14) << "L2 u"
               << std::setw(14) << "L2 p" << std::setw(8) << "order"
+              << std::setw(12) << "dM/M" << std::setw(12) << "dE/E"
               << "time [s]\n";
   }
 
@@ -562,7 +602,10 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
                 << std::setw(14) << result.l2_rho << std::setw(14)
                 << result.l2_u << std::setw(14) << result.l2_p
                 << std::setw(8) << std::fixed << std::setprecision(2)
-                << result.order << std::fixed << std::setprecision(3)
+                << result.order << std::scientific << std::setprecision(2)
+                << std::setw(12) << result.mass_drift
+                << std::setw(12) << result.energy_drift
+                << std::fixed << std::setprecision(3)
                 << result.seconds << "\n";
     }
   }
@@ -590,6 +633,8 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
           << "    \"l2_u\": " << result.l2_u << ",\n"
           << "    \"l2_p\": " << result.l2_p << ",\n"
           << "    \"order\": " << result.order << ",\n"
+          << "    \"mass_drift\": " << result.mass_drift << ",\n"
+          << "    \"energy_drift\": " << result.energy_drift << ",\n"
           << "    \"seconds\": " << result.seconds << "\n"
           << "  }" << (i + 1 < results.size() ? "," : "") << "\n";
     }
@@ -598,25 +643,59 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
   }
 
   if (params.check) {
-    bool ok = results.size() >= 2;
-    for (std::size_t i = 1; i < results.size(); ++i) {
-      if (results[i].order < params.min_order) {
-        ok = false;
+    bool order_ok = true;
+    if (results.size() >= 2) {
+      for (std::size_t i = 1; i < results.size(); ++i) {
+        if (results[i].order < params.min_order) {
+          order_ok = false;
+        }
       }
     }
-    ok = saturn::mpi_all(ok);
+
+    // Periodic inviscid flow must conserve mass and total energy to
+    // round-off; the conservative face fluxes telescope exactly.
+    bool conservation_ok = true;
+    double max_mass_drift = 0.0;
+    double max_energy_drift = 0.0;
+    if (params.case_name == "entropy") {
+      for (const auto& result : results) {
+        max_mass_drift = std::max(max_mass_drift, result.mass_drift);
+        max_energy_drift = std::max(max_energy_drift, result.energy_drift);
+        if (result.mass_drift > params.energy_tol ||
+            result.energy_drift > params.energy_tol) {
+          conservation_ok = false;
+        }
+      }
+    }
+
+    const bool ok = saturn::mpi_all(order_ok && conservation_ok);
     if (!ok) {
       if (root) {
-        std::fprintf(stderr,
-                     "compressible MMS check failed: observed order below "
-                     "%.2f\n",
-                     params.min_order);
+        if (!order_ok) {
+          std::fprintf(stderr,
+                       "compressible MMS check failed: observed order below "
+                       "%.2f\n",
+                       params.min_order);
+        }
+        if (!conservation_ok) {
+          std::fprintf(stderr,
+                       "compressible MMS check failed: conservation drift "
+                       "above %.2e (mass %.2e, energy %.2e)\n",
+                       params.energy_tol, max_mass_drift, max_energy_drift);
+        }
       }
       return 1;
     }
     if (root) {
-      std::printf("compressible %s MMS check passed\n",
-                  params.case_name.c_str());
+      if (params.case_name == "entropy") {
+        std::printf(
+            "compressible entropy MMS check passed "
+            "(max |dM/M| = %.2e, max |dE/E| = %.2e)\n",
+            max_mass_drift, max_energy_drift);
+      } else {
+        std::printf("compressible %s MMS check passed\n",
+                    params.case_name.c_str());
+      }
     }
   }
   return 0;

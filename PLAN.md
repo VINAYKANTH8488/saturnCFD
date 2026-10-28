@@ -888,12 +888,16 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
       double-Mach setup, VTK/checkpoint, full 3D halo exchange, and
       periodic/transmissive/slip BCs (`docs/verification/compressible_driver.md`).
       Physical BC validation and GPU scaling pending.
-- [ ] MMS 4th/6th order; energy conservation check.
+- [x] MMS 4th/6th order; energy conservation check (entropy-wave MMS at
+      `central4`/WENO5-Z/`central6`; periodic inviscid mass and total-energy
+      drift ≤ 1e-15 enforced by `--energy-tol`).
 - [ ] GPU performance baseline; register/occupancy tuning.
 
 **Current:** reconstruction, all four Riemann solvers, and the 1D Sod gate are
-passing on CPU Serial/OpenMP. Next: 3D compressible Navier-Stokes, smooth
-high-order MMS, and the remaining shock/acoustic cases.
+passing on CPU Serial/OpenMP. The 3D Navier–Stokes path has smooth MMS at
+4th–6th order and exact conservation on periodic inviscid runs. Next: GPU
+performance baseline, physical-BC validation, and reference comparisons for the
+shock/acoustic/TGV cases.
 
 **Exit:** 4th-order MMS ≥ 3.8; Sod correct; low-Mach vortex stable; strong
 scaling to 8 GPUs.
