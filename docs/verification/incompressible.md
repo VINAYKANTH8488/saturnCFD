@@ -95,6 +95,23 @@ full nonlinear term. With `nu=0.1`, `t_end=0.5`, CFL 0.3, cubic grids:
 
 The 3D case converges at second order with divergence at round-off.
 
+## 3D Taylor–Green vortex status
+
+`--case tgv3d` implements the standard 3D Taylor–Green initial condition on a
+cubic periodic grid (initial `K/V=0.125`). A short run at `n=16`, `t=1`,
+`nu=1/1600` is stable and is covered by
+`saturn.incompressible_tgv3d_smoke`.
+
+Longer runs at `n=32` become unstable after transition, for both `Re=1600`
+(`nu=1/1600`) and `Re=400` (`nu=1/400`): the central advection operator has no
+grid-scale dissipation and the under-resolved 3D transition aliases energy into
+the smallest modes. The solver now detects non-finite states and aborts instead
+of continuing with a collapsed time step; `--check` fails in that case. A
+dealiased/energy-conserving or upwind/high-order advection scheme, or a
+production resolution (`n >= 64` with adequate dissipation), is required before
+this case can be used as a quantitative TGV benchmark. The 2D TGV and 3D ABC
+results above remain valid because those flows stay smooth.
+
 Run the gates with:
 
 ```bash
@@ -115,6 +132,9 @@ ctest --test-dir build/cpu-openmp -R saturn.incompressible --output-on-failure
   coefficient Poisson operators are not implemented.
 - No Rhie–Chow path: the MAC grid is used for this prototype. A collocated
   path can be added later if the production data layout requires it.
-- The 3D TGV, channel flow, and cavity cases from Phase 3 remain.
+- The 3D TGV is implemented but the central advection scheme is unstable after
+  transition at `n=32` (both `Re=400` and `Re=1600`); it needs a
+  dealiased/energy-conserving scheme or a higher resolution.
+- The 3D TGV, turbulent channel, and cavity cases from Phase 3 remain.
 - Poisson solves currently start from zero each stage; warm starting and a
   faster MG/FFT path are needed for production runs.

@@ -346,8 +346,10 @@ pressure correction after every RK stage.
 The exact 2D Taylor–Green vortex converges at **2.00** order (L2 velocity
 `7.2e-3`, `1.8e-3`, `4.5e-4` at 16/32/64²) with `max|div| ~ 1e-12`. The 3D ABC
 (Beltrami) flow also converges at second order (`6.1e-4`, `1.5e-4` at
-16/32³). The prototype is single-rank and periodic-only. Details are in
-`docs/verification/incompressible.md`.
+16/32³). A 3D Taylor–Green case is implemented; its central advection scheme
+is unstable after transition at `n=32` and needs a stabilized/dealiased scheme
+or a higher resolution. The prototype is single-rank and periodic-only.
+Details are in `docs/verification/incompressible.md`.
 
 ## Channel flows (Phase 3)
 

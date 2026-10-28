@@ -78,6 +78,12 @@ add_test(NAME saturn.channel_poiseuille
 set_tests_properties(saturn.channel_poiseuille
   PROPERTIES LABELS "verification;incompressible;channel")
 
+add_test(NAME saturn.incompressible_tgv3d_smoke
+  COMMAND saturn_incompressible_sim --case tgv3d --n 16 --tend 1
+          --nu 0.000625 --cfl 0.3 --check)
+set_tests_properties(saturn.incompressible_tgv3d_smoke
+  PROPERTIES LABELS "verification;incompressible")
+
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)
 set_tests_properties(saturn.scalar_mms PROPERTIES LABELS "verification")

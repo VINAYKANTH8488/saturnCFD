@@ -26,6 +26,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -54,7 +55,7 @@ struct Params {
 void usage(const char* argv0) {
   std::printf(
       "Usage: %s [options]\n"
-      "  --case NAME        tgv2d|abc (default tgv2d)\n"
+      "  --case NAME        tgv2d|tgv3d|abc (default tgv2d)\n"
       "  --n N              single resolution\n"
       "  --n-list N1 N2 ... resolutions for a convergence sweep\n"
       "  --nz N             periodic z layers (default 8)\n"
@@ -153,8 +154,9 @@ Params parse(int argc, char** argv) {
                    a.c_str());
     }
   }
-  if (p.case_name != "tgv2d" && p.case_name != "abc") {
-    std::fprintf(stderr, "unknown case '%s' (tgv2d|abc)\n",
+  if (p.case_name != "tgv2d" && p.case_name != "tgv3d" &&
+      p.case_name != "abc") {
+    std::fprintf(stderr, "unknown case '%s' (tgv2d|tgv3d|abc)\n",
                  p.case_name.c_str());
     std::exit(2);
   }
@@ -170,6 +172,7 @@ struct CaseResult {
   int steps = 0;
   double dt = 0.0;
   double l2 = 0.0;
+  double kinetic = 0.0;
   double divergence = 0.0;
   double order = 0.0;
   double seconds = 0.0;
@@ -182,12 +185,15 @@ CaseResult run_case(int n, const Params& params) {
   const double lx = 2.0 * kPi;
   const double ly = 2.0 * kPi;
   const double lz = 2.0 * kPi;
-  const int nz = (params.case_name == "abc") ? n : params.nz;
+  const int nz = (params.case_name == "abc" || params.case_name == "tgv3d")
+                     ? n
+                     : params.nz;
   const double hx = lx / static_cast<double>(n);
   const double hy = ly / static_cast<double>(n);
   const double hz = lz / static_cast<double>(nz);
   const std::array<double, 3> h{{hx, hy, hz}};
-  const int case_id = (params.case_name == "abc") ? 1 : 0;
+  const int case_id =
+      (params.case_name == "abc") ? 1 : ((params.case_name == "tgv3d") ? 2 : 0);
 
   view_type u("u", nz, n, n);
   view_type v("v", nz, n, n);
@@ -218,6 +224,10 @@ CaseResult run_case(int n, const Params& params) {
           u(k, j, i) = Kokkos::sin(zc) + Kokkos::cos(yc);
           v(k, j, i) = Kokkos::sin(xc) + Kokkos::cos(zc);
           w(k, j, i) = Kokkos::sin(yc) + Kokkos::cos(xc);
+        } else if (case_id == 2) {
+          u(k, j, i) = Kokkos::sin(xf) * Kokkos::cos(yc) * Kokkos::cos(zc);
+          v(k, j, i) = -Kokkos::cos(xc) * Kokkos::sin(yf) * Kokkos::cos(zc);
+          w(k, j, i) = 0.0;
         } else {
           u(k, j, i) = Kokkos::sin(xf) * Kokkos::cos(yc);
           v(k, j, i) = -Kokkos::cos(xc) * Kokkos::sin(yf);
@@ -245,17 +255,28 @@ CaseResult run_case(int n, const Params& params) {
   double time = 0.0;
   int steps = 0;
   double last_dt = 0.0;
+  bool valid = true;
   while (time < params.tend - 1.0e-14) {
     double max_speed = 0.0;
+    double non_finite = 0.0;
     Kokkos::parallel_reduce(
         "max_speed", policy,
-        KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
+        KOKKOS_LAMBDA(int k, int j, int i, double& acc, double& bad) {
           const double speed =
               Kokkos::sqrt(u(k, j, i) * u(k, j, i) + v(k, j, i) * v(k, j, i) +
                            w(k, j, i) * w(k, j, i));
+          if (!(speed == speed) || Kokkos::abs(speed) > 1.0e100) {
+            bad += 1.0;
+            return;
+          }
           acc = speed > acc ? speed : acc;
         },
-        Kokkos::Max<double>{max_speed});
+        Kokkos::Max<double>{max_speed}, Kokkos::Sum<double>{non_finite});
+    non_finite = saturn::mpi_sum(non_finite);
+    if (non_finite > 0.0) {
+      valid = false;
+      break;
+    }
     double dt = params.cfl * hmin / std::max(max_speed, 1.0e-12);
     if (params.nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / params.nu);
@@ -276,50 +297,67 @@ CaseResult run_case(int n, const Params& params) {
 
   // Cell-centered velocities and the exact solution at t_end.
   double sum_error = 0.0;
+  double sum_kinetic = 0.0;
   double max_div = 0.0;
   const double decay =
       std::exp((case_id == 1 ? -1.0 : -2.0) * params.nu * time);
   Kokkos::parallel_reduce(
-      "tgv2d_error", policy,
-      KOKKOS_LAMBDA(int k, int j, int i, double& err, double& div) {
+      "incompressible_diagnostics", policy,
+      KOKKOS_LAMBDA(int k, int j, int i, double& err, double& kin,
+                    double& div) {
         const int ip = (i + 1 == n) ? 0 : i + 1;
         const int jp = (j + 1 == n) ? 0 : j + 1;
         const int kp = (k + 1 == nz) ? 0 : k + 1;
         const double uc = 0.5 * (u(k, j, i) + u(k, j, ip));
         const double vc = 0.5 * (v(k, j, i) + v(k, jp, i));
         const double wc = 0.5 * (w(k, j, i) + w(kp, j, i));
-        const double x = (i + 0.5) * hx;
-        const double y = (j + 0.5) * hy;
-        const double z = (k + 0.5) * hz;
-        double ue;
-        double ve;
-        double we;
-        if (case_id == 1) {
-          ue = (Kokkos::sin(z) + Kokkos::cos(y)) * decay;
-          ve = (Kokkos::sin(x) + Kokkos::cos(z)) * decay;
-          we = (Kokkos::sin(y) + Kokkos::cos(x)) * decay;
-        } else {
-          ue = Kokkos::sin(x) * Kokkos::cos(y) * decay;
-          ve = -Kokkos::cos(x) * Kokkos::sin(y) * decay;
-          we = 0.0;
+        kin += uc * uc + vc * vc + wc * wc;
+        if (case_id != 2) {
+          const double x = (i + 0.5) * hx;
+          const double y = (j + 0.5) * hy;
+          const double z = (k + 0.5) * hz;
+          double ue;
+          double ve;
+          double we;
+          if (case_id == 1) {
+            ue = (Kokkos::sin(z) + Kokkos::cos(y)) * decay;
+            ve = (Kokkos::sin(x) + Kokkos::cos(z)) * decay;
+            we = (Kokkos::sin(y) + Kokkos::cos(x)) * decay;
+          } else {
+            ue = Kokkos::sin(x) * Kokkos::cos(y) * decay;
+            ve = -Kokkos::cos(x) * Kokkos::sin(y) * decay;
+            we = 0.0;
+          }
+          const double eu = uc - ue;
+          const double ev = vc - ve;
+          const double ew = wc - we;
+          err += eu * eu + ev * ev + ew * ew;
         }
-        const double eu = uc - ue;
-        const double ev = vc - ve;
-        const double ew = wc - we;
-        err += eu * eu + ev * ev + ew * ew;
         const double d = Kokkos::abs((u(k, j, ip) - u(k, j, i)) / hx +
                                      (v(k, jp, i) - v(k, j, i)) / hy +
                                      (w(kp, j, i) - w(k, j, i)) / hz);
         div = d > div ? d : div;
       },
-      Kokkos::Sum<double>{sum_error}, Kokkos::Max<double>{max_div});
+      Kokkos::Sum<double>{sum_error}, Kokkos::Sum<double>{sum_kinetic},
+      Kokkos::Max<double>{max_div});
 
   const double cells = static_cast<double>(n) * n * nz;
+  const double cell_volume = hx * hy * hz;
   CaseResult result;
   result.n = n;
   result.steps = steps;
   result.dt = last_dt;
-  result.l2 = std::sqrt(saturn::mpi_sum(sum_error) / (3.0 * cells));
+  if (!valid) {
+    result.l2 = std::numeric_limits<double>::infinity();
+    result.kinetic = std::numeric_limits<double>::quiet_NaN();
+    result.divergence = std::numeric_limits<double>::infinity();
+    result.seconds = saturn::mpi_max(timer.seconds());
+    return result;
+  }
+  result.l2 = (case_id == 2)
+                  ? 0.0
+                  : std::sqrt(saturn::mpi_sum(sum_error) / (3.0 * cells));
+  result.kinetic = 0.5 * saturn::mpi_sum(sum_kinetic) * cell_volume;
   result.divergence = saturn::mpi_max(max_div);
   result.seconds = seconds;
   return result;
@@ -336,8 +374,8 @@ int run(const Params& params) {
     if (params.verbose) {
       Kokkos::print_configuration(std::cout, true);
     }
-    std::printf("%6s %8s %12s %14s %14s %8s %10s\n", "N", "steps", "dt",
-                "L2 velocity", "max |div|", "order", "time [s]");
+    std::printf("%6s %8s %12s %14s %14s %14s %8s %10s\n", "N", "steps", "dt",
+                "L2 velocity", "kinetic", "max |div|", "order", "time [s]");
   }
 
   std::vector<CaseResult> results;
@@ -345,7 +383,7 @@ int run(const Params& params) {
   double previous_h = 0.0;
   for (const int n : params.n_list) {
     CaseResult result = run_case<ExecSpace>(n, params);
-    if (previous_error > 0.0) {
+    if (params.case_name != "tgv3d" && previous_error > 0.0) {
       const double h = 2.0 * kPi / static_cast<double>(n);
       result.order =
           std::log(previous_error / result.l2) / std::log(previous_h / h);
@@ -354,16 +392,16 @@ int run(const Params& params) {
     previous_h = 2.0 * kPi / static_cast<double>(n);
     results.push_back(result);
     if (root) {
-      std::printf("%6d %8d %12.4e %14.4e %14.4e %8.2f %10.3f\n", result.n,
-                  result.steps, result.dt, result.l2, result.divergence,
-                  result.order, result.seconds);
+      std::printf("%6d %8d %12.4e %14.4e %14.4e %14.4e %8.2f %10.3f\n",
+                  result.n, result.steps, result.dt, result.l2, result.kinetic,
+                  result.divergence, result.order, result.seconds);
     }
   }
 
   int status = 0;
   if (params.check) {
     bool order_ok = true;
-    if (results.size() >= 2) {
+    if (params.case_name != "tgv3d" && results.size() >= 2) {
       for (std::size_t i = 1; i < results.size(); ++i) {
         if (results[i].order < params.min_order) {
           order_ok = false;

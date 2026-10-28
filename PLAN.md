@@ -925,6 +925,9 @@ scaling to 8 GPUs.
       order (`docs/verification/channel.md`).
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
 - [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity on both paths.
+      The 3D TGV case is implemented; the central MAC advection becomes
+      unstable after transition at n=32 and needs dealiasing/upwinding or a
+      higher resolution (`docs/verification/incompressible.md`).
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
