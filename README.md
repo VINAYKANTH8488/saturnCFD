@@ -61,9 +61,10 @@ Progress:
   full-weighting restriction, and trilinear prolongation; 2nd-order MMS
   convergence at 16/32/48³ (`docs/verification/poisson.md`).
 - Phase 3 staggered-MAC projection solver with SSP-RK3 and projection after
-  every stage; the exact 2D Taylor–Green vortex converges at second order
-  (L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at 16/32/64²) with divergence at
-  round-off (`docs/verification/incompressible.md`).
+  every stage; the exact 2D Taylor–Green vortex and the 3D ABC (Beltrami) flow
+  converge at second order (TGV L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at
+  16/32/64²; ABC 6.1e-4 / 1.5e-4 at 16/32³) with divergence at round-off
+  (`docs/verification/incompressible.md`).
 
 ## Requirements
 
@@ -337,8 +338,9 @@ pressure correction after every RK stage.
 ```
 
 The exact 2D Taylor–Green vortex converges at **2.00** order (L2 velocity
-`7.2e-3`, `1.8e-3`, `4.5e-4` at 16/32/64²) with `max|div| ~ 1e-12`. The
-prototype is single-rank and periodic-only. Details are in
+`7.2e-3`, `1.8e-3`, `4.5e-4` at 16/32/64²) with `max|div| ~ 1e-12`. The 3D ABC
+(Beltrami) flow also converges at second order (`6.1e-4`, `1.5e-4` at
+16/32³). The prototype is single-rank and periodic-only. Details are in
 `docs/verification/incompressible.md`.
 
 ## MPI

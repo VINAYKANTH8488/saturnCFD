@@ -60,6 +60,12 @@ add_test(NAME saturn.incompressible_tgv
 set_tests_properties(saturn.incompressible_tgv
   PROPERTIES LABELS "verification;incompressible")
 
+add_test(NAME saturn.incompressible_abc
+  COMMAND saturn_incompressible_sim --case abc --n-list 16 32 --tend 0.5
+          --nu 0.1 --cfl 0.3 --check)
+set_tests_properties(saturn.incompressible_abc
+  PROPERTIES LABELS "verification;incompressible")
+
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)
 set_tests_properties(saturn.scalar_mms PROPERTIES LABELS "verification")

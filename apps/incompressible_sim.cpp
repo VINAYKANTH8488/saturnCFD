@@ -54,7 +54,7 @@ struct Params {
 void usage(const char* argv0) {
   std::printf(
       "Usage: %s [options]\n"
-      "  --case NAME        tgv2d (default)\n"
+      "  --case NAME        tgv2d|abc (default tgv2d)\n"
       "  --n N              single resolution\n"
       "  --n-list N1 N2 ... resolutions for a convergence sweep\n"
       "  --nz N             periodic z layers (default 8)\n"
@@ -153,8 +153,8 @@ Params parse(int argc, char** argv) {
                    a.c_str());
     }
   }
-  if (p.case_name != "tgv2d") {
-    std::fprintf(stderr, "unknown case '%s' (only tgv2d is implemented)\n",
+  if (p.case_name != "tgv2d" && p.case_name != "abc") {
+    std::fprintf(stderr, "unknown case '%s' (tgv2d|abc)\n",
                  p.case_name.c_str());
     std::exit(2);
   }
@@ -182,11 +182,12 @@ CaseResult run_case(int n, const Params& params) {
   const double lx = 2.0 * kPi;
   const double ly = 2.0 * kPi;
   const double lz = 2.0 * kPi;
+  const int nz = (params.case_name == "abc") ? n : params.nz;
   const double hx = lx / static_cast<double>(n);
   const double hy = ly / static_cast<double>(n);
-  const double hz = lz / static_cast<double>(params.nz);
+  const double hz = lz / static_cast<double>(nz);
   const std::array<double, 3> h{{hx, hy, hz}};
-  const int nz = params.nz;
+  const int case_id = (params.case_name == "abc") ? 1 : 0;
 
   view_type u("u", nz, n, n);
   view_type v("v", nz, n, n);
@@ -206,14 +207,22 @@ CaseResult run_case(int n, const Params& params) {
   const auto policy = saturn::make_mdrange3<ExecSpace>(
       saturn::Int3{{0, 0, 0}}, saturn::Int3{{nz, n, n}});
   Kokkos::parallel_for(
-      "tgv2d_initial", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+      "incompressible_initial", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const double xf = i * hx;
-        const double yc = (j + 0.5) * hy;
-        const double xc = (i + 0.5) * hx;
         const double yf = j * hy;
-        u(k, j, i) = Kokkos::sin(xf) * Kokkos::cos(yc);
-        v(k, j, i) = -Kokkos::cos(xc) * Kokkos::sin(yf);
-        w(k, j, i) = 0.0;
+        const double xc = (i + 0.5) * hx;
+        const double yc = (j + 0.5) * hy;
+        const double zc = (k + 0.5) * hz;
+        if (case_id == 1) {
+          // ABC (Beltrami) flow: curl(u) = u, div(u) = 0.
+          u(k, j, i) = Kokkos::sin(zc) + Kokkos::cos(yc);
+          v(k, j, i) = Kokkos::sin(xc) + Kokkos::cos(zc);
+          w(k, j, i) = Kokkos::sin(yc) + Kokkos::cos(xc);
+        } else {
+          u(k, j, i) = Kokkos::sin(xf) * Kokkos::cos(yc);
+          v(k, j, i) = -Kokkos::cos(xc) * Kokkos::sin(yf);
+          w(k, j, i) = 0.0;
+        }
       });
 
   saturn::poisson::GeometricMultigrid<ExecSpace> solver(
@@ -268,7 +277,8 @@ CaseResult run_case(int n, const Params& params) {
   // Cell-centered velocities and the exact solution at t_end.
   double sum_error = 0.0;
   double max_div = 0.0;
-  const double decay = std::exp(-2.0 * params.nu * time);
+  const double decay =
+      std::exp((case_id == 1 ? -1.0 : -2.0) * params.nu * time);
   Kokkos::parallel_reduce(
       "tgv2d_error", policy,
       KOKKOS_LAMBDA(int k, int j, int i, double& err, double& div) {
@@ -280,9 +290,19 @@ CaseResult run_case(int n, const Params& params) {
         const double wc = 0.5 * (w(k, j, i) + w(kp, j, i));
         const double x = (i + 0.5) * hx;
         const double y = (j + 0.5) * hy;
-        const double ue = Kokkos::sin(x) * Kokkos::cos(y) * decay;
-        const double ve = -Kokkos::cos(x) * Kokkos::sin(y) * decay;
-        const double we = 0.0;
+        const double z = (k + 0.5) * hz;
+        double ue;
+        double ve;
+        double we;
+        if (case_id == 1) {
+          ue = (Kokkos::sin(z) + Kokkos::cos(y)) * decay;
+          ve = (Kokkos::sin(x) + Kokkos::cos(z)) * decay;
+          we = (Kokkos::sin(y) + Kokkos::cos(x)) * decay;
+        } else {
+          ue = Kokkos::sin(x) * Kokkos::cos(y) * decay;
+          ve = -Kokkos::cos(x) * Kokkos::sin(y) * decay;
+          we = 0.0;
+        }
         const double eu = uc - ue;
         const double ev = vc - ve;
         const double ew = wc - we;
@@ -309,8 +329,8 @@ template <class ExecSpace>
 int run(const Params& params) {
   const bool root = saturn::mpi_rank() == 0;
   if (root) {
-    std::printf("\n%s %s incompressible tgv2d\n", saturn::kProjectName,
-                saturn::kVersion);
+    std::printf("\n%s %s incompressible %s\n", saturn::kProjectName,
+                saturn::kVersion, params.case_name.c_str());
     std::printf("Kokkos: %s (concurrency %d)\n", ExecSpace::name(),
                 ExecSpace{}.concurrency());
     if (params.verbose) {
@@ -357,20 +377,21 @@ int run(const Params& params) {
     if (!order_ok) {
       if (root) {
         std::fprintf(stderr,
-                     "incompressible TGV check failed: order below %.2f\n",
-                     params.min_order);
+                     "incompressible %s check failed: order below %.2f\n",
+                     params.case_name.c_str(), params.min_order);
       }
       status = 1;
     }
     if (!divergence_ok) {
       if (root) {
         std::fprintf(stderr,
-                     "incompressible TGV check failed: |div| too large\n");
+                     "incompressible %s check failed: |div| too large\n",
+                     params.case_name.c_str());
       }
       status = 1;
     }
     if (status == 0 && root) {
-      std::printf("incompressible TGV check passed\n");
+      std::printf("incompressible %s check passed\n", params.case_name.c_str());
     }
   }
   return status;

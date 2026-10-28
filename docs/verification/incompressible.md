@@ -2,8 +2,9 @@
 
 **Date:** 2026-10-28
 **Status:** single-rank, periodic, staggered MAC prototype; second-order
-convergence on the exact 2D Taylor–Green solution. Variable density, physical
-boundaries, MPI, and the 3D TGV/channel/cavity cases are next.
+convergence on the exact 2D Taylor–Green vortex and the 3D ABC (Beltrami)
+flow. Variable density, physical boundaries, MPI, and the 3D TGV/channel/
+cavity cases are next.
 **Code:** `apps/incompressible_sim.cpp`, `src/numerics/incompressible.hpp`,
 `src/numerics/projection.hpp`, `src/numerics/poisson.hpp`
 
@@ -66,11 +67,42 @@ The velocity error decreases at exactly second order and the projected
 divergence is at solver/round-off level. The same errors are obtained at CFL
 0.1, confirming that the time integration is not the limiting error at CFL 0.3.
 
-Run the gate with:
+## 3D ABC flow
+
+The ABC (Beltrami) flow
+
+```
+u = sin(z) + cos(y)
+v = sin(x) + cos(z)
+w = sin(y) + cos(x)
+```
+
+has `curl(u) = u`, so `(u.grad)u = grad(|u|^2/2)` and `laplacian(u) = -u`. It
+is therefore an exact decaying solution of the 3D incompressible
+Navier–Stokes equations,
+
+```
+u(x,t) = u(x,0) exp(-nu t),   p = -|u|^2 exp(-2 nu t)/2 + const.
+```
+
+This exercises all three momentum components, the 3D pressure solve, and the
+full nonlinear term. With `nu=0.1`, `t_end=0.5`, CFL 0.3, cubic grids:
+
+| N | steps | L2 velocity | max abs(div) | order |
+|---|---|---|---|---|
+| 16 | 11 | 6.083e-04 | 1.7e-12 | — |
+| 32 | 21 | 1.526e-04 | 2.2e-12 | 1.99 |
+
+The 3D case converges at second order with divergence at round-off.
+
+Run the gates with:
 
 ```bash
 ./build/cpu-openmp/apps/saturn_incompressible_sim \
   --n-list 16 32 64 --tend 0.5 --nu 0.05 --cfl 0.3 --check
+
+./build/cpu-openmp/apps/saturn_incompressible_sim \
+  --case abc --n-list 16 32 --tend 0.5 --nu 0.1 --cfl 0.3 --check
 
 ctest --test-dir build/cpu-openmp -R saturn.incompressible --output-on-failure
 ```

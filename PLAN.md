@@ -910,9 +910,10 @@ scaling to 8 GPUs.
 
 - [ ] Projection + GMG production solver (RK3, Rhie–Chow).
 - [x] Staggered MAC projection prototype with SSP-RK3, projection after every
-      stage, and the periodic GMG solver; exact 2D Taylor–Green vortex at
-      2nd order (`docs/verification/incompressible.md`). The MAC grid avoids
-      the checkerboard mode, so Rhie–Chow is not needed on this path.
+      stage, and the periodic GMG solver; exact 2D Taylor–Green vortex and 3D
+      ABC (Beltrami) flow at 2nd order
+      (`docs/verification/incompressible.md`). The MAC grid avoids the
+      checkerboard mode, so Rhie–Chow is not needed on this path.
 - [x] Periodic cell-centered geometric-multigrid Poisson solver; 7-point
       Laplacian, red-black Gauss-Seidel, full-weighting restriction, trilinear
       prolongation, 2nd-order MMS convergence (`docs/verification/poisson.md`).
