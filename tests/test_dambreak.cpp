@@ -98,9 +98,32 @@ bool check_static_drop() {
   const bool bounded = bounds_ok(solver.c(), cmin, cmax);
   const double drift = std::abs(solver.mass() - mass0) / mass0;
   const double speed = solver.max_speed();
-  std::printf("static drop: |u|max=%.3e mass_drift=%.3e range=[%.3e,%.3e]\n",
-              speed, drift, cmin, cmax);
-  return speed < 5.0e-3 && drift < 1.0e-8 && bounded;
+  double pressure_in = 0.0;
+  double pressure_out = 0.0;
+  int inside = 0;
+  int outside = 0;
+  for (int j = 0; j < n; ++j) {
+    for (int i = 0; i < n; ++i) {
+      const std::size_t q = static_cast<std::size_t>(j) * n + i;
+      if (solver.c()[q] > 0.9) {
+        pressure_in += solver.p()[q];
+        ++inside;
+      } else if (solver.c()[q] < 0.1) {
+        pressure_out += solver.p()[q];
+        ++outside;
+      }
+    }
+  }
+  pressure_in /= inside;
+  pressure_out /= outside;
+  const double pressure_jump = pressure_in - pressure_out;
+  const double expected_jump = 0.072 / 0.2;
+  std::printf(
+      "static drop: |u|max=%.3e mass_drift=%.3e range=[%.3e,%.3e] "
+      "dp=%.6f expected=%.6f\n",
+      speed, drift, cmin, cmax, pressure_jump, expected_jump);
+  return speed < 5.0e-3 && drift < 1.0e-8 && bounded &&
+         std::abs(pressure_jump / expected_jump - 1.0) < 0.02;
 }
 
 // Rayleigh-Taylor linear growth at Atwood 1/3: the centre-column vertical

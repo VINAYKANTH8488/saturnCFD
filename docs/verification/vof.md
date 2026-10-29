@@ -277,11 +277,13 @@ Two equilibrium checks exercise the wall boundaries:
 |---|---|
 | hydrostatic two layers, 200 steps | `|u|max = 6.4e-12`, drift `7.9e-14` |
 | static drop `R=0.2`, `sigma=0.072`, 200 steps | `|u|max = 1.7e-3`, drift `1.1e-13` |
+| drop pressure jump | `0.36033` vs `sigma/R = 0.36` (0.09%) |
 
 The hydrostatic case is balanced to roundoff, confirming the variable-density
-projection with Neumann walls. The static drop leaves a `1.7e-3` residual
-current from the pointwise level-set curvature error rather than the wall
-treatment; curvature is smoothed over 8 binomial passes for the CSF force.
+projection with Neumann walls. The static drop reproduces the Laplace
+pressure to 0.09%; its `1.7e-3` residual current comes from the pointwise
+level-set curvature error rather than the wall treatment. Curvature is
+smoothed over 8 binomial passes for the CSF force.
 This is a stability/conservation smoke test, not yet a validated dam-break
 benchmark.
 
