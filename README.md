@@ -506,6 +506,7 @@ to round-off.
 ```bash
 ./build/cpu-openmp/tests/saturn_test_vof
 ./build/cpu-openmp/tests/saturn_test_vof3d
+./build/cpu-openmp/tests/saturn_test_vof_curvature
 ```
 
 | Case | L1 error |
@@ -517,8 +518,9 @@ to round-off.
 | 3D sphere translation | 3.95e-3 |
 | 3D rotation | 3.76e-3 |
 
-Details: `docs/verification/vof.md`. Redistribution, height-function
-curvature, CSF surface tension, and momentum coupling are next.
+2D height-function curvature on a sine interface is verified to 2.54e-07
+(max error at n=128). Details: `docs/verification/vof.md`. Redistribution,
+CSF surface tension, and momentum coupling are next.
 
 ## MPI
 

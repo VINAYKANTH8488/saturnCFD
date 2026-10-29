@@ -970,15 +970,19 @@ enough (Appendix C).
       (`docs/verification/vof.md`).
 - [ ] Bounded redistribution; mass conservation test. (2D geometric advection
       already conserves mass to round-off; redistribution is still needed.)
-- [ ] Height-function curvature; balanced-force CSF.
+- [x] Height-function curvature (2D): column/row heights and 5-point
+      derivatives; sine interface at n=128 gives max curvature error
+      2.54e-07 (`docs/verification/vof.md`). Balanced-force CSF and the 3D
+      height function remain.
 - [ ] Variable-density momentum; ρ(c) interpolation.
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk.
 - [ ] Spurious-current test; interface sharpness metrics.
 - [ ] Default pressure coupler: projection + GMG (EDAC-VOF is research).
 
 **Current:** 2D and 3D PLIC prototypes are verified (translation, rotation,
-mass conservation, boundedness). Next: bounded redistribution, height-function
-curvature, balanced CSF, and coupling to variable-density momentum.
+mass conservation, boundedness), and 2D height-function curvature is verified
+on a sine interface. Next: balanced CSF surface tension, variable-density
+momentum coupling, and the 3D height function.
 
 **Exit:** dam break and bubble match references within a few %; mass drift
 < 1e-8; static bubble currents < 1e-8.
