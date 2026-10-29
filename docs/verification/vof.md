@@ -338,9 +338,18 @@ smoke tests, but the 1000:1 dam break blew up at `t ~ 0.02`
 (`|u| ~ 1e14` by step 24) with CFL `< 0.3`. The blow-up is not a time-step
 restriction: it is the unbalanced `u^2 grad(rho)` term in the conservative
 flux, which the current collocated/staggered hybrid does not cancel with the
-discrete continuity equation. The stable advective-upwind form was kept. A
-full staggered MAC solver with a consistent density/continuity update, or a
-skew-symmetric variable-density form, is the correct next step.
+discrete continuity equation.
+
+A third variant used **one set of PLIC face fluxes for both `c` and the
+momentum**, so the discrete continuity and momentum fluxes are consistent.
+This stabilises the 1000:1 dam break: `|u|max = 1.15`, mass drift `1e-14`,
+bounds `[0,1]`. That confirms mass-flux consistency is the key. However, the
+cell-centred conservative momentum update and the subsequent face averaging
+degrade the RTI growth to `4.33` (vs theory `6.41`) and the static-drop
+Laplace jump to `0.340` (vs `0.36`), so the variant is not a net improvement
+and was not kept. The missing step is to apply the same consistent mass flux
+directly to **face-staggered momentum**, without the cell-centred projection
+and re-averaging. The stable advective-upwind form remains the default.
 
 ## Limitations and next steps
 

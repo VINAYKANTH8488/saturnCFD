@@ -991,9 +991,10 @@ enough (Appendix C).
       `sigma/R` to 0.09%; RTI linear growth at Atwood 1/3 matches theory to
       11% at 64²; a variable-viscosity buoyant bubble rises stably but is
       25-35% below the Hysing reference (not yet quantitatively validated).
-      A drop-in conservative `rho u` flux was tested and is unstable at
-      1000:1 density; a full staggered MAC solver is the next step
-      (`docs/verification/vof.md`).
+      A drop-in conservative `rho u` flux is unstable at 1000:1 density; a
+      PLIC-mass-flux-consistent variant stabilises the dam break but degrades
+      RTI/Laplace accuracy. A face-staggered MAC momentum update using the
+      same mass flux is the next step (`docs/verification/vof.md`).
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk (open-top
       boundary and reference validation pending).
 - [ ] Spurious-current test; interface sharpness metrics.
