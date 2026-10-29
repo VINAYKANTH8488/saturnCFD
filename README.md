@@ -509,6 +509,7 @@ to round-off.
 ./build/cpu-openmp/tests/saturn_test_vof_curvature
 ./build/cpu-openmp/tests/saturn_test_vof_curvature3d
 ./build/cpu-openmp/tests/saturn_test_vof_redistribute
+./build/cpu-openmp/tests/saturn_test_twophase
 ```
 
 | Case | L1 error |
@@ -522,8 +523,10 @@ to round-off.
 
 2D height-function curvature on a sine interface is verified to 2.54e-07
 (max error at n=128); the 3D version is verified to 2.08e-03 at n=48. Bounded redistribution
-restores `[0,1]` while conserving mass to ~1e-16. Details:
-`docs/verification/vof.md`. CSF surface tension and momentum coupling are next.
+restores `[0,1]` while conserving mass to ~1e-16. Balanced CSF + 2D projection
+gives a static bubble with ~2e-17 spurious current and the exact Laplace
+pressure `sigma/r`. Details: `docs/verification/vof.md`. Variable-density
+coupling is next.
 
 ## MPI
 

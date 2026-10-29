@@ -141,6 +141,40 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.vof_redistribute --output-on-failure
 ```
 
+## Balanced CSF and static bubble (2D)
+
+`src/numerics/twophase2d.hpp` couples the VOF field to a periodic MAC
+projection solver with an FFT Poisson solve. The CSF force is evaluated on
+faces as
+
+```
+f_x = sigma kappa_face (c_R - c_L) / hx
+```
+
+so that for constant curvature it is a discrete gradient. The projection then
+balances it exactly with pressure.
+
+Static bubble test: `n=64`, radius 0.2, `sigma=0.1`, density 1, curvature
+prescribed as `1/r`:
+
+| Quantity | Value |
+|---|---|
+| max abs velocity | **1.76e-17** |
+| max abs divergence | 2.72e-15 |
+| pressure jump | **0.500000** (expected `sigma/r = 0.5`) |
+| VOF mass drift after advection | < 1e-12 |
+
+The zero spurious current and exact Laplace pressure validate the
+balanced-force CSF and projection coupling. Curvature is prescribed in this
+test; feeding the height-function curvature and variable density are next.
+
+Run:
+
+```bash
+./build/cpu-openmp/tests/saturn_test_twophase
+ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
+```
+
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; no Kokkos/GPU version yet.
@@ -148,7 +182,8 @@ ctest --test-dir build/cpu-openmp -R saturn.vof_redistribute --output-on-failure
   error but the flux is still explicit).
 - Bounded redistribution is available as a safety net; interface compression
   is not implemented.
-- 2D and 3D height-function curvature are verified; CSF surface tension and
-  variable-density coupling are not implemented yet.
+- 2D and 3D height-function curvature are verified; balanced CSF is validated
+  with a prescribed-curvature static bubble. Variable-density coupling and
+  curvature-from-VOF on a closed interface are not implemented yet.
 - Next: 3D split PLIC, 3D translation/rotation tests, then curvature and
   balanced-force CSF (dam break, RTI, rising bubble).

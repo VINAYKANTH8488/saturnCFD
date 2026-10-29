@@ -975,15 +975,17 @@ enough (Appendix C).
       derivatives; sine interfaces give max errors 2.54e-07 (2D, n=128) and
       2.08e-03 (3D, n=48) (`docs/verification/vof.md`). Balanced-force CSF
       remains.
-- [ ] Variable-density momentum; ρ(c) interpolation.
+- [ ] Variable-density momentum; ρ(c) interpolation. (The static-bubble test
+      currently uses constant density and prescribed curvature.)
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk.
 - [ ] Spurious-current test; interface sharpness metrics.
 - [ ] Default pressure coupler: projection + GMG (EDAC-VOF is research).
 
 **Current:** 2D and 3D PLIC prototypes are verified (translation, rotation,
 mass conservation, boundedness), and 2D/3D height-function curvature is
-verified on sine interfaces, and bounded redistribution is in place. Next:
-balanced CSF surface tension and variable-density momentum coupling.
+verified on sine interfaces, bounded redistribution is in place, and balanced
+CSF is validated on a static bubble. Next: curvature from VOF on a closed
+interface and variable-density momentum coupling.
 
 **Exit:** dam break and bubble match references within a few %; mass drift
 < 1e-8; static bubble currents < 1e-8.
