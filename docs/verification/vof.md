@@ -264,13 +264,26 @@ steps at `dt=1e-3` with and without `sigma=0.072`:
 | Case | `|u|max` | mass drift | range |
 |---|---|---|---|
 | no CSF | 1.544 | `5.0e-15` | `[0, 1]` |
-| CSF | 1.540 | `3.6e-15` | `[0, 1]` |
+| CSF | 1.542 | `6.7e-15` | `[0, 1]` |
 
-The CSF changes the interface by `2.9e-2` in `Linf`, so the coupling is active,
+The CSF changes the interface by `4.4e-2` in `Linf`, so the coupling is active,
 while both runs conserve mass and stay bounded. Without redistribution the
 PLIC overshoot is ~`5e-3`; the redistribution pass restores exact bounds and
-conservation. This is a stability/conservation smoke test, not yet a
-validated dam-break benchmark.
+conservation.
+
+Two equilibrium checks exercise the wall boundaries:
+
+| Check | Result |
+|---|---|
+| hydrostatic two layers, 200 steps | `|u|max = 6.4e-12`, drift `7.9e-14` |
+| static drop `R=0.2`, `sigma=0.072`, 200 steps | `|u|max = 1.7e-3`, drift `1.1e-13` |
+
+The hydrostatic case is balanced to roundoff, confirming the variable-density
+projection with Neumann walls. The static drop leaves a `1.7e-3` residual
+current from the pointwise level-set curvature error rather than the wall
+treatment; curvature is smoothed over 8 binomial passes for the CSF force.
+This is a stability/conservation smoke test, not yet a validated dam-break
+benchmark.
 
 ## Limitations and next steps
 

@@ -200,7 +200,7 @@ class DamBreak2D {
       return;
     }
     std::vector<double> smoothed = c_;
-    for (int pass = 0; pass < 2; ++pass) {
+    for (int pass = 0; pass < 8; ++pass) {
       std::vector<double> buffer(smoothed);
       for (int j = 0; j < ny_; ++j) {
         for (int i = 0; i < nx_; ++i) {
