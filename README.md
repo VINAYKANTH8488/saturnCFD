@@ -139,6 +139,48 @@ architecture, e.g.:
 Point `KOKKOS_ROOT_CUDA`, `KOKKOS_ROOT_HIP`, or `KOKKOS_ROOT_SYCL` at those
 installations.
 
+### NVIDIA driver (Quadro P600)
+
+The local Quadro P600 is currently driven by `nouveau`, which does not support
+CUDA. The proprietary driver must be installed as root and the machine rebooted:
+
+```bash
+sudo scripts/install_nvidia_driver.sh
+sudo reboot
+scripts/verify_gpu.sh
+```
+
+The script installs `nvidia-driver-580` (new enough for CUDA 12.2, still
+supports Pascal/GP107), blacklists `nouveau`, and prints the next steps. Secure
+Boot is disabled on this machine, so no MOK enrollment is required. The distro
+recommendation is driver 470, but that is too old for CUDA 12.2 (minimum 525);
+the Ubuntu 535/550/570 metapackages currently transition to 580.
+
+After the driver is loaded, install the CUDA 12.2 **toolkit only** into the
+home directory (no root, no second driver):
+
+```bash
+sh cuda_12.2.2_535.104.05_linux.run --silent --toolkit \
+  --toolkitpath="$HOME/opt/cuda-12.2" --no-opengl-libs
+```
+
+Then build the CUDA Kokkos:
+
+```bash
+cmake -S "$HOME/opt/src/kokkos-5.2.2" -B "$HOME/opt/build/kokkos-5.2.2-cuda" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="$HOME/opt/kokkos-5.2.2-cuda" \
+  -DCMAKE_CXX_COMPILER="$HOME/opt/src/kokkos-5.2.2/bin/nvcc_wrapper" \
+  -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON \
+  -DKokkos_ENABLE_SERIAL=ON -DKokkos_ENABLE_TESTS=OFF
+cmake --build "$HOME/opt/build/kokkos-5.2.2-cuda" -j4
+cmake --install "$HOME/opt/build/kokkos-5.2.2-cuda"
+
+source scripts/env.sh
+cmake --preset cuda-local
+cmake --build build/cuda-local -j4
+```
+
 ## Build
 
 ```bash
