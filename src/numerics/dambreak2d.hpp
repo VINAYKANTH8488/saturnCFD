@@ -52,6 +52,11 @@ class DamBreak2D {
 
   void step(double dt, double rho_l, double rho_g, double mu, double gy,
             bool project = true, double sigma = 0.0) {
+    step(dt, rho_l, rho_g, mu, mu, gy, project, sigma);
+  }
+
+  void step(double dt, double rho_l, double rho_g, double mu_l, double mu_g,
+            double gy, bool project, double sigma) {
     const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
     std::vector<double> rho(total, 0.0);
     for (std::size_t q = 0; q < total; ++q) {
@@ -59,16 +64,25 @@ class DamBreak2D {
     }
     std::vector<double> bx(total, 0.0);
     std::vector<double> by(total, 0.0);
+    std::vector<double> mux(total, 0.0);
+    std::vector<double> muy(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double mu_here = mu_l * c_[index] + mu_g * (1.0 - c_[index]);
         if (i > 0) {
-          const double rl = rho[static_cast<std::size_t>(j) * nx_ + i - 1];
+          const std::size_t left = static_cast<std::size_t>(j) * nx_ + i - 1;
+          const double rl = rho[left];
           bx[index] = (rl + rho[index]) / (2.0 * rl * rho[index]);
+          const double mu_left = mu_l * c_[left] + mu_g * (1.0 - c_[left]);
+          mux[index] = 0.5 * (mu_left + mu_here);
         }
         if (j > 0) {
-          const double rd = rho[static_cast<std::size_t>(j - 1) * nx_ + i];
+          const std::size_t below = static_cast<std::size_t>(j - 1) * nx_ + i;
+          const double rd = rho[below];
           by[index] = (rd + rho[index]) / (2.0 * rd * rho[index]);
+          const double mu_below = mu_l * c_[below] + mu_g * (1.0 - c_[below]);
+          muy[index] = 0.5 * (mu_below + mu_here);
         }
       }
     }
@@ -121,7 +135,7 @@ class DamBreak2D {
         const double lap = (u_right - 2.0 * u_here + u_left) / (hx_ * hx_) +
                            (u_high - 2.0 * u_here + u_low) / (hy_ * hy_);
         du[index] = -((f_right - f_left) / hx_ + (g_high - g_low) / hy_) +
-                    mu * bx[index] * lap;
+                    mux[index] * bx[index] * lap;
       }
     }
     for (int j = 1; j < ny_; ++j) {
@@ -153,7 +167,7 @@ class DamBreak2D {
         const double lap = (v_right - 2.0 * v_here + v_left) / (hx_ * hx_) +
                            (v_high - 2.0 * v_here + v_low) / (hy_ * hy_);
         dv[index] = -((f_right - f_left) / hx_ + (g_high - g_low) / hy_) +
-                    mu * by[index] * lap + gy;
+                    muy[index] * by[index] * lap + gy;
       }
     }
 

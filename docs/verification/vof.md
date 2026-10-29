@@ -250,7 +250,7 @@ ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
 `src/numerics/dambreak2d.hpp` is a closed-box dam-break prototype:
 
 - no-slip/no-penetration walls on all sides
-- variable density and gravity
+- variable density `rho(c)` and viscosity `mu(c)` and gravity
 - variable-coefficient Neumann projection
 - wall-aware PLIC transport (Strang split x/y, zero wall fluxes, mirror
   reconstruction ghosts)
@@ -320,5 +320,7 @@ for the strongly nonlinear regime.
 - Wall-bounded dam break is a smoke test (stability, conservation, bounds,
   active CSF), not a quantitative benchmark against reference data; RTI
   growth is validated to ~11% at 64².
+- The rising bubble is qualitative only; a grid-refined comparison with
+  Hysing et al. reference rise velocity and circularity is pending.
 - Next: open-top boundary, reference dam-break/RTI/rising-bubble validation,
   then the Kokkos port.

@@ -77,7 +77,7 @@ bool check_hydrostatic() {
 
 // A wall-bounded static drop with surface tension: curvature error leaves a
 // small residual current, but it must stay bounded and mass must be conserved.
-bool check_static_drop() {
+bool check_static_drop(const char* label, double mu_l, double mu_g) {
   const int n = 64;
   saturn::twophase::DamBreak2D solver(n, n);
   for (int j = 0; j < n; ++j) {
@@ -91,7 +91,7 @@ bool check_static_drop() {
   }
   const double mass0 = solver.mass();
   for (int s = 0; s < 200; ++s) {
-    solver.step(1.0e-3, 1000.0, 1.0, 1.0e-3, 0.0, true, 0.072);
+    solver.step(1.0e-3, 1000.0, 1.0, mu_l, mu_g, 0.0, true, 0.072);
   }
   double cmin = 0.0;
   double cmax = 0.0;
@@ -119,11 +119,58 @@ bool check_static_drop() {
   const double pressure_jump = pressure_in - pressure_out;
   const double expected_jump = 0.072 / 0.2;
   std::printf(
-      "static drop: |u|max=%.3e mass_drift=%.3e range=[%.3e,%.3e] "
+      "%s: |u|max=%.3e mass_drift=%.3e range=[%.3e,%.3e] "
       "dp=%.6f expected=%.6f\n",
-      speed, drift, cmin, cmax, pressure_jump, expected_jump);
+      label, speed, drift, cmin, cmax, pressure_jump, expected_jump);
   return speed < 5.0e-3 && drift < 1.0e-8 && bounded &&
          std::abs(pressure_jump / expected_jump - 1.0) < 0.02;
+}
+
+// Buoyant rise with a viscosity contrast: a light bubble in a heavier, more
+// viscous liquid must rise while mass stays conserved and the field bounded.
+// Parameters follow the Hysing et al. case-1 setup; this is a stability and
+// qualitative check, not yet a quantitative benchmark comparison.
+bool check_rising_bubble() {
+  const int nx = 64;
+  const int ny = 128;
+  const double h = 1.0 / nx;
+  saturn::twophase::DamBreak2D solver(nx, ny, 1.0, 2.0);
+  for (int j = 0; j < ny; ++j) {
+    for (int i = 0; i < nx; ++i) {
+      const double x = (i + 0.5) * h;
+      const double y = (j + 0.5) * h;
+      const double d = std::sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5));
+      solver.c()[static_cast<std::size_t>(j) * nx + i] =
+          std::min(1.0, std::max(0.0, 0.5 + (0.25 - d) / h));
+    }
+  }
+  const double mass0 = solver.mass();
+  const auto centroid = [&]() {
+    double sum = 0.0;
+    double weight = 0.0;
+    for (int j = 0; j < ny; ++j) {
+      for (int i = 0; i < nx; ++i) {
+        const double c = solver.c()[static_cast<std::size_t>(j) * nx + i];
+        sum += c * (j + 0.5) * h;
+        weight += c;
+      }
+    }
+    return sum / weight;
+  };
+  const double y0 = centroid();
+  for (int step = 0; step < 300; ++step) {
+    solver.step(1.0e-3, 100.0, 1000.0, 1.0, 10.0, -0.98, true, 24.5);
+  }
+  const double y1 = centroid();
+  double cmin = 0.0;
+  double cmax = 0.0;
+  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const double drift = std::abs(solver.mass() - mass0) / mass0;
+  const double speed = solver.max_speed();
+  std::printf("rising bubble: rise=%.4f |u|max=%.3e mass_drift=%.3e\n", y1 - y0,
+              speed, drift);
+  return y1 - y0 > 0.01 && speed < 1.0 && drift < 1.0e-8 && bounded &&
+         std::isfinite(speed);
 }
 
 // Rayleigh-Taylor linear growth at Atwood 1/3: the centre-column vertical
@@ -184,7 +231,9 @@ int main() {
   std::printf("CSF/plain interface difference: %.3e\n", difference);
   ok = difference > 1.0e-8 && ok;
   ok = check_hydrostatic() && ok;
-  ok = check_static_drop() && ok;
+  ok = check_static_drop("static drop", 1.0e-3, 1.0e-3) && ok;
+  ok = check_static_drop("static drop mu 10:1", 1.0e-3, 1.0e-2) && ok;
+  ok = check_rising_bubble() && ok;
   ok = check_rti() && ok;
   std::printf("dam break test %s\n", ok ? "passed" : "failed");
   return ok ? 0 : 1;
