@@ -103,6 +103,50 @@ bool check_static_drop() {
   return speed < 5.0e-3 && drift < 1.0e-8 && bounded;
 }
 
+// Rayleigh-Taylor linear growth at Atwood 1/3: the centre-column vertical
+// velocity should grow as exp(sigma t) with sigma = sqrt(A g k) to within the
+// accuracy of the first-order upwind momentum flux at n=64.
+bool check_rti() {
+  const int n = 64;
+  const double h = 1.0 / n;
+  const double amplitude = 1.0e-3;
+  const double k = 4.0 * 3.141592653589793;
+  const double atwood = 1.0 / 3.0;
+  saturn::twophase::DamBreak2D solver(n, n);
+  for (int j = 0; j < n; ++j) {
+    for (int i = 0; i < n; ++i) {
+      const double x = (i + 0.5) * h;
+      const double y = (j + 0.5) * h;
+      const double interface_y = 0.5 + amplitude * std::cos(k * x);
+      solver.c()[static_cast<std::size_t>(j) * n + i] =
+          std::min(1.0, std::max(0.0, 0.5 + (y - interface_y) / h));
+    }
+  }
+  const double mass0 = solver.mass();
+  const int centre = n / 2;
+  double v_early = 0.0;
+  double v_late = 0.0;
+  for (int step = 0; step < 400; ++step) {
+    solver.step(1.0e-3, 2.0, 1.0, 1.0e-3, -9.81);
+    if (step + 1 == 200) {
+      v_early = solver.v()[static_cast<std::size_t>(centre) * n + centre];
+    } else if (step + 1 == 400) {
+      v_late = solver.v()[static_cast<std::size_t>(centre) * n + centre];
+    }
+  }
+  double cmin = 0.0;
+  double cmax = 0.0;
+  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const double drift = std::abs(solver.mass() - mass0) / mass0;
+  const double measured = std::log(std::abs(v_late / v_early)) / 0.2;
+  const double theory = std::sqrt(atwood * 9.81 * k);
+  std::printf("RTI: sigma=%.4f theory=%.4f mass_drift=%.3e\n", measured, theory,
+              drift);
+  const bool growth_ok = std::abs(measured / theory - 1.0) < 0.15;
+  return growth_ok && drift < 1.0e-8 && bounded &&
+         std::isfinite(solver.max_speed());
+}
+
 }  // namespace
 
 int main() {
@@ -118,6 +162,7 @@ int main() {
   ok = difference > 1.0e-8 && ok;
   ok = check_hydrostatic() && ok;
   ok = check_static_drop() && ok;
+  ok = check_rti() && ok;
   std::printf("dam break test %s\n", ok ? "passed" : "failed");
   return ok ? 0 : 1;
 }

@@ -533,8 +533,9 @@ with a 10:1 density jump exactly uniform. Details:
 `docs/verification/vof.md`. The variable-coefficient Poisson now supports
 Neumann walls (manufactured L2 1.1e-4 at n=64), and the closed-box dam
 break now uses wall-aware PLIC plus balanced CSF, conserves mass to `5e-15`,
-balances hydrostatic layers to `6.4e-12`, and holds a static drop at
-`|u|max=1.7e-3`. An open-top boundary and reference validation are next.
+balances hydrostatic layers to `6.4e-12`, holds a static drop at
+`|u|max=1.7e-3`, and reproduces RTI linear growth within 11% at 64². An
+open-top boundary and reference dam-break/bubble validation are next.
 
 ## MPI
 

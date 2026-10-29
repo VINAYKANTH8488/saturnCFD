@@ -987,7 +987,8 @@ enough (Appendix C).
       density, gravity, wall-aware PLIC (Strang split, zero wall flux), and
       balanced CSF; 64² 50-step runs stable and mass-conservative with and
       without surface tension, hydrostatic layers balance to `6.4e-12`, and a
-      static drop holds `|u|max=1.7e-3` (`docs/verification/vof.md`).
+      static drop holds `|u|max=1.7e-3`; RTI linear growth at Atwood 1/3
+      matches theory to 11% at 64² (`docs/verification/vof.md`).
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk (open-top
       boundary and reference validation pending).
 - [ ] Spurious-current test; interface sharpness metrics.

@@ -12,13 +12,14 @@
 namespace saturn {
 namespace twophase {
 
-// Wall-bounded two-phase dam-break prototype.
+// Wall-bounded two-phase solver prototype.
 //
 // Closed box [0,1]^2, no-slip/no-penetration walls on all sides, gravity in
-// -y, variable density rho(c), and a first-order upwind VOF transport. The
-// pressure projection uses the variable-coefficient Neumann PCG solver. This
-// is a deliberately simple first wall-bounded step; PLIC/CSF/wall-aware
-// momentum on the production path come next.
+// -y, variable density rho(c), wall-aware PLIC transport, balanced CSF, and a
+// conservative first-order upwind momentum flux. The pressure projection uses
+// the variable-coefficient Neumann PCG solver. The momentum flux is
+// deliberately dissipative to remain stable at high density ratios; a
+// conservative variable-density (rho u) formulation is the production step.
 class DamBreak2D {
  public:
   DamBreak2D(int nx, int ny, double lx = 1.0, double ly = 1.0)
@@ -72,6 +73,21 @@ class DamBreak2D {
       }
     }
 
+    // Cell-centred velocities for a conservative first-order upwind flux.
+    std::vector<double> uc(total, 0.0);
+    std::vector<double> vc(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double u_right = (i + 1 == nx_) ? 0.0 : u_[index + 1];
+        const double v_high = (j + 1 == ny_) ? 0.0 : v_[index + nx_];
+        uc[index] = 0.5 * (u_[index] + u_right);
+        vc[index] = 0.5 * (v_[index] + v_high);
+      }
+    }
+    auto upwind = [](double velocity, double left, double right) {
+      return velocity * (velocity > 0.0 ? left : right);
+    };
     std::vector<double> du(total, 0.0);
     std::vector<double> dv(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
@@ -84,14 +100,28 @@ class DamBreak2D {
         const double u_right = (i + 1 == nx_) ? 0.0 : u_[xp];
         const double u_low = (j == 0) ? -u_here : u_[index - nx_];
         const double u_high = (j + 1 == ny_) ? -u_here : u_[index + nx_];
-        const double v_high = (j + 1 == ny_) ? 0.0 : v_[index + nx_];
-        const double v_high_m = (j + 1 == ny_) ? 0.0 : v_[xm + nx_];
-        const double dudx = (u_right - u_left) / (2.0 * hx_);
-        const double dudy = (u_high - u_low) / (2.0 * hy_);
-        const double v_at_u = 0.25 * (v_[xm] + v_[index] + v_high_m + v_high);
+        const std::size_t ymb = (j == 0) ? index : index - nx_;
+        const std::size_t yab = (j + 1 == ny_) ? index : index + nx_;
+        const double u_below = uc[ymb];
+        const double u_above = uc[yab];
+        const double f_left =
+            (i == 0) ? 0.0
+                     : upwind(0.5 * (uc[xm] + uc[index]), uc[xm], uc[index]);
+        const double f_right =
+            (i + 1 == nx_)
+                ? 0.0
+                : upwind(0.5 * (uc[index] + uc[xp]), uc[index], uc[xp]);
+        const double g_low =
+            (j == 0) ? 0.0
+                     : upwind(0.5 * (vc[ymb] + vc[index]), u_below, uc[index]);
+        const double g_high =
+            (j + 1 == ny_)
+                ? 0.0
+                : upwind(0.5 * (vc[index] + vc[yab]), uc[index], u_above);
         const double lap = (u_right - 2.0 * u_here + u_left) / (hx_ * hx_) +
                            (u_high - 2.0 * u_here + u_low) / (hy_ * hy_);
-        du[index] = -(u_here * dudx + v_at_u * dudy) + mu * bx[index] * lap;
+        du[index] = -((f_right - f_left) / hx_ + (g_high - g_low) / hy_) +
+                    mu * bx[index] * lap;
       }
     }
     for (int j = 1; j < ny_; ++j) {
@@ -104,17 +134,26 @@ class DamBreak2D {
         const double v_high = (j + 1 == ny_) ? 0.0 : v_[yp];
         const double v_left = (i == 0) ? -v_here : v_[index - 1];
         const double v_right = (i + 1 == nx_) ? -v_here : v_[index + 1];
-        const double u_here_i = u_[index];
-        const double u_ip = (i + 1 == nx_) ? 0.0 : u_[index + 1];
-        const double u_jm_i = u_[ym];
-        const double u_jm_ip = (i + 1 == nx_) ? 0.0 : u_[ym + 1];
-        const double dvdx = (v_right - v_left) / (2.0 * hx_);
-        const double dvdy = (v_high - v_low) / (2.0 * hy_);
-        const double u_at_v = 0.25 * (u_jm_i + u_here_i + u_jm_ip + u_ip);
+        const std::size_t xmb = (i == 0) ? index : index - 1;
+        const std::size_t xab = (i + 1 == nx_) ? index : index + 1;
+        const double f_left =
+            (i == 0) ? 0.0
+                     : upwind(0.5 * (uc[xmb] + uc[index]), vc[xmb], vc[index]);
+        const double f_right =
+            (i + 1 == nx_)
+                ? 0.0
+                : upwind(0.5 * (uc[index] + uc[xab]), vc[index], vc[xab]);
+        const double g_low =
+            (j == 0) ? 0.0
+                     : upwind(0.5 * (vc[ym] + vc[index]), vc[ym], vc[index]);
+        const double g_high =
+            (j + 1 == ny_)
+                ? 0.0
+                : upwind(0.5 * (vc[index] + vc[yp]), vc[index], vc[yp]);
         const double lap = (v_right - 2.0 * v_here + v_left) / (hx_ * hx_) +
                            (v_high - 2.0 * v_here + v_low) / (hy_ * hy_);
-        dv[index] =
-            -(u_at_v * dvdx + v_here * dvdy) + mu * by[index] * lap + gy;
+        dv[index] = -((f_right - f_left) / hx_ + (g_high - g_low) / hy_) +
+                    mu * by[index] * lap + gy;
       }
     }
 

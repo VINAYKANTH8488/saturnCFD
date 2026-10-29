@@ -263,10 +263,10 @@ steps at `dt=1e-3` with and without `sigma=0.072`:
 
 | Case | `|u|max` | mass drift | range |
 |---|---|---|---|
-| no CSF | 1.544 | `5.0e-15` | `[0, 1]` |
-| CSF | 1.542 | `6.7e-15` | `[0, 1]` |
+| no CSF | 1.481 | `6.0e-15` | `[0, 1]` |
+| CSF | 1.482 | `3.6e-15` | `[0, 1]` |
 
-The CSF changes the interface by `4.4e-2` in `Linf`, so the coupling is active,
+The CSF changes the interface by `5.4e-2` in `Linf`, so the coupling is active,
 while both runs conserve mass and stay bounded. Without redistribution the
 PLIC overshoot is ~`5e-3`; the redistribution pass restores exact bounds and
 conservation.
@@ -285,6 +285,24 @@ treatment; curvature is smoothed over 8 binomial passes for the CSF force.
 This is a stability/conservation smoke test, not yet a validated dam-break
 benchmark.
 
+## Rayleigh-Taylor linear growth
+
+The same closed-box solver is run with a heavy layer above a light one,
+`rho = 2:1`, a single-mode perturbation
+`y_i = 0.5 + 0.001 cos(4 pi x)`, and `g = -9.81`. At Atwood
+`A = 1/3` the linear growth rate is `sigma = sqrt(A g k) = 6.41`.
+
+| Grid | measured `sigma` | error |
+|---|---|---|
+| 64² | 5.72 | -10.8% |
+| 128² | 6.00 | -6.4% |
+
+The growth rate is converged in the sense that refining the grid moves it
+toward theory; the remaining deficit is the first-order momentum flux. At
+Atwood near 1 (1000:1 density) the prototype remains stable only to
+`t ~ 0.5`; a conservative variable-density momentum formulation is required
+for the strongly nonlinear regime.
+
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; the wall-bounded two-phase path has no
@@ -293,7 +311,12 @@ benchmark.
   error but the flux is still explicit).
 - Bounded redistribution is a safety net for splitting overshoot; a bounded
   PLIC flux limiter is not implemented.
+- Momentum advection uses a conservative first-order upwind flux on
+  cell-centred velocities; it is robust but diffusive (RTI growth is 11% low
+  at 64²). A conservative variable-density (`rho u`) scheme is needed for
+  high-Atwood RTI.
 - Wall-bounded dam break is a smoke test (stability, conservation, bounds,
-  active CSF), not a quantitative benchmark against reference data.
+  active CSF), not a quantitative benchmark against reference data; RTI
+  growth is validated to ~11% at 64².
 - Next: open-top boundary, reference dam-break/RTI/rising-bubble validation,
   then the Kokkos port.
