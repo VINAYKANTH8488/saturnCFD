@@ -984,10 +984,11 @@ enough (Appendix C).
       manufactured solution at n=64 (L2 1.1e-4); foundation for wall-bounded
       two-phase flow.
 - [x] Wall-bounded dam-break prototype: closed box, no-slip walls, variable
-      density, gravity, first-order VOF; 64² 50-step run stable and
-      mass-conservative (`docs/verification/vof.md`).
-- [ ] Dam break, RTI, rising bubble; comparison with Basilisk (PLIC/CSF wall
-      coupling and reference validation pending).
+      density, gravity, wall-aware PLIC (Strang split, zero wall flux), and
+      balanced CSF; 64² 50-step runs stable and mass-conservative with and
+      without surface tension (`docs/verification/vof.md`).
+- [ ] Dam break, RTI, rising bubble; comparison with Basilisk (open-top
+      boundary and reference validation pending).
 - [ ] Spurious-current test; interface sharpness metrics.
 - [ ] Default pressure coupler: projection + GMG (EDAC-VOF is research).
 
@@ -996,9 +997,10 @@ mass conservation, boundedness), and 2D/3D height-function curvature is
 verified on sine interfaces, bounded redistribution is in place, and balanced
 CSF and a variable-density projection are validated on a static bubble, and a
 level-set curvature estimator covers closed interfaces, the full
-variable-density momentum step is implemented, and the variable-coefficient
-Poisson now supports Neumann walls, and a closed-box dam-break prototype is stable. Next:
-PLIC/CSF wall coupling and dam-break/RTI/bubble validation.
+variable-density momentum step is implemented, the variable-coefficient
+Poisson supports Neumann walls, and the closed-box dam break uses wall-aware
+PLIC plus balanced CSF. Next: open-top boundary and dam-break/RTI/bubble
+reference validation.
 
 **Exit:** dam break and bubble match references within a few %; mass drift
 < 1e-8; static bubble currents < 1e-8.

@@ -531,9 +531,9 @@ curvature (circle max error 0.203 at n=96). The full variable-density
 momentum step keeps a static bubble at `|u|max=9.8e-13` and a uniform flow
 with a 10:1 density jump exactly uniform. Details:
 `docs/verification/vof.md`. The variable-coefficient Poisson now supports
-Neumann walls (manufactured L2 1.1e-4 at n=64), and a closed-box dam-break
-prototype is stable and mass-conservative. PLIC/CSF wall coupling and
-reference validation are next.
+Neumann walls (manufactured L2 1.1e-4 at n=64), and the closed-box dam
+break now uses wall-aware PLIC plus balanced CSF and conserves mass to
+`5e-15`. An open-top boundary and reference validation are next.
 
 ## MPI
 

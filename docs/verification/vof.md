@@ -252,23 +252,35 @@ ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
 - no-slip/no-penetration walls on all sides
 - variable density and gravity
 - variable-coefficient Neumann projection
-- first-order upwind VOF transport with zero wall fluxes
+- wall-aware PLIC transport (Strang split x/y, zero wall fluxes, mirror
+  reconstruction ghosts)
+- conservative bounded redistribution against Strang-splitting overshoot
+- balanced CSF from a smoothed level set with mirror ghosts
+  `sigma*kappa*grad(c)`
 
 A 64² column (`c=1` for `x<0.3`, 1000:1 density, `g=-9.81`) run for 50
-steps at `dt=1e-3` gives max `|u| = 1.33`, mass drift `1.9e-16`, and
-fractions in `[0,1]`. This is a stability/conservation smoke test, not a
-validated dam-break benchmark: the transport is first order and PLIC/CSF have
-not yet been made wall-aware.
+steps at `dt=1e-3` with and without `sigma=0.072`:
+
+| Case | `|u|max` | mass drift | range |
+|---|---|---|---|
+| no CSF | 1.544 | `5.0e-15` | `[0, 1]` |
+| CSF | 1.540 | `3.6e-15` | `[0, 1]` |
+
+The CSF changes the interface by `2.9e-2` in `Linf`, so the coupling is active,
+while both runs conserve mass and stay bounded. Without redistribution the
+PLIC overshoot is ~`5e-3`; the redistribution pass restores exact bounds and
+conservation. This is a stability/conservation smoke test, not yet a
+validated dam-break benchmark.
 
 ## Limitations and next steps
 
-- Host-side 2D/3D prototypes; no Kokkos/GPU version yet.
+- Host-side 2D/3D prototypes; the wall-bounded two-phase path has no
+  Kokkos/GPU version yet.
 - Dimensional splitting is first order in time (Strang reduces the splitting
   error but the flux is still explicit).
-- Bounded redistribution is available as a safety net; interface compression
-  is not implemented.
-- 2D and 3D height-function curvature are verified; balanced CSF and a
-  variable-density projection are validated with a static bubble. Full
-  variable-density momentum advection is not implemented yet.
-- Next: 3D split PLIC, 3D translation/rotation tests, then curvature and
-  balanced-force CSF (dam break, RTI, rising bubble).
+- Bounded redistribution is a safety net for splitting overshoot; a bounded
+  PLIC flux limiter is not implemented.
+- Wall-bounded dam break is a smoke test (stability, conservation, bounds,
+  active CSF), not a quantitative benchmark against reference data.
+- Next: open-top boundary, reference dam-break/RTI/rising-bubble validation,
+  then the Kokkos port.
