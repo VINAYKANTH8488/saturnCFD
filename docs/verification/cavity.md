@@ -3,7 +3,8 @@
 **Date:** 2026-10-28
 **Status:** single-rank, periodic z, no-slip x/y walls, moving lid. Steady
 Re=100 centreline profiles agree with Ghia et al. (1982) to RMS 0.008 (u) and
-0.010 (v). Higher Reynolds numbers and 3D cavities are not yet run.
+0.010 (v). Re=400 tables are included; the coarse 24² check gives RMS
+0.074/0.072. Higher resolutions and Re=1000 are not yet completed.
 **Code:** `apps/cavity_sim.cpp`, `src/numerics/cavity.hpp`
 
 ## Setup
@@ -49,6 +50,25 @@ agreement reported by other second-order solvers on similar grids.
 A fast smoke gate uses `n=16`, `t=5`: RMS u 3.09e-2, RMS v 1.95e-2,
 `max|div| 1.8e-11` in about 10 s. The steady `n=16`, `t=10` run gives
 2.62e-2 / 1.52e-2.
+
+## Higher Reynolds numbers
+
+The Ghia Re=400 tables are included in `apps/cavity_sim.cpp`, selected by
+`--re 400`. A coarse run at `n=24`, `t=20` (1203 steps) gives
+
+| Quantity | Value |
+|---|---|
+| RMS error, u | 7.42e-02 |
+| RMS error, v | 7.21e-02 |
+| max abs(div) | 3.3e-12 |
+| wall time | ~3 min |
+
+The larger error than Re=100 reflects both the coarser 24² grid and the
+stronger gradients at Re=400. A 32² run was started but is much more
+expensive (the explicit viscous step requires many more steps); it was not
+completed in this pass. (The published Re=400 v-table contains one point,
+`x=0.9063`, that is flagged as suspect in the literature; it is kept here for
+completeness.)
 
 ## Commands
 

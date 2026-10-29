@@ -925,7 +925,8 @@ scaling to 8 GPUs.
       order (`docs/verification/channel.md`).
 - [x] Lid-driven cavity with x/y no-slip walls and a moving lid; Re=100
       centreline profiles match Ghia et al. (RMS 7.6e-3 u, 9.9e-3 v),
-      `max|div| ~ 3e-11` (`docs/verification/cavity.md`).
+      `max|div| ~ 3e-11` (`docs/verification/cavity.md`). Re=400 tables are
+      included; a coarse 24² run gives RMS 0.074/0.072.
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
 - [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity at higher Re on both
       paths. The 3D TGV is implemented; a 4th-order filter (`alpha=0.1`)

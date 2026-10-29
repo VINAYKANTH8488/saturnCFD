@@ -74,7 +74,8 @@ Progress:
   (`9.96e-4 → 2.55e-4 → 6.40e-5` at NY 16/32/64; `docs/verification/channel.md`).
 - Phase 3 lid-driven cavity with x/y no-slip walls: Re=100 centreline profiles
   match Ghia et al. to RMS 7.6e-3 (u) and 9.9e-3 (v), with `max|div| ~3e-11`
-  (`docs/verification/cavity.md`).
+  (`docs/verification/cavity.md`). Re=400 tables are also wired in; a coarse
+  24² run gives RMS 0.074 (u) / 0.072 (v).
 
 ## Requirements
 

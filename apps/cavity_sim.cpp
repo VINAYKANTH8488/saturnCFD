@@ -172,6 +172,16 @@ constexpr double kGhiaV[kGhiaCount] = {
     -0.22445, -0.24533, 0.05454,  0.17527,  0.17507,  0.16077,
     0.12317,  0.10890,  0.10090,  0.09233,  0.00000};
 
+// Ghia et al. (1982), Re=400, same station coordinates.
+constexpr double kGhia400U[kGhiaCount] = {
+    1.00000,  0.75837,  0.68439,  0.61756,  0.55892,  0.29093,
+    0.16256,  0.02135,  -0.11477, -0.17119, -0.32726, -0.24299,
+    -0.14612, -0.10338, -0.09266, -0.08186, 0.00000};
+constexpr double kGhia400V[kGhiaCount] = {
+    0.00000,  -0.12146, -0.15663, -0.19254, -0.22847, -0.23827,
+    -0.44993, -0.38598, 0.05186,  0.30174,  0.30203,  0.28124,
+    0.22965,  0.20920,  0.19713,  0.18360,  0.00000};
+
 struct CaseResult {
   int n = 0;
   int steps = 0;
@@ -345,16 +355,22 @@ CaseResult run_case(int n, const Params& params) {
 
   double sum_u = 0.0;
   double sum_v = 0.0;
-  for (int q = 0; q < kGhiaCount; ++q) {
-    const double uq = interpolate(u_center, g.hy, 0.0, params.u_lid, kGhiaY[q]);
-    const double vq = interpolate(v_center, g.hx, 0.0, 0.0, kGhiaX[q]);
-    const double du = uq - kGhiaU[q];
-    const double dv = vq - kGhiaV[q];
-    sum_u += du * du;
-    sum_v += dv * dv;
+  const bool has_ghia = params.re == 100.0 || params.re == 400.0;
+  const double* ref_u = (params.re == 400.0) ? kGhia400U : kGhiaU;
+  const double* ref_v = (params.re == 400.0) ? kGhia400V : kGhiaV;
+  if (has_ghia) {
+    for (int q = 0; q < kGhiaCount; ++q) {
+      const double uq =
+          interpolate(u_center, g.hy, 0.0, params.u_lid, kGhiaY[q]);
+      const double vq = interpolate(v_center, g.hx, 0.0, 0.0, kGhiaX[q]);
+      const double du = uq - ref_u[q];
+      const double dv = vq - ref_v[q];
+      sum_u += du * du;
+      sum_v += dv * dv;
+    }
+    result.rms_u = std::sqrt(sum_u / kGhiaCount);
+    result.rms_v = std::sqrt(sum_v / kGhiaCount);
   }
-  result.rms_u = std::sqrt(sum_u / kGhiaCount);
-  result.rms_v = std::sqrt(sum_v / kGhiaCount);
   return result;
 }
 
@@ -389,7 +405,9 @@ int run(const Params& params) {
         }
         status = 1;
       }
-      if (result.rms_u > params.rms_tol || result.rms_v > params.rms_tol) {
+      const bool has_ghia = params.re == 100.0 || params.re == 400.0;
+      if (has_ghia &&
+          (result.rms_u > params.rms_tol || result.rms_v > params.rms_tol)) {
         if (root) {
           std::fprintf(stderr,
                        "cavity check failed: Ghia RMS (u %.4f, v %.4f) > "
