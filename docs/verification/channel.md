@@ -68,6 +68,36 @@ The exact centerline velocity is `gx Ly^2 / (8 nu) = 1.25`, approached as the
 grid is refined. The L2 error decreases at second order and the projected
 divergence is zero to round-off.
 
+## Statistics
+
+`--stats FILE` writes plane-averaged profiles after the run:
+
+```
+y,yplus,uplus,urms,vrms,wrms,uv
+```
+
+The wall friction velocity is estimated from the no-slip gradient,
+`u_tau = sqrt(nu |du/dy|_wall)`, and `Re_tau = u_tau (Ly/2)/nu`. The driver
+prints both values. For the laminar Poiseuille case above (`nu=0.1`, `gx=1`),
+`u_tau = 0.7066` versus the exact `sqrt(gx Ly/2) = 0.7071` (0.07% error), and
+the first-cell `u+` equals `y+` as expected in the viscous sublayer.
+
+A turbulent channel attempt uses a longer domain and initial perturbations:
+
+```bash
+./build/cpu-openmp/apps/saturn_channel_sim \
+  --case poiseuille --n-list 64 --nx 32 --nz 16 \
+  --lx 12.5663706144 --lz 4.1887902048 --ly 2 \
+  --nu 0.0055555556 --gx 1 --perturb 0.1 --tend 10 \
+  --stats channel_turb.csv
+```
+
+At `nu=1/180`, `Ly=2`, `gx=1` the target friction Reynolds number is 180.
+The uniform 64-cell wall-normal grid gives `Delta y+ ~ 5.6`, which is far
+coarser than a DNS wall layer; this run is an infrastructure demo, not a
+validated turbulent-channel solution. Statistics for this case are reported
+separately when available.
+
 ## Commands
 
 ```bash

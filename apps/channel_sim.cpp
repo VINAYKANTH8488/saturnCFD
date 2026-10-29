@@ -23,6 +23,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -41,13 +42,17 @@ struct Params {
   std::vector<int> ny_list{16, 32, 64};
   int nx = 32;
   int nz = 8;
+  double lx = 2.0 * kPi;
+  double lz = 2.0 * kPi;
   double ly = 1.0;
   double nu = 0.1;
   double u_top = 1.0;
   double gx = 0.0;
+  double perturb = 0.0;
   double tend = 0.1;
   double cfl = 0.3;
   double poisson_tol = 1.0e-10;
+  std::string stats;
   std::string space = "default";
   bool check = false;
   bool verbose = false;
@@ -60,10 +65,14 @@ void usage(const char* argv0) {
       "  --n-list N1 ...    wall-normal resolutions (default 16 32 64)\n"
       "  --nx N             streamwise cells (default 32)\n"
       "  --nz N             spanwise cells (default 8)\n"
+      "  --lx VALUE         streamwise length (default 2 pi)\n"
+      "  --lz VALUE         spanwise length (default 2 pi)\n"
       "  --ly VALUE         channel height (default 1)\n"
       "  --nu VALUE         kinematic viscosity (default 0.1)\n"
       "  --u-top VALUE      top-wall speed for Couette (default 1)\n"
       "  --gx VALUE         streamwise body force for Poiseuille (default 1)\n"
+      "  --perturb VALUE    initial perturbation amplitude (default 0)\n"
+      "  --stats FILE       write plane-averaged channel statistics as CSV\n"
       "  --tend VALUE       final time (default 0.1)\n"
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
@@ -136,8 +145,16 @@ Params parse(int argc, char** argv) {
       p.nx = parse_int(a, require_value(i, argc, argv, a));
     } else if (a == "--nz") {
       p.nz = parse_int(a, require_value(i, argc, argv, a));
+    } else if (a == "--lx") {
+      p.lx = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--lz") {
+      p.lz = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--ly") {
       p.ly = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--perturb") {
+      p.perturb = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--stats") {
+      p.stats = require_value(i, argc, argv, a);
     } else if (a == "--nu") {
       p.nu = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--u-top") {
@@ -206,8 +223,8 @@ CaseResult run_case(int ny, const Params& params) {
   g.n0 = params.nx;
   g.n1 = ny;
   g.n2 = params.nz;
-  const double lx = 2.0 * kPi;
-  const double lz = 2.0 * kPi;
+  const double lx = params.lx;
+  const double lz = params.lz;
   g.hx = lx / static_cast<double>(g.n0);
   g.hy = params.ly / static_cast<double>(ny);
   g.hz = lz / static_cast<double>(g.n2);
@@ -234,15 +251,28 @@ CaseResult run_case(int ny, const Params& params) {
 
   const auto policy = saturn::make_mdrange3<ExecSpace>(
       saturn::Int3{{0, 0, 0}}, saturn::Int3{{g.n2, g.n1, g.n0}});
+  const double perturb = params.perturb;
   Kokkos::parallel_for(
       "channel_initial", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const double y = (j + 0.5) * g.hy;
+        const double xc = (i + 0.5) * g.hx;
+        const double yc = (j + 0.5) * g.hy;
+        const double zc = (k + 0.5) * g.hz;
+        const double xf = i * g.hx;
+        const double yf = j * g.hy;
+        const double zf = k * g.hz;
         const double profile = (g.u_top > 0.0)
                                    ? g.u_top * y / g.ly
                                    : g.gx * y * (g.ly - y) / (2.0 * g.nu);
-        u(k, j, i) = profile;
-        v(k, j, i) = 0.0;
-        w(k, j, i) = 0.0;
+        u(k, j, i) = profile + perturb * Kokkos::sin(4.0 * kPi * xf / lx) *
+                                   Kokkos::cos(kPi * yc / g.ly) *
+                                   Kokkos::sin(2.0 * kPi * zc / lz);
+        v(k, j, i) = perturb * Kokkos::cos(2.0 * kPi * xc / lx) *
+                     Kokkos::sin(kPi * yf / g.ly) *
+                     Kokkos::sin(2.0 * kPi * zc / lz);
+        w(k, j, i) = perturb * Kokkos::sin(2.0 * kPi * xc / lx) *
+                     Kokkos::cos(kPi * yc / g.ly) *
+                     Kokkos::cos(4.0 * kPi * zf / lz);
       });
 
   std::array<saturn::poisson::Boundary, 3> bc_low{
@@ -348,6 +378,90 @@ CaseResult run_case(int ny, const Params& params) {
   result.divergence = saturn::mpi_max(max_div);
   result.centerline = saturn::mpi_max(centerline);
   result.seconds = seconds;
+
+  if (!params.stats.empty()) {
+    auto hu = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u);
+    auto hv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), v);
+    auto hw = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), w);
+    const double count = static_cast<double>(g.n0) * g.n2;
+    std::vector<double> mean_u(g.n1), mean_v(g.n1), mean_w(g.n1);
+    std::vector<double> uu(g.n1), vv(g.n1), ww(g.n1), uv(g.n1);
+    for (int j = 0; j < g.n1; ++j) {
+      double su = 0.0;
+      double sv = 0.0;
+      double sw = 0.0;
+      double suu = 0.0;
+      double svv = 0.0;
+      double sww = 0.0;
+      double suv = 0.0;
+      for (int k = 0; k < g.n2; ++k) {
+        for (int i = 0; i < g.n0; ++i) {
+          const int ip = (i + 1 == g.n0) ? 0 : i + 1;
+          const int jp = (j + 1 == g.n1) ? -1 : j + 1;
+          const int kp = (k + 1 == g.n2) ? 0 : k + 1;
+          const double uc = 0.5 * (hu(k, j, i) + hu(k, j, ip));
+          const double vc =
+              0.5 * (hv(k, j, i) + ((jp < 0) ? 0.0 : hv(k, jp, i)));
+          const double wc = 0.5 * (hw(k, j, i) + hw(kp, j, i));
+          su += uc;
+          sv += vc;
+          sw += wc;
+          suu += uc * uc;
+          svv += vc * vc;
+          sww += wc * wc;
+          suv += uc * vc;
+        }
+      }
+      mean_u[j] = su / count;
+      mean_v[j] = sv / count;
+      mean_w[j] = sw / count;
+      uu[j] = suu / count - mean_u[j] * mean_u[j];
+      vv[j] = svv / count - mean_v[j] * mean_v[j];
+      ww[j] = sww / count - mean_w[j] * mean_w[j];
+      uv[j] = suv / count - mean_u[j] * mean_v[j];
+    }
+
+    auto wall_u = [&](int j) {
+      double sum = 0.0;
+      for (int k = 0; k < g.n2; ++k) {
+        for (int i = 0; i < g.n0; ++i) {
+          const int ip = (i + 1 == g.n0) ? 0 : i + 1;
+          sum += 0.5 * (hu(k, j, i) + hu(k, j, ip));
+        }
+      }
+      return sum / count;
+    };
+    const double u_bottom = wall_u(0);
+    const double u_last = wall_u(g.n1 - 1);
+    const double u_wall_top =
+        (params.case_name == "couette") ? params.u_top : 0.0;
+    const double shear_bottom = 2.0 * u_bottom / g.hy;
+    const double shear_top = 2.0 * (u_wall_top - u_last) / g.hy;
+    const double tau_w =
+        params.nu * 0.5 * (std::abs(shear_bottom) + std::abs(shear_top));
+    const double u_tau = std::sqrt(std::max(tau_w, 0.0));
+    const double delta = 0.5 * g.ly;
+    const double re_tau = (u_tau > 0.0) ? u_tau * delta / params.nu : 0.0;
+
+    if (saturn::mpi_rank() == 0) {
+      std::printf("  u_tau=%.6e  Re_tau=%.1f  (nu=%.4e, delta=%.4f)\n", u_tau,
+                  re_tau, params.nu, delta);
+      std::ofstream out(params.stats);
+      if (out) {
+        out << "y,yplus,uplus,urms,vrms,wrms,uv\n";
+        for (int j = 0; j < g.n1; ++j) {
+          const double y = (j + 0.5) * g.hy;
+          const double yplus = (u_tau > 0.0) ? y * u_tau / params.nu : 0.0;
+          const double uplus = (u_tau > 0.0) ? mean_u[j] / u_tau : 0.0;
+          out << y << "," << yplus << "," << uplus << ","
+              << std::sqrt(std::max(uu[j], 0.0)) << ","
+              << std::sqrt(std::max(vv[j], 0.0)) << ","
+              << std::sqrt(std::max(ww[j], 0.0)) << "," << uv[j] << "\n";
+        }
+        std::printf("  statistics: %s\n", params.stats.c_str());
+      }
+    }
+  }
   return result;
 }
 

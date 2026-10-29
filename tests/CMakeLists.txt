@@ -92,6 +92,13 @@ add_test(NAME saturn.channel_poiseuille
 set_tests_properties(saturn.channel_poiseuille
   PROPERTIES LABELS "verification;incompressible;channel")
 
+add_test(NAME saturn.channel_stats
+  COMMAND saturn_channel_sim --case poiseuille --n-list 16 --nx 8 --nz 4
+          --tend 0.05 --nu 0.1 --gx 1
+          --stats ${CMAKE_CURRENT_BINARY_DIR}/channel_stats.csv --check)
+set_tests_properties(saturn.channel_stats
+  PROPERTIES LABELS "verification;incompressible;channel")
+
 add_test(NAME saturn.incompressible_tgv3d_smoke
   COMMAND saturn_incompressible_sim --case tgv3d --n 16 --tend 1
           --nu 0.000625 --cfl 0.3 --check)
