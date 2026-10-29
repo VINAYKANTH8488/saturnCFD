@@ -939,9 +939,9 @@ scaling to 8 GPUs.
       the FFT pressure solver stabilizes n=64 (peak `-dK/dt/V = 1.142e-2` at
       `t=8.96`, 8.6% below the reference) but it remains a filtered exercise,
       not a DNS benchmark (`docs/verification/incompressible.md`).
-- [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
-      Divergence scaling (0.20 → 0.025) is measured; the GPU cost crossover is
-      pending.
+- [x] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
+      GPU P600 at N=64: EDAC (`M_c=0.05`) 1.53 s vs projection+FFT 0.23 s
+      (6.7x slower); no crossover at this scale.
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
 **Current:** periodic GMG and FFT Poisson solvers, the staggered-MAC projection

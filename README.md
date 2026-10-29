@@ -90,7 +90,8 @@ Progress:
 - Phase 3 EDAC prototype (`apps/edac_sim.cpp`): the exact 2D TGV matches the
   projection velocity error at `M_c=0.05` (1.914e-3 vs 1.901e-3 at 32²,
   4.800e-4 vs 4.756e-4 at 64²) but needs ~12.6x more steps; divergence is
-  `O(M_c)` (`docs/verification/edac.md`).
+  `O(M_c)` (`docs/verification/edac.md`). On the P600 at N=64 EDAC takes
+  1.53 s vs 0.23 s for projection+FFT, so there is no cost crossover here.
 
 ## Requirements
 

@@ -70,6 +70,23 @@ Starting from `p=0` (`--zero-p`, `N=32`, `M_c=0.1`, `t=0.5`) gives L2 velocity
 exact initial pressure. A production EDAC path needs one initial projection or
 a spin-up phase.
 
+## GPU cost crossover (Quadro P600)
+
+Measured on the CUDA build, `N=64`, `t_end=1`, `nu=0.01`:
+
+| Method | steps | L2 velocity | L2 divergence | wall time |
+|---|---|---|---|---|
+| projection + FFT | 34 | 4.756e-04 | ~1e-15 | **0.227 s** |
+| projection + MG | 34 | 4.756e-04 | 2.7e-12 | 3.615 s |
+| EDAC (`M_c=0.05`) | 428 | 4.800e-04 | 1.53e-05 | 1.529 s |
+
+EDAC is **6.7x slower** than projection + FFT on this GPU. The gap is smaller
+than on the CPU (~12x) because EDAC is fully local while the current FFT path
+copies the field to the host; a device FFT or distributed FFT would widen
+projection's lead further. The Poisson fraction would have to exceed roughly
+85% of the step time before EDAC wins, which is not the case here. Projection +
+GMG/FFT remains the production default.
+
 ## Commands
 
 ```bash
