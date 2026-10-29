@@ -536,8 +536,10 @@ break now uses wall-aware PLIC plus balanced CSF, conserves mass to `5e-15`,
 balances hydrostatic layers to `6.4e-12`, holds a static drop at
 `|u|max=1.7e-3` with the Laplace jump matching `sigma/R` to 0.09%, and
 reproduces RTI linear growth within 11% at 64², and a variable-viscosity
-buoyant bubble rises stably in a 1x2 box. An open-top boundary and
-quantitative dam-break/bubble validation are next.
+buoyant bubble rises stably in a 1x2 box (qualitative: 25-35% below the
+Hysing reference). A drop-in conservative `rho u` flux is unstable at
+1000:1 density, so a full staggered MAC solver, an open-top boundary, and
+quantitative validation are next.
 
 ## MPI
 

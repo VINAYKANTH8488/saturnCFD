@@ -305,6 +305,43 @@ Atwood near 1 (1000:1 density) the prototype remains stable only to
 `t ~ 0.5`; a conservative variable-density momentum formulation is required
 for the strongly nonlinear regime.
 
+## Rising bubble: Hysing et al. case 1
+
+The buoyant-bubble smoke test uses the Hysing case-1 parameters. The
+FEATFLOW/Basilisk reference (`c1g3l4.txt`) gives:
+
+| t | centre rise | centroid velocity |
+|---|---|---|
+| 0.5 | 0.0483 | 0.196 |
+| 1.0 | 0.1696 | 0.241 |
+| 2.0 | 0.3887 | 0.198 |
+| 3.0 | 0.5817 | 0.194 |
+
+The current 64x128 run (`dt=1e-3`) gives a rise of 0.137 at `t=1` and
+0.391 at `t=3`, with centroid velocities 0.180 and 0.127. Refining to
+128x256 at `t=1` gives a rise of 0.110, so the result is not monotonically
+converging and remains 25-35% below the reference. The prototype is
+therefore **not quantitatively validated** for the rising bubble; the gap
+is attributed to the diffuse interface, the level-set curvature, and the
+first-order splitting. A production variable-density solver with a sharp
+interface and a consistent momentum/continuity discretization is required.
+
+## Conservative variable-density momentum (negative result)
+
+Two drop-in variants were tried for the high-Atwood regime:
+
+- cell-centred momentum `m = rho u` with an upwind momentum flux;
+- face momentum `rho_face u` with MAC-style fluxes.
+
+Both passed the hydrostatic, static-drop, RTI (Atwood 1/3) and rising-bubble
+smoke tests, but the 1000:1 dam break blew up at `t ~ 0.02`
+(`|u| ~ 1e14` by step 24) with CFL `< 0.3`. The blow-up is not a time-step
+restriction: it is the unbalanced `u^2 grad(rho)` term in the conservative
+flux, which the current collocated/staggered hybrid does not cancel with the
+discrete continuity equation. The stable advective-upwind form was kept. A
+full staggered MAC solver with a consistent density/continuity update, or a
+skew-symmetric variable-density form, is the correct next step.
+
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; the wall-bounded two-phase path has no
@@ -315,12 +352,14 @@ for the strongly nonlinear regime.
   PLIC flux limiter is not implemented.
 - Momentum advection uses a conservative first-order upwind flux on
   cell-centred velocities; it is robust but diffusive (RTI growth is 11% low
-  at 64²). A conservative variable-density (`rho u`) scheme is needed for
-  high-Atwood RTI.
+  at 64²).
+- A drop-in conservative `rho u` momentum flux is unstable for the 1000:1
+  dam break; a full staggered MAC discretization is needed for high Atwood.
 - Wall-bounded dam break is a smoke test (stability, conservation, bounds,
   active CSF), not a quantitative benchmark against reference data; RTI
   growth is validated to ~11% at 64².
-- The rising bubble is qualitative only; a grid-refined comparison with
-  Hysing et al. reference rise velocity and circularity is pending.
-- Next: open-top boundary, reference dam-break/RTI/rising-bubble validation,
-  then the Kokkos port.
+- The rising bubble is qualitative only; the current rise is 25-35% below
+  the Hysing et al. reference and does not converge monotonically with grid
+  refinement.
+- Next: full staggered MAC variable-density solver, open-top boundary, then
+  quantitative dam-break/rising-bubble validation and the Kokkos port.
