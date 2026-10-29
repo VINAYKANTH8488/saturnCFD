@@ -164,22 +164,31 @@ sh cuda_12.2.2_535.104.05_linux.run --silent --toolkit \
   --toolkitpath="$HOME/opt/cuda-12.2" --no-opengl-libs
 ```
 
-Then build the CUDA Kokkos:
+Then build the CUDA Kokkos and run the GPU smoke test:
+
+```bash
+scripts/build_kokkos_cuda.sh
+scripts/verify_cuda.sh
+```
+
+`build_kokkos_cuda.sh` uses the `nvcc_wrapper` and `-allow-unsupported-compiler`
+(CUDA 12.2 nominally supports GCC ≤12; this machine has GCC 13). The manual
+CMake recipe is:
 
 ```bash
 cmake -S "$HOME/opt/src/kokkos-5.2.2" -B "$HOME/opt/build/kokkos-5.2.2-cuda" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$HOME/opt/kokkos-5.2.2-cuda" \
   -DCMAKE_CXX_COMPILER="$HOME/opt/src/kokkos-5.2.2/bin/nvcc_wrapper" \
+  -DCMAKE_CXX_FLAGS="-allow-unsupported-compiler" \
   -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON \
   -DKokkos_ENABLE_SERIAL=ON -DKokkos_ENABLE_TESTS=OFF
 cmake --build "$HOME/opt/build/kokkos-5.2.2-cuda" -j4
 cmake --install "$HOME/opt/build/kokkos-5.2.2-cuda"
-
-source scripts/env.sh
-cmake --preset cuda-local
-cmake --build build/cuda-local -j4
 ```
+
+`verify_cuda.sh` configures the `cuda-local` preset, builds, and runs the
+stencil/STREAM smoke tests plus the selected GPU CTests.
 
 ## Build
 
