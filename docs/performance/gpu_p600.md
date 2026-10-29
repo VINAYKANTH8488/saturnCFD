@@ -34,6 +34,9 @@ Raw data: `benchmarks/results/gpu/stream_{copy,triad}_cuda_p600_run{1,2,3}.json`
 
 The stencil reaches **51.5%** of the STREAM copy bandwidth, which is the
 expected range for a 7-point stencil with two arrays on this class of GPU.
+A tile sweep (`--tile 16/32/64`) gives 0.853 / 0.573 / 0.669 ns/cell/iter, so
+the existing inner tile of 32 is the best of those; larger tiles are invalid
+for this grid. Two-dimensional tiles and kernel fusion remain future work.
 
 ## Correctness status on CUDA
 
