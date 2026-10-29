@@ -40,6 +40,9 @@ target_link_libraries(saturn_test_vof_curvature PRIVATE saturn_core)
 add_executable(saturn_test_vof_curvature3d test_vof_curvature3d.cpp)
 target_link_libraries(saturn_test_vof_curvature3d PRIVATE saturn_core)
 
+add_executable(saturn_test_vof_redistribute test_vof_redistribute.cpp)
+target_link_libraries(saturn_test_vof_redistribute PRIVATE saturn_core)
+
 add_test(NAME saturn.smoke COMMAND saturn_test_smoke)
 set_tests_properties(saturn.smoke PROPERTIES LABELS "unit")
 
@@ -84,6 +87,10 @@ set_tests_properties(saturn.vof_curvature
 
 add_test(NAME saturn.vof_curvature3d COMMAND saturn_test_vof_curvature3d)
 set_tests_properties(saturn.vof_curvature3d
+  PROPERTIES LABELS "unit;numerics;vof")
+
+add_test(NAME saturn.vof_redistribute COMMAND saturn_test_vof_redistribute)
+set_tests_properties(saturn.vof_redistribute
   PROPERTIES LABELS "unit;numerics;vof")
 
 add_test(NAME saturn.incompressible_tgv

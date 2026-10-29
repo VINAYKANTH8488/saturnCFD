@@ -129,15 +129,15 @@ inline Polyhedron clip_half_plane(const Polyhedron& poly, const Vec3& n,
   return result;
 }
 
-struct Reconstruction {
+struct Reconstruction3D {
   double nx = 1.0;
   double ny = 0.0;
   double nz = 0.0;
   double alpha = 0.0;
 };
 
-inline Reconstruction reconstruct(double c, double nx, double ny, double nz) {
-  Reconstruction result;
+inline Reconstruction3D reconstruct(double c, double nx, double ny, double nz) {
+  Reconstruction3D result;
   const double norm = std::sqrt(nx * nx + ny * ny + nz * nz);
   if (norm < 1e-14 || c <= 0.0 || c >= 1.0) {
     result.nx = 1.0;
@@ -169,7 +169,7 @@ inline Reconstruction reconstruct(double c, double nx, double ny, double nz) {
   return result;
 }
 
-inline Polyhedron fluid_polyhedron(const Reconstruction& r) {
+inline Polyhedron fluid_polyhedron(const Reconstruction3D& r) {
   const double plane_alpha = r.alpha + 0.5 * (r.nx + r.ny + r.nz);
   return clip_half_plane(unit_cube(), Vec3{r.nx, r.ny, r.nz}, plane_alpha);
 }
@@ -200,8 +200,8 @@ class Grid3D {
 
   double cell_volume() const { return hx_ * hy_ * hz_; }
 
-  std::vector<Reconstruction> reconstructions() const {
-    std::vector<Reconstruction> r(c_.size());
+  std::vector<Reconstruction3D> reconstructions() const {
+    std::vector<Reconstruction3D> r(c_.size());
     for (int i = 0; i < nx_; ++i) {
       for (int j = 0; j < ny_; ++j) {
         for (int k = 0; k < nz_; ++k) {

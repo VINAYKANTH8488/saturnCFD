@@ -120,14 +120,34 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.vof_curvature3d --output-on-failure
 ```
 
+## Bounded redistribution
+
+`src/numerics/vof_redistribute.hpp` clamps any overshoot and restores the
+pre-clamp mass by distributing the error to cells with available capacity
+(weighted by `1-c` or `c`), iterating until the mass matches. It is a safety
+net for sharp interfaces, not a replacement for bounded advection.
+
+Test with a perturbed field (`c` spanning roughly `[-0.05, 1.05]`):
+
+| Grid | range after | relative mass error |
+|---|---|---|
+| 32² | [2.2e-04, 1] | 4.4e-16 |
+| 16³ | [2.0e-14, 0.999] | 8.0e-16 |
+
+Run:
+
+```bash
+./build/cpu-openmp/tests/saturn_test_vof_redistribute
+ctest --test-dir build/cpu-openmp -R saturn.vof_redistribute --output-on-failure
+```
+
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; no Kokkos/GPU version yet.
 - Dimensional splitting is first order in time (Strang reduces the splitting
   error but the flux is still explicit).
-- No bounded redistribution/normalization or interface compression; the
-  3D rotation range is bounded to ~1e-13 here, but a generic redistribution
-  pass is still needed.
+- Bounded redistribution is available as a safety net; interface compression
+  is not implemented.
 - 2D and 3D height-function curvature are verified; CSF surface tension and
   variable-density coupling are not implemented yet.
 - Next: 3D split PLIC, 3D translation/rotation tests, then curvature and

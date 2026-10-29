@@ -968,8 +968,9 @@ enough (Appendix C).
       geometric fluxes; step/circle translation and solid-body rotation at
       L1 2.5e-3–7.7e-3 with round-off mass drift and bounded fractions
       (`docs/verification/vof.md`).
-- [ ] Bounded redistribution; mass conservation test. (2D geometric advection
-      already conserves mass to round-off; redistribution is still needed.)
+- [x] Bounded redistribution (clamp + capacity-weighted mass restore); 2D/3D
+      tests conserve mass to ~1e-16 and restore `[0,1]`
+      (`docs/verification/vof.md`).
 - [x] Height-function curvature (2D and 3D): column/row heights and 5-point
       derivatives; sine interfaces give max errors 2.54e-07 (2D, n=128) and
       2.08e-03 (3D, n=48) (`docs/verification/vof.md`). Balanced-force CSF
@@ -981,8 +982,8 @@ enough (Appendix C).
 
 **Current:** 2D and 3D PLIC prototypes are verified (translation, rotation,
 mass conservation, boundedness), and 2D/3D height-function curvature is
-verified on sine interfaces. Next: balanced CSF surface tension and
-variable-density momentum coupling.
+verified on sine interfaces, and bounded redistribution is in place. Next:
+balanced CSF surface tension and variable-density momentum coupling.
 
 **Exit:** dam break and bubble match references within a few %; mass drift
 < 1e-8; static bubble currents < 1e-8.
