@@ -95,10 +95,10 @@ Progress:
   4.800e-4 vs 4.756e-4 at 64²) but needs ~12.6x more steps; divergence is
   `O(M_c)` (`docs/verification/edac.md`). On the P600 at N=64 EDAC takes
   1.53 s vs 0.23 s for projection+FFT, so there is no cost crossover here.
-- Phase 4 started: 2D PLIC VOF prototype with Youngs normals, geometric
-  Strang-split fluxes, round-off mass conservation, and bounded fractions;
-  step translation L1 2.5e-3, circle translation 6.5e-3, one-period rotation
-  7.7e-3 at 32² (`docs/verification/vof.md`).
+- Phase 4 started: 2D and 3D PLIC VOF prototypes with Youngs normals,
+  geometric Strang-split fluxes, round-off mass conservation, and bounded
+  fractions; 3D sphere translation 3.95e-3 and one-period rotation 3.76e-3 at
+  16³ (`docs/verification/vof.md`).
 
 ## Requirements
 
@@ -498,22 +498,27 @@ Details: `docs/verification/edac.md`.
 
 ## VOF (Phase 4)
 
-`src/numerics/vof2d.hpp` is a 2D PLIC prototype: Youngs normals, a bisected
-plane constant, and Strang-split geometric face fluxes on a periodic grid.
-Volume fraction stays bounded and mass is conserved to round-off.
+`src/numerics/vof2d.hpp` and `src/numerics/vof3d.hpp` are PLIC prototypes:
+Youngs normals, a bisected plane constant, and Strang-split geometric face
+fluxes on a periodic grid. Volume fraction stays bounded and mass is conserved
+to round-off.
 
 ```bash
 ./build/cpu-openmp/tests/saturn_test_vof
+./build/cpu-openmp/tests/saturn_test_vof3d
 ```
 
 | Case | L1 error |
 |---|---|
-| 1D step translation | 2.50e-3 |
-| circle translation | 6.46e-3 |
-| circle solid-body rotation | 7.71e-3 |
+| 2D 1D step | 2.50e-3 |
+| 2D circle translation | 6.46e-3 |
+| 2D rotation | 7.71e-3 |
+| 3D 1D step | 1.4e-14 (integer shift) |
+| 3D sphere translation | 3.95e-3 |
+| 3D rotation | 3.76e-3 |
 
-Details: `docs/verification/vof.md`. The 3D split version, redistribution,
-height-function curvature, and CSF surface tension are next.
+Details: `docs/verification/vof.md`. Redistribution, height-function
+curvature, CSF surface tension, and momentum coupling are next.
 
 ## MPI
 

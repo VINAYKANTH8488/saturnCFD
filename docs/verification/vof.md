@@ -1,9 +1,9 @@
 # VOF: 2D PLIC reconstruction and geometric advection
 
 **Date:** 2026-10-29
-**Status:** 2D periodic prototype (host-side) with PLIC reconstruction and
-Strang-split geometric fluxes; mass-conservative and bounded. 3D split,
-curvature/CSF, and redistribution are next.
+**Status:** 2D and 3D periodic prototypes (host-side) with PLIC reconstruction
+and Strang-split geometric fluxes; mass-conservative and bounded. Curvature/CSF,
+coupled momentum, and redistribution are next.
 **Code:** `src/numerics/vof2d.hpp`, `tests/test_vof.cpp`
 
 ## Method
@@ -46,13 +46,37 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.vof --output-on-failure
 ```
 
+## 3D PLIC
+
+`src/numerics/vof3d.hpp` extends the reconstruction to 3D: the cell is a unit
+cube, clipped by the PLIC half-plane; the plane constant is bisected on the
+clipped volume. The cap face is built from the intersection points and sorted
+around the plane normal; volume comes from a signed tetrahedral decomposition.
+The advection is Strang-split in x, y, z with the same swept-slab geometric
+flux.
+
+| Case | L1 error | mass drift | range |
+|---|---|---|---|
+| clipping check (cube / half cube) | exact | — | — |
+| 1D step translation (integer shift) | 1.42e-14 | 0 | [0,1] |
+| sphere translation | 3.95e-03 | 3.81e-16 | [0,1] |
+| sphere solid-body rotation (one period, 16³) | 3.76e-03 | 1.27e-15 | [-1.1e-13,1] |
+
+Run:
+
+```bash
+./build/cpu-openmp/tests/saturn_test_vof3d
+ctest --test-dir build/cpu-openmp -R saturn.vof3d --output-on-failure
+```
+
 ## Limitations and next steps
 
-- Host-side 2D prototype; no Kokkos/GPU version yet.
+- Host-side 2D/3D prototypes; no Kokkos/GPU version yet.
 - Dimensional splitting is first order in time (Strang reduces the splitting
   error but the flux is still explicit).
-- No 3D PLIC, no bounded redistribution/normalization, no interface
-  compression.
+- No bounded redistribution/normalization or interface compression; the
+  3D rotation range is bounded to ~1e-13 here, but a generic redistribution
+  pass is still needed.
 - No curvature (height function), no CSF surface tension, no variable-density
   coupling.
 - Next: 3D split PLIC, 3D translation/rotation tests, then curvature and
