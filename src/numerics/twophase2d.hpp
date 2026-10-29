@@ -375,6 +375,117 @@ class Solver2D {
     }
   }
 
+  // Full explicit step with variable density, advection, diffusion, gravity,
+  // CSF, and projection. First-order in time; adequate for the prototype.
+  void step(double dt, double sigma, const std::vector<double>& kappa,
+            double rho_l, double rho_g, double mu, double gx, double gy) {
+    const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
+    std::vector<double> rho_cell(total, 0.0);
+    std::vector<double> beta_x(total, 0.0);
+    std::vector<double> beta_y(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        rho_cell[index] = rho_l * c_(i, j) + rho_g * (1.0 - c_(i, j));
+      }
+    }
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int im = (i == 0) ? nx_ - 1 : i - 1;
+        const int jm = (j == 0) ? ny_ - 1 : j - 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double rl = rho_cell[static_cast<std::size_t>(j) * nx_ + im];
+        const double rr = rho_cell[index];
+        const double rd = rho_cell[static_cast<std::size_t>(jm) * nx_ + i];
+        const double ru = rho_cell[index];
+        beta_x[index] = (rl + rr) / (2.0 * rl * rr);
+        beta_y[index] = (rd + ru) / (2.0 * rd * ru);
+      }
+    }
+
+    std::vector<double> du(total, 0.0);
+    std::vector<double> dv(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int im = (i == 0) ? nx_ - 1 : i - 1;
+        const int ip = (i + 1 == nx_) ? 0 : i + 1;
+        const int jm = (j == 0) ? ny_ - 1 : j - 1;
+        const int jp = (j + 1 == ny_) ? 0 : j + 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const std::size_t xm = static_cast<std::size_t>(j) * nx_ + im;
+        const std::size_t xp = static_cast<std::size_t>(j) * nx_ + ip;
+        const std::size_t ym = static_cast<std::size_t>(jm) * nx_ + i;
+        const std::size_t yp = static_cast<std::size_t>(jp) * nx_ + i;
+        const double u_here = u_[index];
+        const double v_here = v_[index];
+        const double nu_x = mu * beta_x[index];
+        const double nu_y = mu * beta_y[index];
+        const double dudx = (u_[xp] - u_[xm]) / (2.0 * hx_);
+        const double dudy = (u_[yp] - u_[ym]) / (2.0 * hy_);
+        const double v_at_u =
+            0.25 *
+            (v_[xm] + v_[index] + v_[static_cast<std::size_t>(jp) * nx_ + im] +
+             v_[static_cast<std::size_t>(jp) * nx_ + i]);
+        const double lap_u = (u_[xp] - 2.0 * u_here + u_[xm]) / (hx_ * hx_) +
+                             (u_[yp] - 2.0 * u_here + u_[ym]) / (hy_ * hy_);
+        du[index] = -(u_here * dudx + v_at_u * dudy) + nu_x * lap_u + gx;
+
+        const double dvdx = (v_[xp] - v_[xm]) / (2.0 * hx_);
+        const double dvdy = (v_[yp] - v_[ym]) / (2.0 * hy_);
+        const double u_at_v =
+            0.25 * (u_[ym] + u_[index] +
+                    u_[static_cast<std::size_t>(jm) * nx_ + ip] + u_[xp]);
+        const double lap_v = (v_[xp] - 2.0 * v_here + v_[xm]) / (hx_ * hx_) +
+                             (v_[yp] - 2.0 * v_here + v_[ym]) / (hy_ * hy_);
+        dv[index] = -(u_at_v * dvdx + v_here * dvdy) + nu_y * lap_v + gy;
+      }
+    }
+
+    std::vector<double> fx;
+    std::vector<double> fy;
+    if (sigma > 0.0 && !kappa.empty()) {
+      csf_faces(kappa, sigma, fx, fy);
+    } else {
+      fx.assign(total, 0.0);
+      fy.assign(total, 0.0);
+    }
+    for (std::size_t index = 0; index < total; ++index) {
+      u_[index] += dt * (du[index] + fx[index] * beta_x[index]);
+      v_[index] += dt * (dv[index] + fy[index] * beta_y[index]);
+    }
+
+    std::vector<double> div(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int ip = (i + 1 == nx_) ? 0 : i + 1;
+        const int jp = (j + 1 == ny_) ? 0 : j + 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        div[index] =
+            (u_[static_cast<std::size_t>(j) * nx_ + ip] - u_[index]) / hx_ +
+            (v_[static_cast<std::size_t>(jp) * nx_ + i] - v_[index]) / hy_;
+      }
+    }
+    for (double& d : div) {
+      d = d / dt;
+    }
+    VariablePoisson2D solver(nx_, ny_, hx_, hy_, beta_x, beta_y);
+    solver.solve(div, p_);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int im = (i == 0) ? nx_ - 1 : i - 1;
+        const int jm = (j == 0) ? ny_ - 1 : j - 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        u_[index] -= dt * beta_x[index] *
+                     (p_[index] - p_[static_cast<std::size_t>(j) * nx_ + im]) /
+                     hx_;
+        v_[index] -= dt * beta_y[index] *
+                     (p_[index] - p_[static_cast<std::size_t>(jm) * nx_ + i]) /
+                     hy_;
+      }
+    }
+    c_.advance(u_, v_, dt);
+  }
+
   // Advect the volume fraction with the current face velocities.
   void advect(double dt) { c_.advance(u_, v_, dt); }
 

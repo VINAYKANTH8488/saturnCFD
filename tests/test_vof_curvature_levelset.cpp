@@ -15,8 +15,8 @@ int main() {
     for (int j = 0; j < n; ++j) {
       const double x = (i + 0.5) * g.hx();
       const double y = (j + 0.5) * g.hy();
-      const double dist = std::sqrt((x - 0.5) * (x - 0.5) +
-                                    (y - 0.5) * (y - 0.5));
+      const double dist =
+          std::sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5));
       g(i, j) = std::min(1.0, std::max(0.0, 0.5 + (radius - dist) / h));
     }
   }

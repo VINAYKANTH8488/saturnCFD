@@ -199,6 +199,17 @@ The zero spurious current and exact Laplace pressure validate the
 balanced-force CSF and projection coupling. Curvature is prescribed in this
 test (the level-set curvature is available for closed interfaces).
 
+The full explicit step (advection, variable viscosity, gravity, CSF,
+projection, VOF advection) is exercised as well:
+
+| Test | Result |
+|---|---|
+| static bubble, 5 full steps | `|u|max = 9.77e-13`, mass drift `6.6e-16` |
+| uniform `u=0.1`, 10:1 density jump, 50 steps | velocity deviation `0`, mass drift `4.4e-16` |
+
+The uniform-advection test confirms that a density jump alone does not create
+spurious momentum.
+
 A variable-density projection is included (`rho_l=1000`, `rho_g=1`, harmonic
 face density). The same bubble gives max `|u| = 3.93e-13`, divergence
 `4.0e-11`, and pressure jump `0.500000`: the balanced force remains exact
