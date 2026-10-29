@@ -245,6 +245,21 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
 ```
 
+## Wall-bounded dam break (prototype)
+
+`src/numerics/dambreak2d.hpp` is a closed-box dam-break prototype:
+
+- no-slip/no-penetration walls on all sides
+- variable density and gravity
+- variable-coefficient Neumann projection
+- first-order upwind VOF transport with zero wall fluxes
+
+A 64² column (`c=1` for `x<0.3`, 1000:1 density, `g=-9.81`) run for 50
+steps at `dt=1e-3` gives max `|u| = 1.33`, mass drift `1.9e-16`, and
+fractions in `[0,1]`. This is a stability/conservation smoke test, not a
+validated dam-break benchmark: the transport is first order and PLIC/CSF have
+not yet been made wall-aware.
+
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; no Kokkos/GPU version yet.
