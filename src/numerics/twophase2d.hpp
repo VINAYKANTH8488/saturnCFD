@@ -104,6 +104,118 @@ class FftPoisson2D {
   fftw_plan inverse_ = nullptr;
 };
 
+// Variable-coefficient periodic Poisson solver:
+//
+//   div(beta grad(p)) = rhs,   beta = 1/rho at faces.
+//
+// Matrix-free PCG with a Jacobi preconditioner. Used for the variable-density
+// projection.
+class VariablePoisson2D {
+ public:
+  VariablePoisson2D(int nx, int ny, double hx, double hy,
+                    const std::vector<double>& beta_x,
+                    const std::vector<double>& beta_y)
+      : nx_(nx), ny_(ny), hx_(hx), hy_(hy), bx_(beta_x), by_(beta_y) {}
+
+  void apply(const std::vector<double>& p, std::vector<double>& out) const {
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int im = (i == 0) ? nx_ - 1 : i - 1;
+        const int ip = (i + 1 == nx_) ? 0 : i + 1;
+        const int jm = (j == 0) ? ny_ - 1 : j - 1;
+        const int jp = (j + 1 == ny_) ? 0 : j + 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double xflux =
+            bx_[static_cast<std::size_t>(j) * nx_ + ip] *
+                (p[static_cast<std::size_t>(j) * nx_ + ip] - p[index]) -
+            bx_[index] * (p[index] - p[static_cast<std::size_t>(j) * nx_ + im]);
+        const double yflux =
+            by_[static_cast<std::size_t>(jp) * nx_ + i] *
+                (p[static_cast<std::size_t>(jp) * nx_ + i] - p[index]) -
+            by_[index] * (p[index] - p[static_cast<std::size_t>(jm) * nx_ + i]);
+        out[index] = xflux / (hx_ * hx_) + yflux / (hy_ * hy_);
+      }
+    }
+  }
+
+  void solve(const std::vector<double>& rhs, std::vector<double>& p,
+             double tolerance = 1.0e-10, int max_iterations = 500) const {
+    const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
+    p.assign(total, 0.0);
+    std::vector<double> r = rhs;
+    std::vector<double> diag(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int ip = (i + 1 == nx_) ? 0 : i + 1;
+        const int jp = (j + 1 == ny_) ? 0 : j + 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        diag[index] =
+            -(bx_[index] + bx_[static_cast<std::size_t>(j) * nx_ + ip]) /
+                (hx_ * hx_) -
+            (by_[index] + by_[static_cast<std::size_t>(jp) * nx_ + i]) /
+                (hy_ * hy_);
+      }
+    }
+    std::vector<double> z(total, 0.0);
+    std::vector<double> dir(total, 0.0);
+    std::vector<double> ap(total, 0.0);
+    auto dot = [&](const std::vector<double>& a, const std::vector<double>& b) {
+      double sum = 0.0;
+      for (std::size_t i = 0; i < total; ++i) {
+        sum += a[i] * b[i];
+      }
+      return sum;
+    };
+    auto precondition = [&]() {
+      for (std::size_t i = 0; i < total; ++i) {
+        z[i] = r[i] / diag[i];
+      }
+    };
+    auto residual_norm = [&]() {
+      double sum = 0.0;
+      for (double value : r) {
+        sum += value * value;
+      }
+      return std::sqrt(sum / static_cast<double>(total));
+    };
+    const double target =
+        tolerance * std::max(1.0, std::sqrt(dot(rhs, rhs) / total));
+    precondition();
+    dir = z;
+    double rz = dot(r, z);
+    for (int it = 0; it < max_iterations; ++it) {
+      if (residual_norm() <= target) {
+        break;
+      }
+      apply(dir, ap);
+      const double denom = dot(dir, ap);
+      if (std::abs(denom) < 1e-300) {
+        break;
+      }
+      const double alpha = rz / denom;
+      for (std::size_t i = 0; i < total; ++i) {
+        p[i] += alpha * dir[i];
+        r[i] -= alpha * ap[i];
+      }
+      precondition();
+      const double rz_new = dot(r, z);
+      const double beta = rz_new / rz;
+      for (std::size_t i = 0; i < total; ++i) {
+        dir[i] = z[i] + beta * dir[i];
+      }
+      rz = rz_new;
+    }
+  }
+
+ private:
+  int nx_;
+  int ny_;
+  double hx_;
+  double hy_;
+  std::vector<double> bx_;
+  std::vector<double> by_;
+};
+
 class Solver2D {
  public:
   Solver2D(int nx, int ny, double lx = 1.0, double ly = 1.0)
@@ -190,6 +302,75 @@ class Solver2D {
         v_[index] -= dt *
                      (p_[index] - p_[static_cast<std::size_t>(jm) * nx_ + i]) /
                      (rho * hy_);
+      }
+    }
+  }
+
+  // Variable-density projection. rho(c) is interpolated arithmetically to
+  // cell centers and harmonically to faces; the CSF force and the pressure
+  // gradient use the same face density, which keeps a static bubble balanced.
+  void project_force_variable(const std::vector<double>& fx,
+                              const std::vector<double>& fy, double dt,
+                              double rho_l, double rho_g) {
+    const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
+    std::vector<double> rho_cell(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        rho_cell[index] = rho_l * c_(i, j) + rho_g * (1.0 - c_(i, j));
+      }
+    }
+    std::vector<double> beta_x(total, 0.0);
+    std::vector<double> beta_y(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int im = (i == 0) ? nx_ - 1 : i - 1;
+        const int jm = (j == 0) ? ny_ - 1 : j - 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double rl = rho_cell[static_cast<std::size_t>(j) * nx_ + im];
+        const double rr = rho_cell[index];
+        const double rd = rho_cell[static_cast<std::size_t>(jm) * nx_ + i];
+        const double ru = rho_cell[index];
+        const double rho_x = 2.0 * rl * rr / (rl + rr);
+        const double rho_y = 2.0 * rd * ru / (rd + ru);
+        beta_x[index] = 1.0 / rho_x;
+        beta_y[index] = 1.0 / rho_y;
+      }
+    }
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        u_[index] += dt * fx[index] * beta_x[index];
+        v_[index] += dt * fy[index] * beta_y[index];
+      }
+    }
+    std::vector<double> div(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int ip = (i + 1 == nx_) ? 0 : i + 1;
+        const int jp = (j + 1 == ny_) ? 0 : j + 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        div[index] =
+            (u_[static_cast<std::size_t>(j) * nx_ + ip] - u_[index]) / hx_ +
+            (v_[static_cast<std::size_t>(jp) * nx_ + i] - v_[index]) / hy_;
+      }
+    }
+    for (double& d : div) {
+      d = d / dt;
+    }
+    VariablePoisson2D solver(nx_, ny_, hx_, hy_, beta_x, beta_y);
+    solver.solve(div, p_);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const int im = (i == 0) ? nx_ - 1 : i - 1;
+        const int jm = (j == 0) ? ny_ - 1 : j - 1;
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        u_[index] -= dt * beta_x[index] *
+                     (p_[index] - p_[static_cast<std::size_t>(j) * nx_ + im]) /
+                     hx_;
+        v_[index] -= dt * beta_y[index] *
+                     (p_[index] - p_[static_cast<std::size_t>(jm) * nx_ + i]) /
+                     hy_;
       }
     }
   }

@@ -166,7 +166,13 @@ prescribed as `1/r`:
 
 The zero spurious current and exact Laplace pressure validate the
 balanced-force CSF and projection coupling. Curvature is prescribed in this
-test; feeding the height-function curvature and variable density are next.
+test.
+
+A variable-density projection is included (`rho_l=1000`, `rho_g=1`, harmonic
+face density). The same bubble gives max `|u| = 3.93e-13`, divergence
+`4.0e-11`, and pressure jump `0.500000`: the balanced force remains exact
+across a 1000:1 density jump. Curvature from VOF on a closed interface is the
+next piece.
 
 Run:
 
@@ -182,8 +188,9 @@ ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
   error but the flux is still explicit).
 - Bounded redistribution is available as a safety net; interface compression
   is not implemented.
-- 2D and 3D height-function curvature are verified; balanced CSF is validated
-  with a prescribed-curvature static bubble. Variable-density coupling and
-  curvature-from-VOF on a closed interface are not implemented yet.
+- 2D and 3D height-function curvature are verified; balanced CSF and a
+  variable-density projection are validated with a static bubble. Full
+  variable-density momentum advection and curvature-from-VOF on a closed
+  interface are not implemented yet.
 - Next: 3D split PLIC, 3D translation/rotation tests, then curvature and
   balanced-force CSF (dam break, RTI, rising bubble).

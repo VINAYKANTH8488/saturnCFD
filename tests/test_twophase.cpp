@@ -55,6 +55,35 @@ int main() {
   if (mass_drift > 1.0e-12) {
     status = 1;
   }
+  {
+    // Variable density: liquid rho=1000 inside, gas rho=1 outside.
+    saturn::twophase::Solver2D bubble(n, n);
+    auto& c2 = bubble.c();
+    for (int i = 0; i < n; ++i) {
+      for (int j = 0; j < n; ++j) {
+        const double x = (i + 0.5) * bubble.hx();
+        const double y = (j + 0.5) * bubble.hy();
+        const double dist =
+            std::sqrt((x - 0.5) * (x - 0.5) + (y - 0.5) * (y - 0.5));
+        c2(i, j) = std::min(1.0, std::max(0.0, 0.5 + (0.2 - dist) / h));
+      }
+    }
+    std::vector<double> fx2;
+    std::vector<double> fy2;
+    bubble.csf_faces(kappa, sigma, fx2, fy2);
+    bubble.project_force_variable(fx2, fy2, 1.0e-3, 1000.0, 1.0);
+    const double speed2 = bubble.max_speed();
+    const double div2 = bubble.max_divergence();
+    const auto& p2 = bubble.p();
+    const double jump2 =
+        p2[static_cast<std::size_t>(n / 2) * n + n / 2] - p2[0];
+    std::printf("variable density: |u|max=%.3e div=%.3e dp=%.6f\n", speed2,
+                div2, jump2);
+    if (speed2 > 1.0e-5 || div2 > 1.0e-5 || std::abs(jump2 - expected) > 0.02) {
+      status = 1;
+    }
+  }
+
   std::printf("two-phase static bubble test %s\n",
               status == 0 ? "passed" : "failed");
   return status;

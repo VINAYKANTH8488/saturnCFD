@@ -525,8 +525,9 @@ to round-off.
 (max error at n=128); the 3D version is verified to 2.08e-03 at n=48. Bounded redistribution
 restores `[0,1]` while conserving mass to ~1e-16. Balanced CSF + 2D projection
 gives a static bubble with ~2e-17 spurious current and the exact Laplace
-pressure `sigma/r`. Details: `docs/verification/vof.md`. Variable-density
-coupling is next.
+pressure `sigma/r`; the variable-density projection holds at a 1000:1 density
+ratio (`|u|max=3.9e-13`). Details: `docs/verification/vof.md`. Curvature from
+VOF on a closed interface and full momentum advection are next.
 
 ## MPI
 
