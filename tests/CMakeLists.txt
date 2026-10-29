@@ -99,6 +99,14 @@ add_test(NAME saturn.channel_stats
 set_tests_properties(saturn.channel_stats
   PROPERTIES LABELS "verification;incompressible;channel")
 
+if(SATURN_HAVE_FFTW)
+  add_test(NAME saturn.channel_poiseuille_fft
+    COMMAND saturn_channel_sim --case poiseuille --n-list 16 32 --tend 0.1
+            --nu 0.1 --gx 1 --poisson fft --check)
+  set_tests_properties(saturn.channel_poiseuille_fft
+    PROPERTIES LABELS "verification;incompressible;channel;fft")
+endif()
+
 add_test(NAME saturn.incompressible_tgv3d_smoke
   COMMAND saturn_incompressible_sim --case tgv3d --n 16 --tend 1
           --nu 0.000625 --cfl 0.3 --check)

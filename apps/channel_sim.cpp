@@ -15,6 +15,7 @@
 #include "core/parallel.hpp"
 #include "core/version.hpp"
 #include "numerics/channel.hpp"
+#include "numerics/channel_poisson.hpp"
 #include "numerics/poisson.hpp"
 #include "numerics/projection.hpp"
 
@@ -27,6 +28,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #ifndef SATURN_DEFAULT_SPACE
@@ -53,6 +55,7 @@ struct Params {
   double cfl = 0.3;
   double poisson_tol = 1.0e-10;
   std::string stats;
+  std::string poisson = "mg";
   std::string space = "default";
   bool check = false;
   bool verbose = false;
@@ -73,6 +76,7 @@ void usage(const char* argv0) {
       "  --gx VALUE         streamwise body force for Poiseuille (default 1)\n"
       "  --perturb VALUE    initial perturbation amplitude (default 0)\n"
       "  --stats FILE       write plane-averaged channel statistics as CSV\n"
+      "  --poisson NAME     mg|fft pressure solver (default mg)\n"
       "  --tend VALUE       final time (default 0.1)\n"
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
@@ -155,6 +159,8 @@ Params parse(int argc, char** argv) {
       p.perturb = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--stats") {
       p.stats = require_value(i, argc, argv, a);
+    } else if (a == "--poisson") {
+      p.poisson = require_value(i, argc, argv, a);
     } else if (a == "--nu") {
       p.nu = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--u-top") {
@@ -215,7 +221,26 @@ struct CaseResult {
   double seconds = 0.0;
 };
 
-template <class ExecSpace>
+template <class Solver, class ExecSpace>
+Solver make_channel_solver(const saturn::channel::Geometry& g) {
+#ifdef SATURN_HAVE_FFTW
+  if constexpr (std::is_same_v<Solver,
+                               saturn::poisson::ChannelFftPoisson<ExecSpace>>) {
+    return Solver(std::array<int, 3>{{g.n0, g.n1, g.n2}},
+                  std::array<double, 3>{{g.hx, g.hy, g.hz}});
+  } else
+#endif
+  {
+    std::array<saturn::poisson::Boundary, 3> bc{
+        {saturn::poisson::Boundary::Periodic,
+         saturn::poisson::Boundary::Neumann,
+         saturn::poisson::Boundary::Periodic}};
+    return Solver(std::array<int, 3>{{g.n0, g.n1, g.n2}},
+                  std::array<double, 3>{{g.hx, g.hy, g.hz}}, bc, bc);
+  }
+}
+
+template <class ExecSpace, class Solver>
 CaseResult run_case(int ny, const Params& params) {
   using view_type = saturn::projection::ScalarView<ExecSpace>;
 
@@ -275,13 +300,7 @@ CaseResult run_case(int ny, const Params& params) {
                      Kokkos::cos(4.0 * kPi * zf / lz);
       });
 
-  std::array<saturn::poisson::Boundary, 3> bc_low{
-      {saturn::poisson::Boundary::Periodic, saturn::poisson::Boundary::Neumann,
-       saturn::poisson::Boundary::Periodic}};
-  std::array<saturn::poisson::Boundary, 3> bc_high = bc_low;
-  saturn::poisson::GeometricMultigrid<ExecSpace> solver(
-      std::array<int, 3>{{g.n0, g.n1, g.n2}},
-      std::array<double, 3>{{g.hx, g.hy, g.hz}}, bc_low, bc_high);
+  Solver solver = make_channel_solver<Solver, ExecSpace>(g);
   saturn::poisson::Options poptions;
   poptions.tolerance = params.poisson_tol;
   poptions.max_cycles = 100;
@@ -482,7 +501,22 @@ int run(const Params& params) {
 
   int status = 0;
   for (const int ny : params.ny_list) {
-    const CaseResult result = run_case<ExecSpace>(ny, params);
+    CaseResult result;
+#ifdef SATURN_HAVE_FFTW
+    if (params.poisson == "fft") {
+      result =
+          run_case<ExecSpace, saturn::poisson::ChannelFftPoisson<ExecSpace>>(
+              ny, params);
+    } else {
+      result =
+          run_case<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
+              ny, params);
+    }
+#else
+    result =
+        run_case<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
+            ny, params);
+#endif
     if (root) {
       std::printf("%6d %8d %12.4e %14.4e %14.4e %14.4e %10.3f\n", result.ny,
                   result.steps, result.dt, result.l2, result.divergence,

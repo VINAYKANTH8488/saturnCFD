@@ -927,7 +927,8 @@ scaling to 8 GPUs.
       (`docs/verification/poisson.md`).
 - [x] Wall-bounded MAC channel (periodic x/z, no-slip y walls): Couette is an
       exact discrete steady state and plane Poiseuille converges at second
-      order (`docs/verification/channel.md`).
+      order (`docs/verification/channel.md`). A fast FFT-x/z + tridiagonal-y
+      Poisson solver is available via `--poisson fft`.
 - [x] Lid-driven cavity with x/y no-slip walls and a moving lid; Re=100
       centreline profiles match Ghia et al. (RMS 7.6e-3 u, 9.9e-3 v),
       `max|div| ~ 3e-11` (`docs/verification/cavity.md`). Re=400 tables are

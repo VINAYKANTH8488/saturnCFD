@@ -455,7 +455,10 @@ Neumann pressure.
 
 Couette flow is an exact discrete steady state (L2 error `~1e-17`), and plane
 Poiseuille flow converges at second order (`9.96e-4`, `2.55e-4`, `6.40e-5` at
-NY 16/32/64) with zero divergence. Details: `docs/verification/channel.md`.
+NY 16/32/64) with zero divergence. `--poisson fft` uses 2D FFTs in x/z plus a
+tridiagonal y solve and gives identical laminar errors faster; the turbulent
+`Re_tau=180` demo still needs scheme stabilization/wall refinement.
+Details: `docs/verification/channel.md`.
 
 ## Lid-driven cavity (Phase 3)
 

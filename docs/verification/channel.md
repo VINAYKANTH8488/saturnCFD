@@ -68,6 +68,29 @@ The exact centerline velocity is `gx Ly^2 / (8 nu) = 1.25`, approached as the
 grid is refined. The L2 error decreases at second order and the projected
 divergence is zero to round-off.
 
+## Fast wall-bounded Poisson solver
+
+`--poisson fft` selects `src/numerics/channel_poisson.hpp`: 2D FFTs in the
+periodic x/z directions plus a tridiagonal Thomas solve in y for each Fourier
+mode. It uses the same 7-point discretization and Neumann wall conditions as
+the multigrid path. For the laminar Poiseuille case the errors are identical
+(`9.955e-04`, `2.545e-04` at NY 16/32); the FFT path is faster per projection.
+
+```bash
+./build/cpu-openmp/apps/saturn_channel_sim \
+  --case poiseuille --n-list 16 32 --tend 0.1 --nu 0.1 --gx 1 \
+  --poisson fft --check
+```
+
+The turbulent demo above was rerun with this solver at
+`(nx,ny,nz)=(32,64,16)`, `nu=1/180`, `gx=1` and a 0.1 perturbation. The wall
+shear reached the target (`u_tau=1.001`, `Re_tau=180.2`), but the coarse
+central-advection scheme became unstable after transition (centreline velocity
+grew to ~90, with the time step collapsing). This confirms that the remaining
+blocker for a turbulent channel is **scheme stabilization / wall refinement**,
+not the pressure solve. A dealiased/filtered advection treatment and a
+wall-refined grid are required before production statistics.
+
 ## Statistics
 
 `--stats FILE` writes plane-averaged profiles after the run:
