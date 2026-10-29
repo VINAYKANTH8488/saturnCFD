@@ -894,8 +894,9 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
       `central4`/WENO5-Z/`central6`; periodic inviscid mass and total-energy
       drift ≤ 1e-15 enforced by `--energy-tol`).
 - [x] GPU performance baseline on the local P600: stencil 27.93 GB/s,
-      STREAM 54.2 GB/s (`docs/performance/gpu_p600.md`); the full CUDA CTest
-      suite passes. Register/occupancy tuning and multi-GPU scaling remain.
+      STREAM 54.2 GB/s (`docs/performance/gpu_p600.md`); full serial and MPI
+      CUDA test suites pass. Register/occupancy tuning and multi-GPU scaling
+      remain.
 
 **Current:** reconstruction, all four Riemann solvers, and the 1D Sod gate are
 passing on CPU Serial/OpenMP. The 3D Navier–Stokes path has smooth MMS at

@@ -48,6 +48,7 @@ expected range for a 7-point stencil with two arrays on this class of GPU.
 | 3D compressible MMS | passes, WENO5-Z order 5.14 at 8/16 |
 | 3D compressible driver | acoustic K `8.08e-10` matches CPU; TGV and double Mach run |
 | full CUDA CTest suite | **32/32 pass** |
+| CUDA + MPI suite | **44/44 pass** (2/4 ranks sharing the single GPU) |
 
 Two CUDA-specific capture bugs were fixed: the generic RK helpers were
 capturing `PatchField` objects instead of their views (and using the
@@ -55,6 +56,21 @@ destination's ghost offset for sources with different `ng`), and the boundary
 condition kernel captured a C array of boundary types. Both produced stale or
 host-memory reads on device. After the fixes the CUDA results match the CPU
 results bit-for-bit for the tested cases.
+
+## Compressible driver
+
+3D Taylor–Green, `--tend 0.2`, identical diagnostics on CPU and GPU:
+
+| Grid | steps | GPU wall | CPU (8 threads) | speedup |
+|---|---|---|---|---|
+| 64³ | 11 | 1.46 s | 2.61 s | 1.8x |
+| 128³ | 21 | 19.39 s | 38.17 s | 2.0x |
+
+The compressible kernels are not yet tuned: face fluxes, gradients, and the
+viscous stencil are separate kernels with substantial workspace traffic and
+launch overhead. Kernel fusion, a tuned tile size, and occupancy work are the
+next performance steps. The GPU results match the CPU diagnostics bit-for-bit
+for these cases.
 
 ## Notes
 
