@@ -227,5 +227,107 @@ void advance_ssprk3(projection::ScalarView<ExecSpace>& u,
   project(u, v, w);
 }
 
+// Wall-aware fourth-order filter for the channel (periodic x/z, walls in y).
+// `component`: 0 = u, 1 = v, 2 = w. Temps must be distinct from the inputs.
+template <class ExecSpace>
+void filter_dimension(const projection::ScalarView<ExecSpace>& in,
+                      projection::ScalarView<ExecSpace>& out, double alpha,
+                      int dimension, int component, const Geometry& g) {
+  const int n0 = g.n0;
+  const int n1 = g.n1;
+  const int n2 = g.n2;
+  const double u_top = (component == 0) ? g.u_top : 0.0;
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+  Kokkos::parallel_for(
+      "channel_filter", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        auto at = [&](int jj) {
+          if (jj >= 0 && jj < n1) {
+            return in(k, jj, i);
+          }
+          if (jj < 0) {
+            if (component == 1) {
+              return -in(k, -jj, i);
+            }
+            return -in(k, -jj - 1, i);
+          }
+          if (component == 1) {
+            if (jj == n1) {
+              return 0.0;
+            }
+            return -in(k, 2 * n1 - jj, i);
+          }
+          const int mirror = 2 * n1 - jj - 1;
+          if (component == 0) {
+            return 2.0 * u_top - in(k, mirror, i);
+          }
+          return -in(k, mirror, i);
+        };
+        double value = 0.0;
+        if (dimension == 0) {
+          const int im2 = (i - 2 + n0) % n0;
+          const int im1 = (i - 1 + n0) % n0;
+          const int ip1 = (i + 1) % n0;
+          const int ip2 = (i + 2) % n0;
+          value = in(k, j, im2) - 4.0 * in(k, j, im1) + 6.0 * in(k, j, i) -
+                  4.0 * in(k, j, ip1) + in(k, j, ip2);
+        } else if (dimension == 1) {
+          value = at(j - 2) - 4.0 * at(j - 1) + 6.0 * in(k, j, i) -
+                  4.0 * at(j + 1) + at(j + 2);
+        } else {
+          const int km2 = (k - 2 + n2) % n2;
+          const int km1 = (k - 1 + n2) % n2;
+          const int kp1 = (k + 1) % n2;
+          const int kp2 = (k + 2) % n2;
+          value = in(km2, j, i) - 4.0 * in(km1, j, i) + 6.0 * in(k, j, i) -
+                  4.0 * in(kp1, j, i) + in(kp2, j, i);
+        }
+        out(k, j, i) = in(k, j, i) - (alpha / 16.0) * value;
+      });
+}
+
+template <class ExecSpace>
+void filter4_channel(projection::ScalarView<ExecSpace>& u,
+                     projection::ScalarView<ExecSpace>& v,
+                     projection::ScalarView<ExecSpace>& w,
+                     projection::ScalarView<ExecSpace>& tu,
+                     projection::ScalarView<ExecSpace>& tv,
+                     projection::ScalarView<ExecSpace>& tw, const Geometry& g,
+                     double alpha) {
+  if (alpha <= 0.0) {
+    return;
+  }
+  filter_dimension<ExecSpace>(u, tu, alpha, 0, 0, g);
+  filter_dimension<ExecSpace>(tu, u, alpha, 1, 0, g);
+  filter_dimension<ExecSpace>(u, tu, alpha, 2, 0, g);
+  Kokkos::deep_copy(u, tu);
+
+  filter_dimension<ExecSpace>(v, tv, alpha, 0, 1, g);
+  filter_dimension<ExecSpace>(tv, v, alpha, 1, 1, g);
+  filter_dimension<ExecSpace>(v, tv, alpha, 2, 1, g);
+  Kokkos::deep_copy(v, tv);
+
+  filter_dimension<ExecSpace>(w, tw, alpha, 0, 2, g);
+  filter_dimension<ExecSpace>(tw, w, alpha, 1, 2, g);
+  filter_dimension<ExecSpace>(w, tw, alpha, 2, 2, g);
+  Kokkos::deep_copy(w, tw);
+
+  const int n0 = g.n0;
+  const int n1 = g.n1;
+  const int n2 = g.n2;
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+  Kokkos::parallel_for(
+      "channel_filter_walls", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        (void)k;
+        if (i == 0) {
+          u(k, j, i) = 0.0;
+        }
+        if (j == 0) {
+          v(k, j, i) = 0.0;
+        }
+      });
+}
+
 }  // namespace channel
 }  // namespace saturn

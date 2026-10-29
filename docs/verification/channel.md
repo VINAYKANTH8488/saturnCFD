@@ -86,10 +86,12 @@ The turbulent demo above was rerun with this solver at
 `(nx,ny,nz)=(32,64,16)`, `nu=1/180`, `gx=1` and a 0.1 perturbation. The wall
 shear reached the target (`u_tau=1.001`, `Re_tau=180.2`), but the coarse
 central-advection scheme became unstable after transition (centreline velocity
-grew to ~90, with the time step collapsing). This confirms that the remaining
-blocker for a turbulent channel is **scheme stabilization / wall refinement**,
-not the pressure solve. A dealiased/filtered advection treatment and a
-wall-refined grid are required before production statistics.
+grew to ~90, with the time step collapsing). A wall-aware 4th-order filter is
+available (`--filter ALPHA`), but `alpha=0.1` did not change the outcome at
+this resolution. This confirms that the remaining blocker for a turbulent
+channel is **scheme stabilization / wall refinement**, not the pressure solve.
+A dealiased/filtered advection treatment and a wall-refined grid (`Delta y+<1`)
+are required before production statistics.
 
 ## Statistics
 

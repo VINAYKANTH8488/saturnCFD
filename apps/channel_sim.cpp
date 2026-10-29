@@ -51,6 +51,7 @@ struct Params {
   double u_top = 1.0;
   double gx = 0.0;
   double perturb = 0.0;
+  double filter_alpha = 0.0;
   double tend = 0.1;
   double cfl = 0.3;
   double poisson_tol = 1.0e-10;
@@ -75,6 +76,7 @@ void usage(const char* argv0) {
       "  --u-top VALUE      top-wall speed for Couette (default 1)\n"
       "  --gx VALUE         streamwise body force for Poiseuille (default 1)\n"
       "  --perturb VALUE    initial perturbation amplitude (default 0)\n"
+      "  --filter ALPHA     wall-aware 4th-order filter strength (default 0)\n"
       "  --stats FILE       write plane-averaged channel statistics as CSV\n"
       "  --poisson NAME     mg|fft pressure solver (default mg)\n"
       "  --tend VALUE       final time (default 0.1)\n"
@@ -159,6 +161,8 @@ Params parse(int argc, char** argv) {
       p.perturb = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--stats") {
       p.stats = require_value(i, argc, argv, a);
+    } else if (a == "--filter") {
+      p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--poisson") {
       p.poisson = require_value(i, argc, argv, a);
     } else if (a == "--nu") {
