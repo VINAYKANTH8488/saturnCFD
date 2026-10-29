@@ -380,6 +380,56 @@ class DamBreak2D {
     return c_[static_cast<std::size_t>(jj) * nx_ + ii];
   }
 
+  // Geometric PLIC flux of fluid 1 through each x-face (indexed like u_).
+  void plic_flux_x(double dt, std::vector<double>& flux) const {
+    const auto rec = wall_reconstructions();
+    flux.assign(c_.size(), 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 1; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double vel = u_[index];
+        if (vel == 0.0) {
+          continue;
+        }
+        const int up = vel > 0.0 ? i - 1 : i;
+        const auto& r = rec[static_cast<std::size_t>(j) * nx_ + up];
+        const double width = std::min(std::abs(vel) * dt / hx_, 1.0);
+        const double x0 = vel > 0.0 ? 1.0 - width : 0.0;
+        const double x1 = vel > 0.0 ? 1.0 : width;
+        std::vector<vof::Point> poly = vof::fluid_polygon(r);
+        poly = vof::clip_axis(poly, 0, x0, -1.0);
+        poly = vof::clip_axis(poly, 0, x1, 1.0);
+        flux[index] =
+            (vel > 0.0 ? 1.0 : -1.0) * vof::polygon_area(poly) * hx_ * hy_;
+      }
+    }
+  }
+
+  // Geometric PLIC flux of fluid 1 through each y-face (indexed like v_).
+  void plic_flux_y(double dt, std::vector<double>& flux) const {
+    const auto rec = wall_reconstructions();
+    flux.assign(c_.size(), 0.0);
+    for (int j = 1; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double vel = v_[index];
+        if (vel == 0.0) {
+          continue;
+        }
+        const int up = vel > 0.0 ? j - 1 : j;
+        const auto& r = rec[static_cast<std::size_t>(up) * nx_ + i];
+        const double width = std::min(std::abs(vel) * dt / hy_, 1.0);
+        const double y0 = vel > 0.0 ? 1.0 - width : 0.0;
+        const double y1 = vel > 0.0 ? 1.0 : width;
+        std::vector<vof::Point> poly = vof::fluid_polygon(r);
+        poly = vof::clip_axis(poly, 1, y0, -1.0);
+        poly = vof::clip_axis(poly, 1, y1, 1.0);
+        flux[index] =
+            (vel > 0.0 ? 1.0 : -1.0) * vof::polygon_area(poly) * hx_ * hy_;
+      }
+    }
+  }
+
   std::vector<vof::Reconstruction> wall_reconstructions() const {
     std::vector<vof::Reconstruction> rec(static_cast<std::size_t>(nx_) * ny_);
     for (int j = 0; j < ny_; ++j) {
