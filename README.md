@@ -507,6 +507,7 @@ to round-off.
 ./build/cpu-openmp/tests/saturn_test_vof
 ./build/cpu-openmp/tests/saturn_test_vof3d
 ./build/cpu-openmp/tests/saturn_test_vof_curvature
+./build/cpu-openmp/tests/saturn_test_vof_curvature3d
 ```
 
 | Case | L1 error |
@@ -519,8 +520,8 @@ to round-off.
 | 3D rotation | 3.76e-3 |
 
 2D height-function curvature on a sine interface is verified to 2.54e-07
-(max error at n=128). Details: `docs/verification/vof.md`. Redistribution,
-CSF surface tension, and momentum coupling are next.
+(max error at n=128); the 3D version is verified to 2.08e-03 at n=48. Details:
+`docs/verification/vof.md`. CSF surface tension and momentum coupling are next.
 
 ## MPI
 

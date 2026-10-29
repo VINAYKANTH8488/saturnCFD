@@ -98,6 +98,28 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.vof_curvature --output-on-failure
 ```
 
+## 3D height-function curvature
+
+`src/numerics/vof_curvature3d.hpp` computes the height function
+`h_ij = sum_k c_ijk hz`, 5-point derivatives in x/y, the mixed derivative, and
+
+```
+kappa = [h_xx (1+h_y^2) + h_yy (1+h_x^2) - 2 h_x h_y h_xy]
+        / (1 + h_x^2 + h_y^2)^(3/2).
+```
+
+On `z = 0.5 + 0.1 sin(2 pi x) sin(2 pi y)` at `n=48` (exact cell
+fractions), the maximum curvature error is **2.08e-03** (RMS 9.19e-04) over
+1936 samples. As with the 2D test, this validates the geometric formula and
+derivative stencils; curvature from noisy/advected interfaces is next.
+
+Run:
+
+```bash
+./build/cpu-openmp/tests/saturn_test_vof_curvature3d
+ctest --test-dir build/cpu-openmp -R saturn.vof_curvature3d --output-on-failure
+```
+
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; no Kokkos/GPU version yet.
@@ -106,7 +128,7 @@ ctest --test-dir build/cpu-openmp -R saturn.vof_curvature --output-on-failure
 - No bounded redistribution/normalization or interface compression; the
   3D rotation range is bounded to ~1e-13 here, but a generic redistribution
   pass is still needed.
-- 2D height-function curvature is verified; the 3D version, CSF surface
-  tension, and variable-density coupling are not implemented yet.
+- 2D and 3D height-function curvature are verified; CSF surface tension and
+  variable-density coupling are not implemented yet.
 - Next: 3D split PLIC, 3D translation/rotation tests, then curvature and
   balanced-force CSF (dam break, RTI, rising bubble).
