@@ -116,6 +116,11 @@ add_test(NAME saturn.cavity
 set_tests_properties(saturn.cavity
   PROPERTIES LABELS "verification;incompressible;cavity")
 
+add_test(NAME saturn.edac_tgv
+  COMMAND saturn_edac_sim --n 32 --mc 0.1 --tau 0.01 --tend 0.5 --check)
+set_tests_properties(saturn.edac_tgv
+  PROPERTIES LABELS "verification;incompressible;edac")
+
 add_test(NAME saturn.scalar_mms
   COMMAND saturn_scalar_mms --n-list 16 32 --nu 0.01 --tend 0.2 --check)
 set_tests_properties(saturn.scalar_mms PROPERTIES LABELS "verification")

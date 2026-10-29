@@ -81,6 +81,10 @@ Progress:
   match Ghia et al. to RMS 7.6e-3 (u) and 9.9e-3 (v), with `max|div| ~3e-11`
   (`docs/verification/cavity.md`). Re=400 tables are also wired in; a coarse
   24² run gives RMS 0.074 (u) / 0.072 (v).
+- Phase 3 EDAC prototype (`apps/edac_sim.cpp`): the exact 2D TGV matches the
+  projection velocity error at `M_c=0.05` (1.914e-3 vs 1.901e-3 at 32²,
+  4.800e-4 vs 4.756e-4 at 64²) but needs ~12.6x more steps; divergence is
+  `O(M_c)` (`docs/verification/edac.md`).
 
 ## Requirements
 
@@ -399,6 +403,22 @@ centreline profiles are compared with Ghia, Ghia & Shin (1982):
 At `n=32` the RMS difference from Ghia is **7.6e-3** (u) and **9.9e-3** (v),
 with `max|div| ~3e-11`. The fast `n=16` gate runs in about 10 s. Details:
 `docs/verification/cavity.md`.
+
+## EDAC prototype (Phase 3)
+
+`apps/edac_sim.cpp` implements Entropically Damped Artificial Compressibility:
+a local pressure evolution that replaces the Poisson solve. On the exact 2D
+Taylor–Green vortex it matches the projection velocity error at `M_c=0.05`
+(1.914e-3 vs 1.901e-3 at 32²; 4.800e-4 vs 4.756e-4 at 64²) but needs ~12.6x
+more steps. Divergence is `O(M_c)`; starting from `p=0` leaves a long acoustic
+transient. Projection + GMG/FFT remains the production path.
+
+```bash
+./build/cpu-openmp/apps/saturn_edac_sim \
+  --n-list 32 64 --mc 0.05 --tau 0.01 --tend 1 --check
+```
+
+Details: `docs/verification/edac.md`.
 
 ## MPI
 

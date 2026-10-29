@@ -929,20 +929,25 @@ scaling to 8 GPUs.
       centreline profiles match Ghia et al. (RMS 7.6e-3 u, 9.9e-3 v),
       `max|div| ~ 3e-11` (`docs/verification/cavity.md`). Re=400 tables are
       included; a coarse 24² run gives RMS 0.074/0.072.
-- [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
+- [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
+      C++ TGV prototype matches projection velocity error at `M_c=0.05` with
+      ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).
 - [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity at higher Re on both
       paths. The 3D TGV is implemented; a 4th-order filter (`alpha=0.1`) plus
       the FFT pressure solver stabilizes n=64 (peak `-dK/dt/V = 1.142e-2` at
       `t=8.96`, 8.6% below the reference) but it remains a filtered exercise,
       not a DNS benchmark (`docs/verification/incompressible.md`).
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
+      Divergence scaling (0.20 → 0.025) is measured; the GPU cost crossover is
+      pending.
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
 **Current:** periodic GMG and FFT Poisson solvers, the staggered-MAC projection
-solver, wall-bounded channel flow, and the Ghia Re=100/400 cavity are verified.
-The 3D TGV runs stably at n=64 with a 4th-order filter and peaks within 9% of
-the reference. Next: turbulent channel, higher-Re cavity, a dealiased 3D TGV,
-and a distributed multigrid solve.
+solver, wall-bounded channel flow, the Ghia Re=100/400 cavity, and the EDAC
+prototype are verified. The 3D TGV runs stably at n=64 with a 4th-order filter
+and peaks within 9% of the reference. Next: turbulent channel, higher-Re
+cavity, a dealiased 3D TGV, a GPU cost-crossover, and a distributed multigrid
+solve.
 
 **Exit:** projection + GMG validated against references and ≥ 70%
 strong-scaling efficiency at 8 GPUs for 512³; EDAC measured against the

@@ -95,8 +95,11 @@ A turbulent channel attempt uses a longer domain and initial perturbations:
 At `nu=1/180`, `Ly=2`, `gx=1` the target friction Reynolds number is 180.
 The uniform 64-cell wall-normal grid gives `Delta y+ ~ 5.6`, which is far
 coarser than a DNS wall layer; this run is an infrastructure demo, not a
-validated turbulent-channel solution. Statistics for this case are reported
-separately when available.
+validated turbulent-channel solution. The demo did not complete within a
+17-minute budget on 8 threads and was stopped; the statistics path itself is
+validated by the laminar Poiseuille case above. A production turbulent channel
+needs a wall-refined or much finer grid, a longer averaging window, and likely
+an implicit viscous term.
 
 ## Commands
 
