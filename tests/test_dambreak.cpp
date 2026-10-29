@@ -175,7 +175,7 @@ bool check_rising_bubble() {
 
 // Rayleigh-Taylor linear growth at Atwood 1/3: the centre-column vertical
 // velocity should grow as exp(sigma t) with sigma = sqrt(A g k) to within the
-// accuracy of the first-order upwind momentum flux at n=64.
+// accuracy of the face-staggered conservative momentum flux at n=64.
 bool check_rti() {
   const int n = 64;
   const double h = 1.0 / n;

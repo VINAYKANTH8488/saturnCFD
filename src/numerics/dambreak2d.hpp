@@ -14,12 +14,13 @@ namespace twophase {
 
 // Wall-bounded two-phase solver prototype.
 //
-// Closed box [0,1]^2, no-slip/no-penetration walls on all sides, gravity in
-// -y, variable density rho(c), wall-aware PLIC transport, balanced CSF, and a
-// conservative first-order upwind momentum flux. The pressure projection uses
-// the variable-coefficient Neumann PCG solver. The momentum flux is
-// deliberately dissipative to remain stable at high density ratios; a
-// conservative variable-density (rho u) formulation is the production step.
+// Closed box, no-slip/no-penetration walls, gravity in -y, variable density
+// rho(c) and viscosity mu(c), wall-aware PLIC transport, balanced CSF, and a
+// face-staggered conservative momentum update. The volume fraction and
+// momentum fluxes are built from the same PLIC face fluxes, so the discrete
+// density and momentum updates are consistent. The pressure projection uses
+// the variable-coefficient Neumann PCG solver. The scheme is first order in
+// time; it is a validation prototype, not yet a production solver.
 class DamBreak2D {
  public:
   DamBreak2D(int nx, int ny, double lx = 1.0, double ly = 1.0)
@@ -55,141 +56,204 @@ class DamBreak2D {
     step(dt, rho_l, rho_g, mu, mu, gy, project, sigma);
   }
 
+  // Face-staggered conservative step. c and the momentum use the same PLIC
+  // mass fluxes; momentum lives on the MAC faces, so no cell-centred
+  // velocity re-averaging is needed before the projection.
   void step(double dt, double rho_l, double rho_g, double mu_l, double mu_g,
             double gy, bool project, double sigma) {
     const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
-    std::vector<double> rho(total, 0.0);
+    std::vector<double> rho_old(total, 0.0);
     for (std::size_t q = 0; q < total; ++q) {
-      rho[q] = rho_l * c_[q] + rho_g * (1.0 - c_[q]);
+      rho_old[q] = rho_l * c_[q] + rho_g * (1.0 - c_[q]);
     }
-    std::vector<double> bx(total, 0.0);
-    std::vector<double> by(total, 0.0);
-    std::vector<double> mux(total, 0.0);
-    std::vector<double> muy(total, 0.0);
+
+    std::vector<double> vof_x;
+    std::vector<double> vof_y;
+    plic_flux_x(dt, vof_x);
+    plic_flux_y(dt, vof_y);
+
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-        const double mu_here = mu_l * c_[index] + mu_g * (1.0 - c_[index]);
+        const double right = (i + 1 == nx_) ? 0.0 : vof_x[index + 1];
+        const double high = (j + 1 == ny_) ? 0.0 : vof_y[index + nx_];
+        c_[index] -= (right - vof_x[index]) / (hx_ * hy_) +
+                     (high - vof_y[index]) / (hx_ * hy_);
+      }
+    }
+    restore_bounds();
+
+    std::vector<double> rho_new(total, 0.0);
+    std::vector<double> mu_cell(total, 0.0);
+    for (std::size_t q = 0; q < total; ++q) {
+      rho_new[q] = rho_l * c_[q] + rho_g * (1.0 - c_[q]);
+      mu_cell[q] = mu_l * c_[q] + mu_g * (1.0 - c_[q]);
+    }
+
+    std::vector<double> rho_u_old(total, 0.0);
+    std::vector<double> rho_v_old(total, 0.0);
+    std::vector<double> rho_u_new(total, 0.0);
+    std::vector<double> rho_v_new(total, 0.0);
+    std::vector<double> m_u(total, 0.0);
+    std::vector<double> m_v(total, 0.0);
+    std::vector<double> mass_x(total, 0.0);
+    std::vector<double> mass_y(total, 0.0);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        rho_u_old[index] = (i == 0)
+                               ? rho_old[index]
+                               : 0.5 * (rho_old[index - 1] + rho_old[index]);
+        rho_v_old[index] = (j == 0)
+                               ? rho_old[index]
+                               : 0.5 * (rho_old[index - nx_] + rho_old[index]);
+        rho_u_new[index] = (i == 0)
+                               ? rho_new[index]
+                               : 0.5 * (rho_new[index - 1] + rho_new[index]);
+        rho_v_new[index] = (j == 0)
+                               ? rho_new[index]
+                               : 0.5 * (rho_new[index - nx_] + rho_new[index]);
+        m_u[index] = rho_u_old[index] * u_[index];
+        m_v[index] = rho_v_old[index] * v_[index];
         if (i > 0) {
-          const std::size_t left = static_cast<std::size_t>(j) * nx_ + i - 1;
-          const double rl = rho[left];
-          bx[index] = (rl + rho[index]) / (2.0 * rl * rho[index]);
-          const double mu_left = mu_l * c_[left] + mu_g * (1.0 - c_[left]);
-          mux[index] = 0.5 * (mu_left + mu_here);
+          mass_x[index] = rho_l * vof_x[index] +
+                          rho_g * (u_[index] * dt * hy_ - vof_x[index]);
         }
         if (j > 0) {
-          const std::size_t below = static_cast<std::size_t>(j - 1) * nx_ + i;
-          const double rd = rho[below];
-          by[index] = (rd + rho[index]) / (2.0 * rd * rho[index]);
-          const double mu_below = mu_l * c_[below] + mu_g * (1.0 - c_[below]);
-          muy[index] = 0.5 * (mu_below + mu_here);
+          mass_y[index] = rho_l * vof_y[index] +
+                          rho_g * (v_[index] * dt * hx_ - vof_y[index]);
         }
       }
     }
 
-    // Cell-centred velocities for a conservative first-order upwind flux.
-    std::vector<double> uc(total, 0.0);
-    std::vector<double> vc(total, 0.0);
+    std::vector<double> bx_new(total, 0.0);
+    std::vector<double> by_new(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-        const double u_right = (i + 1 == nx_) ? 0.0 : u_[index + 1];
-        const double v_high = (j + 1 == ny_) ? 0.0 : v_[index + nx_];
-        uc[index] = 0.5 * (u_[index] + u_right);
-        vc[index] = 0.5 * (v_[index] + v_high);
-      }
-    }
-    auto upwind = [](double velocity, double left, double right) {
-      return velocity * (velocity > 0.0 ? left : right);
-    };
-    std::vector<double> du(total, 0.0);
-    std::vector<double> dv(total, 0.0);
-    for (int j = 0; j < ny_; ++j) {
-      for (int i = 1; i < nx_; ++i) {
-        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-        const std::size_t xm = index - 1;
-        const std::size_t xp = (i + 1 == nx_) ? index : index + 1;
-        const double u_here = u_[index];
-        const double u_left = u_[xm];
-        const double u_right = (i + 1 == nx_) ? 0.0 : u_[xp];
-        const double u_low = (j == 0) ? -u_here : u_[index - nx_];
-        const double u_high = (j + 1 == ny_) ? -u_here : u_[index + nx_];
-        const std::size_t ymb = (j == 0) ? index : index - nx_;
-        const std::size_t yab = (j + 1 == ny_) ? index : index + nx_;
-        const double u_below = uc[ymb];
-        const double u_above = uc[yab];
-        const double f_left =
-            (i == 0) ? 0.0
-                     : upwind(0.5 * (uc[xm] + uc[index]), uc[xm], uc[index]);
-        const double f_right =
-            (i + 1 == nx_)
-                ? 0.0
-                : upwind(0.5 * (uc[index] + uc[xp]), uc[index], uc[xp]);
-        const double g_low =
-            (j == 0) ? 0.0
-                     : upwind(0.5 * (vc[ymb] + vc[index]), u_below, uc[index]);
-        const double g_high =
-            (j + 1 == ny_)
-                ? 0.0
-                : upwind(0.5 * (vc[index] + vc[yab]), uc[index], u_above);
-        const double lap = (u_right - 2.0 * u_here + u_left) / (hx_ * hx_) +
-                           (u_high - 2.0 * u_here + u_low) / (hy_ * hy_);
-        du[index] = -((f_right - f_left) / hx_ + (g_high - g_low) / hy_) +
-                    mux[index] * bx[index] * lap;
-      }
-    }
-    for (int j = 1; j < ny_; ++j) {
-      for (int i = 0; i < nx_; ++i) {
-        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-        const std::size_t ym = index - nx_;
-        const std::size_t yp = (j + 1 == ny_) ? index : index + nx_;
-        const double v_here = v_[index];
-        const double v_low = v_[ym];
-        const double v_high = (j + 1 == ny_) ? 0.0 : v_[yp];
-        const double v_left = (i == 0) ? -v_here : v_[index - 1];
-        const double v_right = (i + 1 == nx_) ? -v_here : v_[index + 1];
-        const std::size_t xmb = (i == 0) ? index : index - 1;
-        const std::size_t xab = (i + 1 == nx_) ? index : index + 1;
-        const double f_left =
-            (i == 0) ? 0.0
-                     : upwind(0.5 * (uc[xmb] + uc[index]), vc[xmb], vc[index]);
-        const double f_right =
-            (i + 1 == nx_)
-                ? 0.0
-                : upwind(0.5 * (uc[index] + uc[xab]), vc[index], vc[xab]);
-        const double g_low =
-            (j == 0) ? 0.0
-                     : upwind(0.5 * (vc[ym] + vc[index]), vc[ym], vc[index]);
-        const double g_high =
-            (j + 1 == ny_)
-                ? 0.0
-                : upwind(0.5 * (vc[index] + vc[yp]), vc[index], vc[yp]);
-        const double lap = (v_right - 2.0 * v_here + v_left) / (hx_ * hx_) +
-                           (v_high - 2.0 * v_here + v_low) / (hy_ * hy_);
-        dv[index] = -((f_right - f_left) / hx_ + (g_high - g_low) / hy_) +
-                    muy[index] * by[index] * lap + gy;
+        if (i > 0) {
+          const double rl = rho_new[index - 1];
+          bx_new[index] = (rl + rho_new[index]) / (2.0 * rl * rho_new[index]);
+        }
+        if (j > 0) {
+          const double rd = rho_new[index - nx_];
+          by_new[index] = (rd + rho_new[index]) / (2.0 * rd * rho_new[index]);
+        }
       }
     }
 
-    std::vector<double> fx;
-    std::vector<double> fy;
-    csf_forces(sigma, fx, fy);
+    // u-momentum on x-faces.
+    std::vector<double> u_new(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 1; i < nx_; ++i) {
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-        u_[index] += dt * (du[index] + bx[index] * fx[index]);
+        const double mass_left =
+            0.5 * (((i > 1) ? mass_x[index - 1] : 0.0) + mass_x[index]);
+        const double mass_right =
+            0.5 * (mass_x[index] + ((i + 1 < nx_) ? mass_x[index + 1] : 0.0));
+        const double u_left_boundary =
+            0.5 * (((i > 1) ? u_[index - 1] : 0.0) + u_[index]);
+        const double u_right_boundary =
+            0.5 * (u_[index] + ((i + 1 < nx_) ? u_[index + 1] : 0.0));
+        const double f_left =
+            mass_left * (u_left_boundary > 0.0 ? u_[index - 1] : u_[index]);
+        const double f_right =
+            mass_right * (u_right_boundary > 0.0
+                              ? u_[index]
+                              : ((i + 1 < nx_) ? u_[index + 1] : 0.0));
+        const double v_bottom = 0.5 * (v_[index - 1] + v_[index]);
+        const double v_top =
+            0.5 * (((j + 1 < ny_) ? v_[index - 1 + nx_] : 0.0) +
+                   ((j + 1 < ny_) ? v_[index + nx_] : 0.0));
+        const double mass_bottom = 0.5 * (((j > 0) ? mass_y[index - 1] : 0.0) +
+                                          ((j > 0) ? mass_y[index] : 0.0));
+        const double mass_top =
+            0.5 * (((j + 1 < ny_) ? mass_y[index - 1 + nx_] : 0.0) +
+                   ((j + 1 < ny_) ? mass_y[index + nx_] : 0.0));
+        const double g_bottom =
+            mass_bottom *
+            (v_bottom > 0.0 ? ((j > 0) ? u_[index - nx_] : 0.0) : u_[index]);
+        const double g_top =
+            mass_top *
+            (v_top > 0.0 ? u_[index] : ((j + 1 < ny_) ? u_[index + nx_] : 0.0));
+        const double u_left = (i > 1) ? u_[index - 1] : 0.0;
+        const double u_right = (i + 1 < nx_) ? u_[index + 1] : 0.0;
+        const double u_low = (j > 0) ? u_[index - nx_] : -u_[index];
+        const double u_high = (j + 1 < ny_) ? u_[index + nx_] : -u_[index];
+        const double lap = (u_right - 2.0 * u_[index] + u_left) / (hx_ * hx_) +
+                           (u_high - 2.0 * u_[index] + u_low) / (hy_ * hy_);
+        const double mu_face = 0.5 * (mu_cell[index - 1] + mu_cell[index]);
+        const double m_new =
+            m_u[index] -
+            ((f_right - f_left) + (g_top - g_bottom)) / (hx_ * hy_);
+        u_new[index] =
+            m_new / rho_u_new[index] + dt * (mu_face * bx_new[index] * lap);
       }
-      u_[static_cast<std::size_t>(j) * nx_] = 0.0;
+      u_new[static_cast<std::size_t>(j) * nx_] = 0.0;
+    }
+
+    // v-momentum on y-faces.
+    std::vector<double> v_new(total, 0.0);
+    for (int j = 1; j < ny_; ++j) {
+      for (int i = 0; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const double mass_left = mass_x[index];
+        const double mass_right = (i + 1 < nx_) ? mass_x[index + 1] : 0.0;
+        const double f_left =
+            mass_left *
+            (u_[index] > 0.0 ? ((i > 0) ? v_[index - 1] : 0.0) : v_[index]);
+        const double f_right =
+            mass_right * (((i + 1 < nx_) && u_[index + 1] > 0.0)
+                              ? v_[index]
+                              : ((i + 1 < nx_) ? v_[index + 1] : 0.0));
+        const double mass_bottom =
+            0.5 * (((j > 1) ? mass_y[index - nx_] : 0.0) + mass_y[index]);
+        const double mass_top =
+            0.5 * (mass_y[index] + ((j + 1 < ny_) ? mass_y[index + nx_] : 0.0));
+        const double v_bottom =
+            0.5 * (((j > 1) ? v_[index - nx_] : 0.0) + v_[index]);
+        const double v_top =
+            0.5 * (v_[index] + ((j + 1 < ny_) ? v_[index + nx_] : 0.0));
+        const double g_bottom =
+            mass_bottom *
+            (v_bottom > 0.0 ? ((j > 1) ? v_[index - nx_] : 0.0) : v_[index]);
+        const double g_top =
+            mass_top *
+            (v_top > 0.0 ? v_[index] : ((j + 1 < ny_) ? v_[index + nx_] : 0.0));
+        const double v_low = (j > 1) ? v_[index - nx_] : 0.0;
+        const double v_high = (j + 1 < ny_) ? v_[index + nx_] : 0.0;
+        const double v_left = (i > 0) ? v_[index - 1] : 0.0;
+        const double v_right = (i + 1 < nx_) ? v_[index + 1] : 0.0;
+        const double lap = (v_right - 2.0 * v_[index] + v_left) / (hx_ * hx_) +
+                           (v_high - 2.0 * v_[index] + v_low) / (hy_ * hy_);
+        const double mu_face = 0.5 * (mu_cell[index - nx_] + mu_cell[index]);
+        const double m_new =
+            m_v[index] -
+            ((f_right - f_left) + (g_top - g_bottom)) / (hx_ * hy_);
+        v_new[index] = m_new / rho_v_new[index] +
+                       dt * (mu_face * by_new[index] * lap + gy);
+      }
+    }
+
+    // CSF acts on faces.
+    std::vector<double> csf_x;
+    std::vector<double> csf_y;
+    csf_forces(sigma, csf_x, csf_y);
+    for (int j = 0; j < ny_; ++j) {
+      for (int i = 1; i < nx_; ++i) {
+        const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        u_new[index] += dt * bx_new[index] * csf_x[index];
+      }
     }
     for (int j = 1; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-        v_[index] += dt * (dv[index] + by[index] * fy[index]);
+        v_new[index] += dt * by_new[index] * csf_y[index];
       }
     }
-    for (int i = 0; i < nx_; ++i) {
-      v_[i] = 0.0;
-    }
+
+    u_ = u_new;
+    v_ = v_new;
 
     if (project) {
       std::vector<double> div(total, 0.0);
@@ -204,27 +268,26 @@ class DamBreak2D {
       for (double& value : div) {
         value /= dt;
       }
-      VariablePoisson2D solver(nx_, ny_, hx_, hy_, bx, by, false, false);
+      VariablePoisson2D solver(nx_, ny_, hx_, hy_, bx_new, by_new, false,
+                               false);
       solver.solve(div, p_);
       for (int j = 0; j < ny_; ++j) {
         for (int i = 1; i < nx_; ++i) {
           const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-          u_[index] -= dt * bx[index] * (p_[index] - p_[index - 1]) / hx_;
+          u_[index] -= dt * bx_new[index] * (p_[index] - p_[index - 1]) / hx_;
         }
         u_[static_cast<std::size_t>(j) * nx_] = 0.0;
       }
       for (int j = 1; j < ny_; ++j) {
         for (int i = 0; i < nx_; ++i) {
           const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
-          v_[index] -= dt * by[index] * (p_[index] - p_[index - nx_]) / hy_;
+          v_[index] -= dt * by_new[index] * (p_[index] - p_[index - nx_]) / hy_;
         }
       }
       for (int i = 0; i < nx_; ++i) {
         v_[i] = 0.0;
       }
     }
-
-    advect_plic(dt);
   }
 
   // Wall-aware PLIC advection: Strang split x/y with geometric face fluxes.

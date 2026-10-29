@@ -535,11 +535,11 @@ Neumann walls (manufactured L2 1.1e-4 at n=64), and the closed-box dam
 break now uses wall-aware PLIC plus balanced CSF, conserves mass to `5e-15`,
 balances hydrostatic layers to `6.4e-12`, holds a static drop at
 `|u|max=1.7e-3` with the Laplace jump matching `sigma/R` to 0.09%, and
-reproduces RTI linear growth within 11% at 64², and a variable-viscosity
-buoyant bubble rises stably in a 1x2 box (qualitative: 25-35% below the
-Hysing reference). A drop-in conservative `rho u` flux is unstable at
-1000:1 density, so a full staggered MAC solver, an open-top boundary, and
-quantitative validation are next.
+reproduces RTI linear growth within 11% at 64², and a face-staggered
+conservative MAC step (same PLIC mass fluxes for c and momentum) keeps the
+1000:1 dam break stable and places the rising bubble within ~10% of the
+Hysing reference. High-Atwood RTI still destabilises at t~0.6; an open-top
+boundary and a quantitative dam-break front comparison are next.
 
 ## MPI
 

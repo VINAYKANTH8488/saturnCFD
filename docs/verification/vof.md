@@ -252,36 +252,37 @@ ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
 - no-slip/no-penetration walls on all sides
 - variable density `rho(c)` and viscosity `mu(c)` and gravity
 - variable-coefficient Neumann projection
-- wall-aware PLIC transport (Strang split x/y, zero wall fluxes, mirror
-  reconstruction ghosts)
-- conservative bounded redistribution against Strang-splitting overshoot
+- wall-aware PLIC face fluxes (zero wall flux, mirror reconstruction ghosts)
+- conservative bounded redistribution against splitting overshoot
 - balanced CSF from a smoothed level set with mirror ghosts
   `sigma*kappa*grad(c)`
+- face-staggered conservative momentum: the same PLIC mass fluxes drive
+  both the `c` update and the momentum update
 
 A 64² column (`c=1` for `x<0.3`, 1000:1 density, `g=-9.81`) run for 50
 steps at `dt=1e-3` with and without `sigma=0.072`:
 
 | Case | `|u|max` | mass drift | range |
 |---|---|---|---|
-| no CSF | 1.481 | `6.0e-15` | `[0, 1]` |
-| CSF | 1.482 | `3.6e-15` | `[0, 1]` |
+| no CSF | 2.522 | `1.1e-14` | `[0, 1]` |
+| CSF | 2.522 | `1.0e-14` | `[0, 1]` |
 
-The CSF changes the interface by `5.4e-2` in `Linf`, so the coupling is active,
-while both runs conserve mass and stay bounded. Without redistribution the
-PLIC overshoot is ~`5e-3`; the redistribution pass restores exact bounds and
-conservation.
+The CSF changes the interface by `2.4e-4` in `Linf`, so the coupling is active,
+while both runs conserve mass and stay bounded. The conservative flux is less
+diffusive than the earlier advective form, hence the higher peak speed.
 
 Two equilibrium checks exercise the wall boundaries:
 
 | Check | Result |
 |---|---|
-| hydrostatic two layers, 200 steps | `|u|max = 6.4e-12`, drift `7.9e-14` |
-| static drop `R=0.2`, `sigma=0.072`, 200 steps | `|u|max = 1.7e-3`, drift `1.1e-13` |
-| drop pressure jump | `0.36033` vs `sigma/R = 0.36` (0.09%) |
+| hydrostatic two layers, 200 steps | `|u|max = 6.3e-12`, drift `7.8e-14` |
+| static drop `R=0.2`, `sigma=0.072`, 200 steps | `|u|max = 1.7e-3`, drift `9.9e-15` |
+| drop pressure jump | `0.36030` vs `sigma/R = 0.36` (0.08%) |
+| variable-viscosity drop (10:1) | `0.36029` (0.08%) |
 
 The hydrostatic case is balanced to roundoff, confirming the variable-density
 projection with Neumann walls. The static drop reproduces the Laplace
-pressure to 0.09%; its `1.7e-3` residual current comes from the pointwise
+pressure to 0.08%; its `1.7e-3` residual current comes from the pointwise
 level-set curvature error rather than the wall treatment. Curvature is
 smoothed over 8 binomial passes for the CSF force.
 This is a stability/conservation smoke test, not yet a validated dam-break
@@ -296,14 +297,13 @@ The same closed-box solver is run with a heavy layer above a light one,
 
 | Grid | measured `sigma` | error |
 |---|---|---|
-| 64² | 5.72 | -10.8% |
-| 128² | 6.00 | -6.4% |
+| 64² | 5.71 | -10.9% |
+| 128² | 5.97 | -6.8% |
 
-The growth rate is converged in the sense that refining the grid moves it
-toward theory; the remaining deficit is the first-order momentum flux. At
-Atwood near 1 (1000:1 density) the prototype remains stable only to
-`t ~ 0.5`; a conservative variable-density momentum formulation is required
-for the strongly nonlinear regime.
+The growth rate converges toward theory under refinement; the remaining
+deficit is the first-order time integration. At Atwood near 1 (1000:1
+density) the prototype remains stable only to `t ~ 0.6`; the strongly
+nonlinear high-Atwood regime is still open.
 
 ## Rising bubble: Hysing et al. case 1
 
@@ -317,58 +317,61 @@ FEATFLOW/Basilisk reference (`c1g3l4.txt`) gives:
 | 2.0 | 0.3887 | 0.198 |
 | 3.0 | 0.5817 | 0.194 |
 
-The current 64x128 run (`dt=1e-3`) gives a rise of 0.137 at `t=1` and
-0.391 at `t=3`, with centroid velocities 0.180 and 0.127. Refining to
-128x256 at `t=1` gives a rise of 0.110, so the result is not monotonically
-converging and remains 25-35% below the reference. The prototype is
-therefore **not quantitatively validated** for the rising bubble; the gap
-is attributed to the diffuse interface, the level-set curvature, and the
-first-order splitting. A production variable-density solver with a sharp
-interface and a consistent momentum/continuity discretization is required.
+The current face-staggered solver (64x128, `dt=1e-3`) gives:
 
-## Conservative variable-density momentum (negative result)
+| t | rise | reference | error | `v_b` | reference |
+|---|---|---|---|---|---|
+| 0.5 | 0.0504 | 0.0483 | +4.3% | 0.177 | 0.196 |
+| 1.0 | 0.1536 | 0.1696 | -9.4% | 0.215 | 0.241 |
+| 1.5 | 0.2563 | 0.2850 | -10.1% | 0.194 | 0.219 |
+| 2.0 | 0.3486 | 0.3887 | -10.3% | 0.178 | 0.198 |
+| 2.5 | 0.4368 | 0.4854 | -10.0% | 0.176 | 0.192 |
+| 3.0 | 0.5257 | 0.5817 | -9.6% | 0.179 | 0.194 |
 
-Two drop-in variants were tried for the high-Atwood regime:
+Refining to 128x256 gives a rise of 0.1503 at `t=1` (-11.4%), so the
+~10% deficit is grid-converged rather than a resolution effect. This is now a
+quantitative prototype, but it is not exact; the remaining gap is attributed
+to the first-order time integration and the diffuse interface/level-set
+curvature.
 
-- cell-centred momentum `m = rho u` with an upwind momentum flux;
-- face momentum `rho_face u` with MAC-style fluxes.
+## Face-staggered conservative momentum
 
-Both passed the hydrostatic, static-drop, RTI (Atwood 1/3) and rising-bubble
-smoke tests, but the 1000:1 dam break blew up at `t ~ 0.02`
-(`|u| ~ 1e14` by step 24) with CFL `< 0.3`. The blow-up is not a time-step
-restriction: it is the unbalanced `u^2 grad(rho)` term in the conservative
-flux, which the current collocated/staggered hybrid does not cancel with the
-discrete continuity equation.
+The default step is now a face-staggered conservative update. The volume
+fraction and the momentum are advanced with **one set of PLIC face fluxes**,
+so the discrete density and momentum updates are consistent.
 
-A third variant used **one set of PLIC face fluxes for both `c` and the
-momentum**, so the discrete continuity and momentum fluxes are consistent.
-This stabilises the 1000:1 dam break: `|u|max = 1.15`, mass drift `1e-14`,
-bounds `[0,1]`. That confirms mass-flux consistency is the key. However, the
-cell-centred conservative momentum update and the subsequent face averaging
-degrade the RTI growth to `4.33` (vs theory `6.41`) and the static-drop
-Laplace jump to `0.340` (vs `0.36`), so the variant is not a net improvement
-and was not kept. The missing step is to apply the same consistent mass flux
-directly to **face-staggered momentum**, without the cell-centred projection
-and re-averaging. The stable advective-upwind form remains the default.
+The path to this scheme was instructive:
+
+- a cell-centred `rho u` flux and a face momentum flux without the consistent
+  mass flux both blew up on the 1000:1 dam break at `t ~ 0.02`
+  (`|u| ~ 1e14` by step 24, CFL `< 0.3`); the unbalanced `u^2 grad(rho)`
+  term was not cancelled by the discrete continuity;
+- a cell-centred consistent mass-flux variant stabilised the dam break
+  (`|u| = 1.15`, drift `1e-14`) but degraded RTI (`sigma = 4.33` vs `6.41`)
+  and the Laplace jump (`0.340` vs `0.36`) because of the cell-to-face
+  re-averaging;
+- the face-staggered version uses the consistent mass fluxes directly on the
+  MAC faces and avoids that re-averaging. It passes all checks: dam break
+  `|u| = 2.52`, drift `1e-14`; static-drop Laplace `0.36030`; RTI
+  `sigma = 5.71` at 64²; rising bubble within ~10% of the Hysing reference.
+
+The high-Atwood RTI case (1000:1) still destabilises at `t ~ 0.6`; the
+strongly nonlinear regime remains open.
 
 ## Limitations and next steps
 
 - Host-side 2D/3D prototypes; the wall-bounded two-phase path has no
   Kokkos/GPU version yet.
-- Dimensional splitting is first order in time (Strang reduces the splitting
-  error but the flux is still explicit).
+- The scheme is first order in time; the PLIC spatial reconstruction is
+  second order in space.
 - Bounded redistribution is a safety net for splitting overshoot; a bounded
   PLIC flux limiter is not implemented.
-- Momentum advection uses a conservative first-order upwind flux on
-  cell-centred velocities; it is robust but diffusive (RTI growth is 11% low
-  at 64²).
-- A drop-in conservative `rho u` momentum flux is unstable for the 1000:1
-  dam break; a full staggered MAC discretization is needed for high Atwood.
+- High-Atwood (1000:1) RTI still destabilises at `t ~ 0.6`; the dam break at
+  the same density ratio is stable.
 - Wall-bounded dam break is a smoke test (stability, conservation, bounds,
-  active CSF), not a quantitative benchmark against reference data; RTI
-  growth is validated to ~11% at 64².
-- The rising bubble is qualitative only; the current rise is 25-35% below
-  the Hysing et al. reference and does not converge monotonically with grid
-  refinement.
-- Next: full staggered MAC variable-density solver, open-top boundary, then
-  quantitative dam-break/rising-bubble validation and the Kokkos port.
+  active CSF), not a quantitative front-position benchmark; RTI growth is
+  validated to ~11% at 64².
+- The rising bubble is within ~10% of the Hysing et al. reference and is now a
+  quantitative prototype, but not an exact match.
+- Next: open-top boundary, quantitative dam-break front position, rising
+  bubble grid convergence, then the Kokkos port.
