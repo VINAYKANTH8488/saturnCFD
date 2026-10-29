@@ -17,6 +17,9 @@ if [ -d "${HOME}/opt/cuda-12.2/bin" ]; then
   export PATH="${HOME}/opt/cuda-12.2/bin:${PATH}"
   export CUDAToolkit_ROOT="${CUDAToolkit_ROOT:-${HOME}/opt/cuda-12.2}"
 fi
+if [ -d "${HOME}/opt/cuda-12.2/targets/x86_64-linux/lib" ]; then
+  export LD_LIBRARY_PATH="${HOME}/opt/cuda-12.2/targets/x86_64-linux/lib:${LD_LIBRARY_PATH:-}"
+fi
 
 export SATURN_ROOT="${_saturn_root}"
 export KOKKOS_ROOT="${KOKKOS_ROOT:-${HOME}/opt/kokkos-5.2.2}"

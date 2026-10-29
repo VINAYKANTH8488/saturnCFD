@@ -1,0 +1,21 @@
+{
+  "code": "saturnCFD",
+  "version": "0.1.0",
+  "backend": "Cuda",
+  "concurrency": 6144,
+  "space": "cuda",
+  "nx": 256,
+  "ny": 256,
+  "nz": 256,
+  "iters": 50,
+  "warmup": 3,
+  "tile": 0,
+  "seconds": 0.46935259,
+  "ms_per_iter": 9.3870518,
+  "ns_per_cell_iter": 0.5728330468,
+  "gcell_updates_per_s": 1.74570934,
+  "gbps_effective": 27.93134944,
+  "gbps_naive": 111.7253977,
+  "checksum": 26239360.17,
+  "max_abs_error": 0
+}

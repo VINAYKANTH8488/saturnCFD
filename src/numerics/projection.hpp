@@ -112,6 +112,9 @@ poisson::Result project(ScalarView<ExecSpace>& u, ScalarView<ExecSpace>& v,
   const int n0 = static_cast<int>(u.extent(2));
   const int n1 = static_cast<int>(u.extent(1));
   const int n2 = static_cast<int>(u.extent(0));
+  const double hx = h[0];
+  const double hy = h[1];
+  const double hz = h[2];
   const auto policy =
       make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
@@ -125,9 +128,9 @@ poisson::Result project(ScalarView<ExecSpace>& u, ScalarView<ExecSpace>& v,
         const int im = (i == 0) ? n0 - 1 : i - 1;
         const int jm = (j == 0) ? n1 - 1 : j - 1;
         const int km = (k == 0) ? n2 - 1 : k - 1;
-        u(k, j, i) += dt * (phi(k, j, i) - phi(k, j, im)) / h[0];
-        v(k, j, i) += dt * (phi(k, j, i) - phi(k, jm, i)) / h[1];
-        w(k, j, i) += dt * (phi(k, j, i) - phi(km, j, i)) / h[2];
+        u(k, j, i) += dt * (phi(k, j, i) - phi(k, j, im)) / hx;
+        v(k, j, i) += dt * (phi(k, j, i) - phi(k, jm, i)) / hy;
+        w(k, j, i) += dt * (phi(k, j, i) - phi(km, j, i)) / hz;
       });
   return result;
 }

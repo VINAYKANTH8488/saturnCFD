@@ -4,15 +4,21 @@ Performance-portable, block-structured, high-order finite-volume DNS code for
 CPU and multiple GPUs, built on Kokkos. Basilisk-inspired in physics and
 workflow, designed for GPU-first scaling.
 
-**Status:** Phase 2 essentially complete on CPU (GPU scaling pending); Phase 3
-(incompressible) in progress with a periodic GMG Poisson solver and a
-staggered-MAC projection prototype verified on the exact 2D Taylor–Green
-vortex. The full design, numerics, and roadmap are in [PLAN.md](PLAN.md).
+**Status:** Phase 2 essentially complete on CPU; the CUDA backend is now
+operational on the local Quadro P600 (stencil, STREAM, scalar MMS, Sod, and
+incompressible paths verified; the 3D compressible GPU diagnostics still need
+a debugging pass). Phase 3 (incompressible) is in progress with periodic GMG
+and FFT Poisson solvers and a staggered-MAC projection prototype verified on
+the exact 2D Taylor–Green vortex. The full design, numerics, and roadmap are in
+[PLAN.md](PLAN.md).
 
 Progress:
 
 - CPU and CUDA toolchains verified: Kokkos 5.2.2 (Serial + OpenMP) and CUDA
   12.2 (sm_61, Quadro P600).
+- GPU baseline on the P600: 7-point stencil **27.93 GB/s** effective
+  (51.5% of STREAM copy) and STREAM **54.2 GB/s**; scalar MMS, Sod, and the
+  incompressible TGV pass on CUDA (`docs/performance/gpu_p600.md`).
 - 7-point stencil microbenchmark: **84% of STREAM copy** on 4 CPU threads and
   **52%** on the P600 (see `benchmarks/results/`).
 - EDAC pressure-free prototype completed; projection + GMG remains the
@@ -188,7 +194,15 @@ cmake --install "$HOME/opt/build/kokkos-5.2.2-cuda"
 ```
 
 `verify_cuda.sh` configures the `cuda-local` preset, builds, and runs the
-stencil/STREAM smoke tests plus the selected GPU CTests.
+stencil/STREAM smoke tests plus the selected GPU CTests. For manual CUDA work
+use `scripts/env_cuda.sh`, which adds the CUDA libraries and the GCC 12 host
+compiler to the environment:
+
+```bash
+source scripts/env_cuda.sh
+cmake --preset cuda-local
+cmake --build build/cuda-local -j4
+```
 
 ## Build
 

@@ -207,7 +207,7 @@ class GeometricMultigrid {
 
   int levels() const { return static_cast<int>(levels_.size()); }
 
- private:
+ public:
   struct Level {
     std::array<int, 3> n{{0, 0, 0}};
     std::array<double, 3> h{{1.0, 1.0, 1.0}};
@@ -509,6 +509,7 @@ class GeometricMultigrid {
         KOKKOS_LAMBDA(int k, int j, int i) { v(k, j, i) -= mean; });
   }
 
+ private:
   std::vector<Level> levels_;
   std::array<Boundary, 3> bc_low_{
       {Boundary::Periodic, Boundary::Periodic, Boundary::Periodic}};

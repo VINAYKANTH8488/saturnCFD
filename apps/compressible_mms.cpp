@@ -81,6 +81,24 @@ struct CaseResult {
   double seconds = 0.0;
 };
 
+KOKKOS_INLINE_FUNCTION
+saturn::PrimitiveState exact_state_device(int case_id, double mu, double x,
+                                          double y, double z, double time) {
+  if (case_id == 1) {
+    const double k = 2.0 * kPi;
+    const double decay = Kokkos::exp(-mu * 2.0 * k * k * time);
+    const double u = 0.1 * Kokkos::sin(k * y) * Kokkos::sin(k * z) * decay;
+    return saturn::PrimitiveState{1.0, u, 0.0, 0.0, 1.0};
+  }
+  const double kx = 2.0 * kPi;
+  const double ky = 2.0 * kPi;
+  const double kz = 2.0 * kPi;
+  const double omega = kx * 1.0 + ky * 0.5 + kz * 0.25;
+  const double phase = kx * x + ky * y + kz * z - omega * time;
+  return saturn::PrimitiveState{1.0 + 0.2 * Kokkos::sin(phase), 1.0, 0.5, 0.25,
+                                1.0};
+}
+
 struct ExactSolution {
   Params params;
 
@@ -495,6 +513,9 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   double sum_rho = 0.0;
   double sum_u = 0.0;
   double sum_p = 0.0;
+  const int case_id = (params.case_name == "shear") ? 1 : 0;
+  const double mu = params.mu;
+  const double tend = params.tend;
   Kokkos::parallel_reduce(
       "mms_errors", policy,
       KOKKOS_LAMBDA(int k, int j, int i, double& rho_acc, double& u_acc,
@@ -505,7 +526,7 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
         const saturn::PrimitiveState numerical =
             saturn::compressible::load_primitive(q, i, j, k, gas);
         const saturn::PrimitiveState reference =
-            exact.state(x, y, z, params.tend);
+            exact_state_device(case_id, mu, x, y, z, tend);
         const double drho = numerical.rho - reference.rho;
         const double du = numerical.u - reference.u;
         const double dp = numerical.p - reference.p;

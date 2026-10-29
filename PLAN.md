@@ -893,7 +893,9 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
 - [x] MMS 4th/6th order; energy conservation check (entropy-wave MMS at
       `central4`/WENO5-Z/`central6`; periodic inviscid mass and total-energy
       drift ≤ 1e-15 enforced by `--energy-tol`).
-- [ ] GPU performance baseline; register/occupancy tuning.
+- [x] GPU performance baseline on the local P600: stencil 27.93 GB/s,
+      STREAM 54.2 GB/s (`docs/performance/gpu_p600.md`); register/occupancy
+      tuning and CUDA validation of the 3D compressible diagnostics pending.
 
 **Current:** reconstruction, all four Riemann solvers, and the 1D Sod gate are
 passing on CPU Serial/OpenMP. The 3D Navier–Stokes path has smooth MMS at

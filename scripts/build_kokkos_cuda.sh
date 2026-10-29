@@ -10,6 +10,22 @@ KOKKOS_SRC="${KOKKOS_SRC:-$HOME/opt/src/kokkos-5.2.2}"
 KOKKOS_PREFIX="${KOKKOS_PREFIX:-$HOME/opt/kokkos-5.2.2-cuda}"
 BUILD_DIR="${BUILD_DIR:-$HOME/opt/build/kokkos-5.2.2-cuda}"
 ENV_NVCC="$CUDA_ROOT/bin/nvcc"
+export PATH="$CUDA_ROOT/bin:$PATH"
+
+# CUDA 12.2 does not support GCC 13. If a user-local GCC 12 tree exists, use it
+# for the host side of nvcc.
+GCC12_ROOT="${GCC12_ROOT:-$HOME/opt/gcc-12}"
+if [ -x "$GCC12_ROOT/usr/bin/g++-12" ]; then
+  export NVCC_WRAPPER_DEFAULT_COMPILER="$GCC12_ROOT/usr/bin/g++-12"
+  export GCC_EXEC_PREFIX="$GCC12_ROOT/usr/lib/gcc/"
+  export COMPILER_PATH="$GCC12_ROOT/usr/lib/gcc/x86_64-linux-gnu/12"
+  export CPLUS_INCLUDE_PATH="$GCC12_ROOT/usr/include/c++/12:$GCC12_ROOT/usr/include/x86_64-linux-gnu/c++/12"
+  export LIBRARY_PATH="$GCC12_ROOT/usr/lib/gcc/x86_64-linux-gnu/12:$GCC12_ROOT/usr/lib/x86_64-linux-gnu"
+  echo "using GCC 12 host compiler: $GCC12_ROOT/usr/bin/g++-12"
+else
+  echo "note: no user-local GCC 12 found; nvcc will use the system compiler"
+  echo "      (CUDA 12.2 + GCC 13 needs -allow-unsupported-compiler)"
+fi
 
 if [ ! -x "$ENV_NVCC" ]; then
   echo "error: nvcc not found at $ENV_NVCC" >&2

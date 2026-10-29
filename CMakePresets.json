@@ -49,7 +49,8 @@
       "displayName": "CUDA sm_61 (Quadro P600, functional tests only)",
       "cacheVariables": {
         "Kokkos_ROOT": "$env{KOKKOS_ROOT_CUDA}",
-        "SATURN_DEFAULT_SPACE": "cuda"
+        "SATURN_DEFAULT_SPACE": "cuda",
+        "CMAKE_CXX_COMPILER": "$env{KOKKOS_ROOT_CUDA}/bin/nvcc_wrapper"
       }
     },
     {
@@ -58,7 +59,8 @@
       "displayName": "CUDA sm_80 (A100)",
       "cacheVariables": {
         "Kokkos_ROOT": "$env{KOKKOS_ROOT_CUDA}",
-        "SATURN_DEFAULT_SPACE": "cuda"
+        "SATURN_DEFAULT_SPACE": "cuda",
+        "CMAKE_CXX_COMPILER": "$env{KOKKOS_ROOT_CUDA}/bin/nvcc_wrapper"
       }
     },
     {
@@ -67,7 +69,8 @@
       "displayName": "CUDA sm_90 (H100)",
       "cacheVariables": {
         "Kokkos_ROOT": "$env{KOKKOS_ROOT_CUDA}",
-        "SATURN_DEFAULT_SPACE": "cuda"
+        "SATURN_DEFAULT_SPACE": "cuda",
+        "CMAKE_CXX_COMPILER": "$env{KOKKOS_ROOT_CUDA}/bin/nvcc_wrapper"
       }
     },
     {
