@@ -296,6 +296,10 @@ CaseResult run_case(int n, const Params& params) {
     }
     double dt = params.cfl * hmin / std::max(max_speed, 1.0e-12);
     dt = std::min(dt, 0.2 * hmin * hmin / nu);
+    if (max_speed > 1.0e6 || dt < 1.0e-10 * hmin) {
+      valid = false;
+      break;
+    }
     if (time + dt > params.tend) {
       dt = params.tend - time;
     }

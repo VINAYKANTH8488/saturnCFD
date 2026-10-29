@@ -61,14 +61,19 @@ Progress:
   red-black Gauss-Seidel smoothing, full-weighting restriction, and trilinear
   prolongation; 2nd-order convergence on periodic and Neumann MMS
   (`docs/verification/poisson.md`).
+- Phase 3 FFT Poisson fast path for periodic boxes (FFTW3, host-side): same
+  7-point operator, 2nd-order MMS, ~40x faster than MG at n=64
+  (`docs/verification/poisson.md`).
 - Phase 3 staggered-MAC projection solver with SSP-RK3 and projection after
   every stage; the exact 2D Taylor–Green vortex and the 3D ABC (Beltrami) flow
   converge at second order (TGV L2 velocity 7.2e-3 / 1.8e-3 / 4.5e-4 at
   16/32/64²; ABC 6.1e-4 / 1.5e-4 at 16/32³) with divergence at round-off
   (`docs/verification/incompressible.md`).
 - Phase 3 3D Taylor–Green vortex: the unfiltered central scheme is unstable at
-  n=32, while a 4th-order filter (`--filter 0.1`) stabilizes a run to t=10 with
-  peak dissipation `1.52e-2` at `t=5.9` (`docs/verification/incompressible.md`).
+  n=32, while a 4th-order filter (`--filter 0.1`) stabilizes it. With the FFT
+  pressure solver at n=64 the peak dissipation is `1.142e-2` at `t=8.96`
+  (8.6% below the reference), with `K/V=0.0694` at `t=10`
+  (`docs/verification/incompressible.md`).
 - Phase 3 wall-bounded channel: no-slip y walls with Neumann pressure. Couette
   flow is steady to round-off and plane Poiseuille converges at second order
   (`9.96e-4 → 2.55e-4 → 6.40e-5` at NY 16/32/64; `docs/verification/channel.md`).
@@ -82,6 +87,7 @@ Progress:
 - C++20 compiler (GCC >= 10.4, Clang >= 14)
 - CMake >= 3.22
 - Kokkos 5.x (Serial + OpenMP for CPU; CUDA/HIP/SYCL for GPUs)
+- FFTW3 (optional; enables the periodic FFT Poisson fast path)
 - MPI, HDF5, Catch2, toml++ (from Phase 1)
 
 ## Toolchain
@@ -335,15 +341,17 @@ ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
 
 The manufactured-solution tests give second-order convergence for both a
 periodic sine and a Neumann-wall cosine (2.00–2.01 at 32³ and 48³; final
-relative residual `~1e-10`). The solver is currently single-rank and
-constant-coefficient. Details and limitations are in
+relative residual `~1e-10`). `src/numerics/fft_poisson.hpp` adds a host-side
+FFTW3 fast path for periodic boxes (`--poisson fft`), with the same
+discretization and ~40x lower solve time at n=64. The solvers are currently
+single-rank and constant-coefficient. Details and limitations are in
 `docs/verification/poisson.md`.
 
 ## Incompressible solver (Phase 3)
 
 `apps/incompressible_sim.cpp` is a staggered MAC projection solver: second-
-order central advection/diffusion, SSP-RK3, and the GMG Poisson solver for the
-pressure correction after every RK stage.
+order central advection/diffusion, SSP-RK3, and the GMG or FFT Poisson solver
+for the pressure correction after every RK stage (`--poisson mg|fft`).
 
 ```bash
 ./build/cpu-openmp/apps/saturn_incompressible_sim \
@@ -354,10 +362,11 @@ The exact 2D Taylor–Green vortex converges at **2.00** order (L2 velocity
 `7.2e-3`, `1.8e-3`, `4.5e-4` at 16/32/64²) with `max|div| ~ 1e-12`. The 3D ABC
 (Beltrami) flow also converges at second order (`6.1e-4`, `1.5e-4` at
 16/32³). A 3D Taylor–Green case is implemented; the unfiltered central scheme
-is unstable at `n=32`, while a 4th-order filter (`--filter 0.1`) stabilizes it
-(peak dissipation `1.52e-2` at `t=5.9`, still an under-resolved filtered run,
-not a DNS benchmark). The prototype is single-rank and periodic-only.
-Details are in `docs/verification/incompressible.md`.
+is unstable at `n=32`, while a 4th-order filter (`--filter 0.1`) stabilizes it.
+With the FFT pressure solver at `n=64` the peak dissipation is `1.142e-2` at
+`t=8.96` (8.6% below the reference) and `K/V=0.0694` at `t=10`. The prototype
+is single-rank and periodic-only. Details are in
+`docs/verification/incompressible.md`.
 
 ## Channel flows (Phase 3)
 

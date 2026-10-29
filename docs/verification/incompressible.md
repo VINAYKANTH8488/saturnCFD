@@ -130,14 +130,30 @@ quantitative DNS benchmark. A weaker filter (`alpha=0.02`) is already unstable.
 Raw history and dissipation data are in
 `benchmarks/results/tgv/tgv3d_n32_filter01_*`.
 
+With the FFT pressure solver (`--poisson fft`) the run is fast enough for
+`n=64`. At `n=64`, `Re=1600`, `filter=0.1`, `t=10` (368 steps, 34.6 s):
+
+| Quantity | Value |
+|---|---|
+| initial `K/V` | 0.1247 |
+| final `K/V` | 0.0694 |
+| peak `-dK/dt / V` | **1.142e-02** |
+| peak time | **8.96** |
+| max abs(div) | 2.2e-15 |
+
+The peak is 8.6% below the low-Mach reference (`~1.25e-2` near `t≈9`) and the
+peak time now matches; the remaining difference is consistent with the filter
+and the 64³ resolution. A weaker filter (`alpha=0.02`) is still unstable at
+`n=64`. Data: `benchmarks/results/tgv/tgv3d_n64_filter01_*`.
+
 Run the 3D cases with:
 
 ```bash
 ./build/cpu-openmp/apps/saturn_incompressible_sim \
   --case tgv3d --n 16 --tend 1 --nu 0.000625 --cfl 0.3 --check
 ./build/cpu-openmp/apps/saturn_incompressible_sim \
-  --case tgv3d --n 32 --tend 10 --nu 0.000625 --cfl 0.3 \
-  --filter 0.1 --diag-every 5 --history tgv3d.csv --check
+  --case tgv3d --n 64 --tend 10 --nu 0.000625 --cfl 0.3 \
+  --filter 0.1 --poisson fft --diag-every 10 --history tgv3d.csv --check
 ```
 
 The 2D TGV and 3D ABC results above remain valid because those flows stay
@@ -168,5 +184,6 @@ ctest --test-dir build/cpu-openmp -R saturn.incompressible --output-on-failure
   stabilizes it (at the cost of added dissipation). A dealiased/upwind scheme
   and higher resolution are needed for a quantitative benchmark.
 - Turbulent channel Re_tau=180/395 and cavity at higher Re remain.
-- The pressure field is warm-started across projections; a faster MG/FFT path
-  and a distributed solve are still needed for production runs.
+- The pressure field is warm-started across projections; a periodic FFT path is
+  available (`--poisson fft`), while wall-bounded cases still use multigrid. A
+  distributed solve is still needed for production runs.

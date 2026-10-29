@@ -29,6 +29,23 @@ target_include_directories(saturn_core INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/sr
 target_link_libraries(saturn_core INTERFACE Kokkos::kokkos)
 target_compile_features(saturn_core INTERFACE cxx_std_20)
 
+set(SATURN_HAVE_FFTW FALSE)
+if(SATURN_ENABLE_FFTW)
+  find_path(FFTW3_INCLUDE_DIR NAMES fftw3.h
+    HINTS "$ENV{FFTW3_ROOT}/include")
+  find_library(FFTW3_LIBRARY NAMES fftw3
+    HINTS "$ENV{FFTW3_ROOT}/lib" "$ENV{FFTW3_ROOT}/lib/x86_64-linux-gnu")
+  if(FFTW3_INCLUDE_DIR AND FFTW3_LIBRARY)
+    target_include_directories(saturn_core INTERFACE ${FFTW3_INCLUDE_DIR})
+    target_link_libraries(saturn_core INTERFACE ${FFTW3_LIBRARY})
+    target_compile_definitions(saturn_core INTERFACE SATURN_HAVE_FFTW)
+    set(SATURN_HAVE_FFTW TRUE)
+    message(STATUS "FFTW3: ${FFTW3_LIBRARY}")
+  else()
+    message(STATUS "FFTW3 not found; periodic FFT Poisson disabled")
+  endif()
+endif()
+
 if(SATURN_ENABLE_WARNINGS)
   saturn_enable_warnings(saturn_core)
 endif()

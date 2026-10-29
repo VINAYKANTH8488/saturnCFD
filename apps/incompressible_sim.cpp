@@ -16,6 +16,7 @@
 #include "core/mpi.hpp"
 #include "core/parallel.hpp"
 #include "core/version.hpp"
+#include "numerics/fft_poisson.hpp"
 #include "numerics/incompressible.hpp"
 #include "numerics/poisson.hpp"
 #include "numerics/projection.hpp"
@@ -49,6 +50,7 @@ struct Params {
   double min_order = 1.7;
   double poisson_tol = 1.0e-10;
   double filter_alpha = 0.0;
+  std::string poisson = "mg";
   std::string space = "default";
   std::string history;
   int diag_every = 0;
@@ -68,6 +70,7 @@ void usage(const char* argv0) {
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --min-order VALUE  check threshold (default 1.7)\n"
       "  --filter ALPHA     4th-order periodic filter strength per step\n"
+      "  --poisson NAME     mg|fft periodic pressure solver (default mg)\n"
       "  --history FILE     append t,kinetic,max_div diagnostics as CSV\n"
       "  --diag-every N     history interval in steps (default 0 = endpoints)\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
@@ -150,6 +153,8 @@ Params parse(int argc, char** argv) {
       p.poisson_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--filter") {
       p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--poisson") {
+      p.poisson = require_value(i, argc, argv, a);
     } else if (a == "--history") {
       p.history = require_value(i, argc, argv, a);
     } else if (a == "--diag-every") {
@@ -191,7 +196,7 @@ struct CaseResult {
   double seconds = 0.0;
 };
 
-template <class ExecSpace>
+template <class ExecSpace, class Solver>
 CaseResult run_case(int n, const Params& params) {
   using view_type = saturn::projection::ScalarView<ExecSpace>;
 
@@ -249,8 +254,7 @@ CaseResult run_case(int n, const Params& params) {
         }
       });
 
-  saturn::poisson::GeometricMultigrid<ExecSpace> solver(
-      std::array<int, 3>{{n, n, nz}}, h);
+  Solver solver(std::array<int, 3>{{n, n, nz}}, h);
   saturn::poisson::Options poptions;
   poptions.tolerance = params.poisson_tol;
   poptions.max_cycles = 100;
@@ -334,6 +338,10 @@ CaseResult run_case(int n, const Params& params) {
     double dt = params.cfl * hmin / std::max(max_speed, 1.0e-12);
     if (params.nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / params.nu);
+    }
+    if (max_speed > 1.0e6 || dt < 1.0e-10 * hmin) {
+      valid = false;
+      break;
     }
     if (time + dt > params.tend) {
       dt = params.tend - time;
@@ -432,6 +440,14 @@ CaseResult run_case(int n, const Params& params) {
 template <class ExecSpace>
 int run(const Params& params) {
   const bool root = saturn::mpi_rank() == 0;
+#ifndef SATURN_HAVE_FFTW
+  if (params.poisson == "fft") {
+    if (root) {
+      std::fprintf(stderr, "--poisson fft requires an FFTW3 build\n");
+    }
+    return 2;
+  }
+#endif
   if (root) {
     std::printf("\n%s %s incompressible %s\n", saturn::kProjectName,
                 saturn::kVersion, params.case_name.c_str());
@@ -448,7 +464,21 @@ int run(const Params& params) {
   double previous_error = 0.0;
   double previous_h = 0.0;
   for (const int n : params.n_list) {
-    CaseResult result = run_case<ExecSpace>(n, params);
+    CaseResult result;
+#ifdef SATURN_HAVE_FFTW
+    if (params.poisson == "fft") {
+      result = run_case<ExecSpace, saturn::poisson::FftPoisson<ExecSpace>>(
+          n, params);
+    } else {
+      result =
+          run_case<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
+              n, params);
+    }
+#else
+    result =
+        run_case<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
+            n, params);
+#endif
     if (params.case_name != "tgv3d" && previous_error > 0.0) {
       const double h = 2.0 * kPi / static_cast<double>(n);
       result.order =

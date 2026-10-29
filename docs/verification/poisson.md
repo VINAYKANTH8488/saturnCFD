@@ -103,6 +103,35 @@ Run the tests with:
 ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
 ```
 
+## FFT fast path
+
+`src/numerics/fft_poisson.hpp` adds a direct FFT solver for periodic uniform
+boxes. The right-hand side is transformed with FFTW3, divided by the discrete
+eigenvalue
+
+```
+lambda_k = -4 [ sin^2(pi kx/nx)/hx^2 + sin^2(pi ky/ny)/hy^2
+              + sin^2(pi kz/nz)/hz^2 ],
+```
+
+and transformed back; the zero mode is set to zero. The result satisfies the
+same 7-point operator to round-off. The implementation is host-side (the field
+is copied to a host mirror), so it is a CPU fast path and a reference for the
+multigrid solver.
+
+Manufactured-solution test:
+
+| N | L2 error | order | solve time |
+|---|---|---|---|
+| 16 | 4.579e-03 | — | 0.000 s |
+| 32 | 1.138e-03 | 2.01 | 0.001 s |
+| 48 | 5.053e-04 | 2.00 | 0.008 s |
+
+In the incompressible driver the n=64 2D Taylor–Green verification takes
+0.15 s with FFT versus 5.8 s with multigrid (~40x), with identical velocity
+errors and divergence at round-off. Use `--poisson fft` (requires an FFTW3
+build; otherwise the test reports "skipped" and the driver rejects the option).
+
 ## Limitations and next steps
 
 - Constant coefficients only; variable-density projection needs a
@@ -113,5 +142,5 @@ ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
   the next step for channel and cavity cases.
 - Single rank. Distributed boxes need a halo exchange inside the smoother and
   coarse-grid solve, plus a global dot-product reduction.
-- No FFT backend yet; for very large periodic grids the FFT path should be
-  compared against MG.
+- The FFT path is periodic-only and host-side; wall-bounded cases still use
+  multigrid, and a device FFT / distributed FFT is future work.

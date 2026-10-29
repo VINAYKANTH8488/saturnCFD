@@ -919,7 +919,9 @@ scaling to 8 GPUs.
       Laplacian, red-black Gauss-Seidel, full-weighting restriction, trilinear
       prolongation, 2nd-order convergence on periodic and Neumann boxes
       (`docs/verification/poisson.md`).
-- [ ] FFT Poisson backend for periodic uniform grids (fast path).
+- [x] FFT Poisson backend for periodic uniform grids (FFTW3, host-side);
+      2nd-order MMS, zero mode projected, ~40x faster than MG at n=64
+      (`docs/verification/poisson.md`).
 - [x] Wall-bounded MAC channel (periodic x/z, no-slip y walls): Couette is an
       exact discrete steady state and plane Poiseuille converges at second
       order (`docs/verification/channel.md`).
@@ -929,17 +931,18 @@ scaling to 8 GPUs.
       included; a coarse 24² run gives RMS 0.074/0.072.
 - [ ] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`.
 - [ ] TGV Re=1600, turbulent channel Re_τ=180/395, cavity at higher Re on both
-      paths. The 3D TGV is implemented; a 4th-order filter (`alpha=0.1`)
-      stabilizes it at n=32 (peak `-dK/dt/V = 1.52e-2` at `t=5.9`) but it
-      remains an under-resolved filtered exercise, not a quantitative DNS
-      benchmark (`docs/verification/incompressible.md`).
+      paths. The 3D TGV is implemented; a 4th-order filter (`alpha=0.1`) plus
+      the FFT pressure solver stabilizes n=64 (peak `-dK/dt/V = 1.142e-2` at
+      `t=8.96`, 8.6% below the reference) but it remains a filtered exercise,
+      not a DNS benchmark (`docs/verification/incompressible.md`).
 - [ ] Divergence-vs-`M_c` study; cost-crossover plot (EDAC vs projection).
 - [ ] Multi-GPU scaling; report steps, divergence, Poisson fraction.
 
-**Current:** periodic GMG, the staggered-MAC projection solver, wall-bounded
-channel flow, and the Ghia Re=100 cavity are verified. The 3D TGV is stable
-with a 4th-order filter at n=32. Next: turbulent channel, higher-Re cavity, a
-dealiased 3D TGV, and a distributed multigrid solve.
+**Current:** periodic GMG and FFT Poisson solvers, the staggered-MAC projection
+solver, wall-bounded channel flow, and the Ghia Re=100/400 cavity are verified.
+The 3D TGV runs stably at n=64 with a 4th-order filter and peaks within 9% of
+the reference. Next: turbulent channel, higher-Re cavity, a dealiased 3D TGV,
+and a distributed multigrid solve.
 
 **Exit:** projection + GMG validated against references and ≥ 70%
 strong-scaling efficiency at 8 GPUs for 512³; EDAC measured against the

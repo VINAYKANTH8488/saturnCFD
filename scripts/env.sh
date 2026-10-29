@@ -24,4 +24,9 @@ export KOKKOS_ROOT_CUDA="${KOKKOS_ROOT_CUDA:-${HOME}/opt/kokkos-5.2.2-cuda}"
 export KOKKOS_ROOT_HIP="${KOKKOS_ROOT_HIP:-${HOME}/opt/kokkos-5.2.2-hip}"
 export KOKKOS_ROOT_SYCL="${KOKKOS_ROOT_SYCL:-${HOME}/opt/kokkos-5.2.2-sycl}"
 
+# Optional user-local FFTW3 development tree.
+if [ -d "${HOME}/opt/fftw3-dev/usr/include" ]; then
+  export FFTW3_ROOT="${FFTW3_ROOT:-${HOME}/opt/fftw3-dev/usr}"
+fi
+
 unset _saturn_root

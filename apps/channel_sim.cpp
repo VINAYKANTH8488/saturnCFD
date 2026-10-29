@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -263,6 +264,7 @@ CaseResult run_case(int ny, const Params& params) {
   do_project(u, v, w);
 
   const double hmin = std::min({g.hx, g.hy, g.hz});
+  bool valid = true;
   Kokkos::Timer timer;
   double time = 0.0;
   int steps = 0;
@@ -281,6 +283,10 @@ CaseResult run_case(int ny, const Params& params) {
     double dt = params.cfl * hmin / std::max(max_speed, 1.0e-12);
     if (params.nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / params.nu);
+    }
+    if (max_speed > 1.0e6 || dt < 1.0e-10 * hmin) {
+      valid = false;
+      break;
     }
     if (time + dt > params.tend) {
       dt = params.tend - time;
@@ -332,6 +338,12 @@ CaseResult run_case(int ny, const Params& params) {
   result.ny = ny;
   result.steps = steps;
   result.dt = last_dt;
+  if (!valid) {
+    result.l2 = std::numeric_limits<double>::infinity();
+    result.divergence = std::numeric_limits<double>::infinity();
+    result.seconds = saturn::mpi_max(timer.seconds());
+    return result;
+  }
   result.l2 = std::sqrt(saturn::mpi_sum(sum_error) / (3.0 * cells));
   result.divergence = saturn::mpi_max(max_div);
   result.centerline = saturn::mpi_max(centerline);
