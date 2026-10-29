@@ -49,6 +49,9 @@ target_link_libraries(saturn_test_twophase PRIVATE saturn_core)
 add_executable(saturn_test_vof_curvature_levelset test_vof_curvature_levelset.cpp)
 target_link_libraries(saturn_test_vof_curvature_levelset PRIVATE saturn_core)
 
+add_executable(saturn_test_variable_poisson test_variable_poisson.cpp)
+target_link_libraries(saturn_test_variable_poisson PRIVATE saturn_core)
+
 add_test(NAME saturn.smoke COMMAND saturn_test_smoke)
 set_tests_properties(saturn.smoke PROPERTIES LABELS "unit")
 
@@ -107,6 +110,10 @@ add_test(NAME saturn.vof_curvature_levelset
   COMMAND saturn_test_vof_curvature_levelset)
 set_tests_properties(saturn.vof_curvature_levelset
   PROPERTIES LABELS "unit;numerics;vof")
+
+add_test(NAME saturn.variable_poisson COMMAND saturn_test_variable_poisson)
+set_tests_properties(saturn.variable_poisson
+  PROPERTIES LABELS "unit;numerics;twophase")
 
 add_test(NAME saturn.incompressible_tgv
   COMMAND saturn_incompressible_sim --n-list 16 32 64 --tend 0.5

@@ -980,6 +980,9 @@ enough (Appendix C).
       `sigma/r` pressure jump (`docs/verification/vof.md`). The full explicit
       step (advection, variable viscosity, gravity, CSF, projection, VOF) is
       exercised by static-bubble and uniform-advection tests.
+- [x] Variable-coefficient Poisson with Neumann walls (`div(1/rho grad p)`),
+      manufactured solution at n=64 (L2 1.1e-4); foundation for wall-bounded
+      two-phase flow.
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk.
 - [ ] Spurious-current test; interface sharpness metrics.
 - [ ] Default pressure coupler: projection + GMG (EDAC-VOF is research).
@@ -988,8 +991,9 @@ enough (Appendix C).
 mass conservation, boundedness), and 2D/3D height-function curvature is
 verified on sine interfaces, bounded redistribution is in place, and balanced
 CSF and a variable-density projection are validated on a static bubble, and a
-level-set curvature estimator covers closed interfaces, and the full
-variable-density momentum step is implemented. Next: wall boundaries and
+level-set curvature estimator covers closed interfaces, the full
+variable-density momentum step is implemented, and the variable-coefficient
+Poisson now supports Neumann walls. Next: wall-aware momentum/VOF and
 dam-break/RTI/bubble validation.
 
 **Exit:** dam break and bubble match references within a few %; mass drift

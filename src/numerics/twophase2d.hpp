@@ -114,8 +114,16 @@ class VariablePoisson2D {
  public:
   VariablePoisson2D(int nx, int ny, double hx, double hy,
                     const std::vector<double>& beta_x,
-                    const std::vector<double>& beta_y)
-      : nx_(nx), ny_(ny), hx_(hx), hy_(hy), bx_(beta_x), by_(beta_y) {}
+                    const std::vector<double>& beta_y, bool periodic_x = true,
+                    bool periodic_y = true)
+      : nx_(nx),
+        ny_(ny),
+        hx_(hx),
+        hy_(hy),
+        bx_(beta_x),
+        by_(beta_y),
+        periodic_x_(periodic_x),
+        periodic_y_(periodic_y) {}
 
   void apply(const std::vector<double>& p, std::vector<double>& out) const {
     for (int j = 0; j < ny_; ++j) {
@@ -125,14 +133,24 @@ class VariablePoisson2D {
         const int jm = (j == 0) ? ny_ - 1 : j - 1;
         const int jp = (j + 1 == ny_) ? 0 : j + 1;
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const bool wall_left = !periodic_x_ && i == 0;
+        const bool wall_right = !periodic_x_ && i == nx_ - 1;
+        const bool wall_low = !periodic_y_ && j == 0;
+        const bool wall_high = !periodic_y_ && j == ny_ - 1;
+        const double b_left =
+            wall_left ? 0.0 : bx_[static_cast<std::size_t>(j) * nx_ + i];
+        const double b_right =
+            wall_right ? 0.0 : bx_[static_cast<std::size_t>(j) * nx_ + ip];
+        const double b_low =
+            wall_low ? 0.0 : by_[static_cast<std::size_t>(j) * nx_ + i];
+        const double b_high =
+            wall_high ? 0.0 : by_[static_cast<std::size_t>(jp) * nx_ + i];
         const double xflux =
-            bx_[static_cast<std::size_t>(j) * nx_ + ip] *
-                (p[static_cast<std::size_t>(j) * nx_ + ip] - p[index]) -
-            bx_[index] * (p[index] - p[static_cast<std::size_t>(j) * nx_ + im]);
+            b_right * (p[static_cast<std::size_t>(j) * nx_ + ip] - p[index]) -
+            b_left * (p[index] - p[static_cast<std::size_t>(j) * nx_ + im]);
         const double yflux =
-            by_[static_cast<std::size_t>(jp) * nx_ + i] *
-                (p[static_cast<std::size_t>(jp) * nx_ + i] - p[index]) -
-            by_[index] * (p[index] - p[static_cast<std::size_t>(jm) * nx_ + i]);
+            b_high * (p[static_cast<std::size_t>(jp) * nx_ + i] - p[index]) -
+            b_low * (p[index] - p[static_cast<std::size_t>(jm) * nx_ + i]);
         out[index] = xflux / (hx_ * hx_) + yflux / (hy_ * hy_);
       }
     }
@@ -142,18 +160,33 @@ class VariablePoisson2D {
              double tolerance = 1.0e-10, int max_iterations = 500) const {
     const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
     p.assign(total, 0.0);
+    double mean = 0.0;
+    for (double value : rhs) {
+      mean += value;
+    }
+    mean /= static_cast<double>(total);
     std::vector<double> r = rhs;
+    for (double& value : r) {
+      value -= mean;
+    }
     std::vector<double> diag(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
         const int ip = (i + 1 == nx_) ? 0 : i + 1;
         const int jp = (j + 1 == ny_) ? 0 : j + 1;
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
+        const bool wall_left = !periodic_x_ && i == 0;
+        const bool wall_right = !periodic_x_ && i == nx_ - 1;
+        const bool wall_low = !periodic_y_ && j == 0;
+        const bool wall_high = !periodic_y_ && j == ny_ - 1;
+        const double b_left = wall_left ? 0.0 : bx_[index];
+        const double b_right =
+            wall_right ? 0.0 : bx_[static_cast<std::size_t>(j) * nx_ + ip];
+        const double b_low = wall_low ? 0.0 : by_[index];
+        const double b_high =
+            wall_high ? 0.0 : by_[static_cast<std::size_t>(jp) * nx_ + i];
         diag[index] =
-            -(bx_[index] + bx_[static_cast<std::size_t>(j) * nx_ + ip]) /
-                (hx_ * hx_) -
-            (by_[index] + by_[static_cast<std::size_t>(jp) * nx_ + i]) /
-                (hy_ * hy_);
+            -(b_left + b_right) / (hx_ * hx_) - (b_low + b_high) / (hy_ * hy_);
       }
     }
     std::vector<double> z(total, 0.0);
@@ -214,6 +247,8 @@ class VariablePoisson2D {
   double hy_;
   std::vector<double> bx_;
   std::vector<double> by_;
+  bool periodic_x_ = true;
+  bool periodic_y_ = true;
 };
 
 class Solver2D {

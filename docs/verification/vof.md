@@ -172,6 +172,28 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.vof_curvature_levelset --output-on-failure
 ```
 
+## Variable-coefficient Poisson with Neumann walls
+
+`VariablePoisson2D` supports wall boundaries (zero face flux) in addition to
+the periodic configuration. The manufactured test uses
+
+```
+beta = 1 + 0.25 sin(pi x) sin(pi y),   p = cos(pi x) cos(pi y)
+f = div(beta grad p)
+```
+
+on a unit box with Neumann walls at `n=64`. The PCG solve gives
+**L2 error 1.13e-04** and **Linf 2.2e-04**; the operator applied to the exact
+solution matches `f` to 4.0e-03. This is the pressure-solver foundation for the
+wall-bounded two-phase/dam-break step; wall-aware momentum and VOF are next.
+
+Run:
+
+```bash
+./build/cpu-openmp/tests/saturn_test_variable_poisson
+ctest --test-dir build/cpu-openmp -R saturn.variable_poisson --output-on-failure
+```
+
 ## Balanced CSF and static bubble (2D)
 
 `src/numerics/twophase2d.hpp` couples the VOF field to a periodic MAC
