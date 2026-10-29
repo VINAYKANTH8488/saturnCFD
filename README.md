@@ -8,7 +8,8 @@ workflow, designed for GPU-first scaling.
 Quadro P600 (32/32 serial and 44/44 MPI CUDA tests passing); multi-GPU scaling
 remains. Phase 3 (incompressible) is in progress with periodic GMG and FFT
 Poisson solvers and a staggered-MAC projection prototype verified on the exact
-2D Taylor–Green vortex. The full design, numerics, and roadmap are in
+2D Taylor–Green vortex. Phase 4 VOF prototyping has started with a verified 2D
+PLIC advection scheme. The full design, numerics, and roadmap are in
 [PLAN.md](PLAN.md).
 
 Progress:
@@ -94,6 +95,10 @@ Progress:
   4.800e-4 vs 4.756e-4 at 64²) but needs ~12.6x more steps; divergence is
   `O(M_c)` (`docs/verification/edac.md`). On the P600 at N=64 EDAC takes
   1.53 s vs 0.23 s for projection+FFT, so there is no cost crossover here.
+- Phase 4 started: 2D PLIC VOF prototype with Youngs normals, geometric
+  Strang-split fluxes, round-off mass conservation, and bounded fractions;
+  step translation L1 2.5e-3, circle translation 6.5e-3, one-period rotation
+  7.7e-3 at 32² (`docs/verification/vof.md`).
 
 ## Requirements
 
@@ -490,6 +495,25 @@ transient. Projection + GMG/FFT remains the production path.
 ```
 
 Details: `docs/verification/edac.md`.
+
+## VOF (Phase 4)
+
+`src/numerics/vof2d.hpp` is a 2D PLIC prototype: Youngs normals, a bisected
+plane constant, and Strang-split geometric face fluxes on a periodic grid.
+Volume fraction stays bounded and mass is conserved to round-off.
+
+```bash
+./build/cpu-openmp/tests/saturn_test_vof
+```
+
+| Case | L1 error |
+|---|---|
+| 1D step translation | 2.50e-3 |
+| circle translation | 6.46e-3 |
+| circle solid-body rotation | 7.71e-3 |
+
+Details: `docs/verification/vof.md`. The 3D split version, redistribution,
+height-function curvature, and CSF surface tension are next.
 
 ## MPI
 

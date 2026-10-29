@@ -28,6 +28,9 @@ target_link_libraries(saturn_test_projection PRIVATE saturn_core)
 add_executable(saturn_test_fft_poisson test_fft_poisson.cpp)
 target_link_libraries(saturn_test_fft_poisson PRIVATE saturn_core)
 
+add_executable(saturn_test_vof test_vof.cpp)
+target_link_libraries(saturn_test_vof PRIVATE saturn_core)
+
 add_test(NAME saturn.smoke COMMAND saturn_test_smoke)
 set_tests_properties(saturn.smoke PROPERTIES LABELS "unit")
 
@@ -59,6 +62,9 @@ set_tests_properties(saturn.projection
 
 add_test(NAME saturn.fft_poisson COMMAND saturn_test_fft_poisson)
 set_tests_properties(saturn.fft_poisson PROPERTIES LABELS "unit;numerics;poisson")
+
+add_test(NAME saturn.vof COMMAND saturn_test_vof)
+set_tests_properties(saturn.vof PROPERTIES LABELS "unit;numerics;vof")
 
 add_test(NAME saturn.incompressible_tgv
   COMMAND saturn_incompressible_sim --n-list 16 32 64 --tend 0.5

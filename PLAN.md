@@ -961,12 +961,21 @@ enough (Appendix C).
 ### Phase 4 — Multiphase VOF (4–6 weeks)
 
 - [ ] PLIC reconstruction + geometric flux (3D, split).
-- [ ] Bounded redistribution; mass conservation test.
+- [x] 2D PLIC prototype: Youngs normals, bisection alpha, Strang-split
+      geometric fluxes; step/circle translation and solid-body rotation at
+      L1 2.5e-3–7.7e-3 with round-off mass drift and bounded fractions
+      (`docs/verification/vof.md`).
+- [ ] Bounded redistribution; mass conservation test. (2D geometric advection
+      already conserves mass to round-off; redistribution is still needed.)
 - [ ] Height-function curvature; balanced-force CSF.
 - [ ] Variable-density momentum; ρ(c) interpolation.
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk.
 - [ ] Spurious-current test; interface sharpness metrics.
 - [ ] Default pressure coupler: projection + GMG (EDAC-VOF is research).
+
+**Current:** the 2D PLIC prototype is verified (translation, rotation, mass
+conservation, boundedness). Next: 3D split PLIC, bounded redistribution,
+height-function curvature, and balanced CSF.
 
 **Exit:** dam break and bubble match references within a few %; mass drift
 < 1e-8; static bubble currents < 1e-8.
