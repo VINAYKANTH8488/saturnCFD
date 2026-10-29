@@ -141,6 +141,37 @@ Run:
 ctest --test-dir build/cpu-openmp -R saturn.vof_redistribute --output-on-failure
 ```
 
+## Closed-interface curvature (level set)
+
+`src/numerics/vof_curvature_levelset2d.hpp` complements the height function
+for closed interfaces, where a column can cross the interface twice:
+
+```
+phi   = smooth(c) - 1/2
+n     = grad(phi) / |grad(phi)|
+kappa = -div(n)
+```
+
+A short separable binomial smoothing removes the grid-scale staircase. On a
+circle of radius 0.2 at `n=96`, the error is
+
+| smoothing passes | max error | RMS |
+|---|---|---|
+| 2 | 1.61 | 0.80 |
+| 8 | 0.57 | 0.18 |
+| 16 | **0.203** | **0.0955** |
+
+At 16 passes the maximum error is about 4% of `1/r = 5`. The smoothing width
+trades grid noise against curvature bias; it is a prototype and should be
+compared against a production height-function implementation for bubbles.
+
+Run:
+
+```bash
+./build/cpu-openmp/tests/saturn_test_vof_curvature_levelset
+ctest --test-dir build/cpu-openmp -R saturn.vof_curvature_levelset --output-on-failure
+```
+
 ## Balanced CSF and static bubble (2D)
 
 `src/numerics/twophase2d.hpp` couples the VOF field to a periodic MAC
@@ -166,7 +197,7 @@ prescribed as `1/r`:
 
 The zero spurious current and exact Laplace pressure validate the
 balanced-force CSF and projection coupling. Curvature is prescribed in this
-test.
+test (the level-set curvature is available for closed interfaces).
 
 A variable-density projection is included (`rho_l=1000`, `rho_g=1`, harmonic
 face density). The same bubble gives max `|u| = 3.93e-13`, divergence
@@ -190,7 +221,6 @@ ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
   is not implemented.
 - 2D and 3D height-function curvature are verified; balanced CSF and a
   variable-density projection are validated with a static bubble. Full
-  variable-density momentum advection and curvature-from-VOF on a closed
-  interface are not implemented yet.
+  variable-density momentum advection is not implemented yet.
 - Next: 3D split PLIC, 3D translation/rotation tests, then curvature and
   balanced-force CSF (dam break, RTI, rising bubble).

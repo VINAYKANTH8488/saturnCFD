@@ -978,8 +978,7 @@ enough (Appendix C).
 - [x] Variable-density projection `∇·(1/ρ ∇p)` with ρ(c) interpolation:
       static bubble at 1000:1 density ratio gives `|u|max=3.9e-13`, exact
       `sigma/r` pressure jump (`docs/verification/vof.md`). Full
-      variable-density momentum advection and curvature from VOF on a closed
-      interface remain.
+      variable-density momentum advection remains.
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk.
 - [ ] Spurious-current test; interface sharpness metrics.
 - [ ] Default pressure coupler: projection + GMG (EDAC-VOF is research).
@@ -987,9 +986,9 @@ enough (Appendix C).
 **Current:** 2D and 3D PLIC prototypes are verified (translation, rotation,
 mass conservation, boundedness), and 2D/3D height-function curvature is
 verified on sine interfaces, bounded redistribution is in place, and balanced
-CSF and a variable-density projection are validated on a static bubble. Next:
-curvature from VOF on a closed interface and full variable-density momentum
-advection.
+CSF and a variable-density projection are validated on a static bubble, and a
+level-set curvature estimator covers closed interfaces. Next: full
+variable-density momentum advection and dam-break/RTI/bubble validation.
 
 **Exit:** dam break and bubble match references within a few %; mass drift
 < 1e-8; static bubble currents < 1e-8.
