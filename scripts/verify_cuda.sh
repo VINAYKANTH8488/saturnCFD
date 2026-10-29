@@ -39,9 +39,7 @@ echo "== STREAM (CUDA) =="
 ./build/cuda-local/apps/saturn_stream --space cuda --kernel copy \
   --n 1048576 --iters 5
 
-echo "== selected GPU tests =="
-ctest --test-dir build/cuda-local \
-  -R 'saturn\.(smoke|reconstruction|riemann|poisson|fft_poisson)' \
-  --output-on-failure
+echo "== CUDA test suite =="
+ctest --test-dir build/cuda-local --output-on-failure
 
 echo "CUDA smoke test passed."

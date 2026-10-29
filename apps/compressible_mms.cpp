@@ -81,24 +81,6 @@ struct CaseResult {
   double seconds = 0.0;
 };
 
-KOKKOS_INLINE_FUNCTION
-saturn::PrimitiveState exact_state_device(int case_id, double mu, double x,
-                                          double y, double z, double time) {
-  if (case_id == 1) {
-    const double k = 2.0 * kPi;
-    const double decay = Kokkos::exp(-mu * 2.0 * k * k * time);
-    const double u = 0.1 * Kokkos::sin(k * y) * Kokkos::sin(k * z) * decay;
-    return saturn::PrimitiveState{1.0, u, 0.0, 0.0, 1.0};
-  }
-  const double kx = 2.0 * kPi;
-  const double ky = 2.0 * kPi;
-  const double kz = 2.0 * kPi;
-  const double omega = kx * 1.0 + ky * 0.5 + kz * 0.25;
-  const double phase = kx * x + ky * y + kz * z - omega * time;
-  return saturn::PrimitiveState{1.0 + 0.2 * Kokkos::sin(phase), 1.0, 0.5, 0.25,
-                                1.0};
-}
-
 struct ExactSolution {
   Params params;
 
@@ -510,32 +492,42 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
 
   const double seconds = saturn::mpi_max(timer.seconds());
 
+  // Diagnostics use a host mirror: this is robust across backends and keeps
+  // the error norm independent of device-lambda/reduction quirks.
+  auto hq = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());
+  const int ng = q.ng();
+  const double gamma = gas.gamma;
   double sum_rho = 0.0;
   double sum_u = 0.0;
   double sum_p = 0.0;
-  const int case_id = (params.case_name == "shear") ? 1 : 0;
-  const double mu = params.mu;
-  const double tend = params.tend;
-  Kokkos::parallel_reduce(
-      "mms_errors", policy,
-      KOKKOS_LAMBDA(int k, int j, int i, double& rho_acc, double& u_acc,
-                    double& p_acc) {
+  for (int k = box.lo[2]; k <= box.hi[2]; ++k) {
+    for (int j = box.lo[1]; j <= box.hi[1]; ++j) {
+      for (int i = box.lo[0]; i <= box.hi[0]; ++i) {
+        const int ip = i - box.lo[0] + ng;
+        const int jp = j - box.lo[1] + ng;
+        const int kp = k - box.lo[2] + ng;
+        const double rho = hq(0, kp, jp, ip);
+        const double inv = 1.0 / rho;
+        const double u = hq(1, kp, jp, ip) * inv;
+        const double v = hq(2, kp, jp, ip) * inv;
+        const double w = hq(3, kp, jp, ip) * inv;
+        const double energy = hq(4, kp, jp, ip);
+        const double p =
+            (energy - 0.5 * rho * (u * u + v * v + w * w)) * (gamma - 1.0);
         const double x = (i + 0.5) * grid.h[0];
         const double y = (j + 0.5) * grid.h[1];
         const double z = (k + 0.5) * grid.h[2];
-        const saturn::PrimitiveState numerical =
-            saturn::compressible::load_primitive(q, i, j, k, gas);
         const saturn::PrimitiveState reference =
-            exact_state_device(case_id, mu, x, y, z, tend);
-        const double drho = numerical.rho - reference.rho;
-        const double du = numerical.u - reference.u;
-        const double dp = numerical.p - reference.p;
-        rho_acc += drho * drho;
-        u_acc += du * du;
-        p_acc += dp * dp;
-      },
-      Kokkos::Sum<double>{sum_rho}, Kokkos::Sum<double>{sum_u},
-      Kokkos::Sum<double>{sum_p});
+            exact.state(x, y, z, params.tend);
+        const double drho = rho - reference.rho;
+        const double du = u - reference.u;
+        const double dp = p - reference.p;
+        sum_rho += drho * drho;
+        sum_u += du * du;
+        sum_p += dp * dp;
+      }
+    }
+  }
 
   const double cells = static_cast<double>(n) * n * n;
   const double l2_rho = std::sqrt(saturn::mpi_sum(sum_rho) / cells);

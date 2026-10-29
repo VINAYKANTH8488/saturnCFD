@@ -15,10 +15,30 @@ void field_combine(Field& destination, double a, const Field& x, double b,
   const auto policy = make_mdrange3<ExecSpace>(
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
+  auto dest = destination.data();
+  auto xd = x.data();
+  auto yd = y.data();
+  const int nvar = destination.nvar();
+  const int dng = destination.ng();
+  const int xng = x.ng();
+  const int yng = y.ng();
+  const int lo0 = box.lo[0];
+  const int lo1 = box.lo[1];
+  const int lo2 = box.lo[2];
   Kokkos::parallel_for(
       "field_combine", policy, KOKKOS_LAMBDA(int k, int j, int i) {
-        for (int v = 0; v < destination.nvar(); ++v) {
-          destination(v, i, j, k) = a * x(v, i, j, k) + b * y(v, i, j, k);
+        const int ip = i - lo0 + dng;
+        const int jp = j - lo1 + dng;
+        const int kp = k - lo2 + dng;
+        const int xip = i - lo0 + xng;
+        const int xjp = j - lo1 + xng;
+        const int xkp = k - lo2 + xng;
+        const int yip = i - lo0 + yng;
+        const int yjp = j - lo1 + yng;
+        const int ykp = k - lo2 + yng;
+        for (int v = 0; v < nvar; ++v) {
+          dest(v, kp, jp, ip) =
+              a * xd(v, xkp, xjp, xip) + b * yd(v, ykp, yjp, yip);
         }
       });
 }
@@ -30,10 +50,24 @@ void field_add_scaled(Field& destination, double scale, const Field& x) {
   const auto policy = make_mdrange3<ExecSpace>(
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
+  auto dest = destination.data();
+  auto xd = x.data();
+  const int nvar = destination.nvar();
+  const int dng = destination.ng();
+  const int xng = x.ng();
+  const int lo0 = box.lo[0];
+  const int lo1 = box.lo[1];
+  const int lo2 = box.lo[2];
   Kokkos::parallel_for(
       "field_add_scaled", policy, KOKKOS_LAMBDA(int k, int j, int i) {
-        for (int v = 0; v < destination.nvar(); ++v) {
-          destination(v, i, j, k) += scale * x(v, i, j, k);
+        const int ip = i - lo0 + dng;
+        const int jp = j - lo1 + dng;
+        const int kp = k - lo2 + dng;
+        const int xip = i - lo0 + xng;
+        const int xjp = j - lo1 + xng;
+        const int xkp = k - lo2 + xng;
+        for (int v = 0; v < nvar; ++v) {
+          dest(v, kp, jp, ip) += scale * xd(v, xkp, xjp, xip);
         }
       });
 }
@@ -45,10 +79,24 @@ void field_copy(const Field& source, Field& destination) {
   const auto policy = make_mdrange3<ExecSpace>(
       Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
+  auto src = source.data();
+  auto dest = destination.data();
+  const int nvar = source.nvar();
+  const int sng = source.ng();
+  const int dng = destination.ng();
+  const int lo0 = box.lo[0];
+  const int lo1 = box.lo[1];
+  const int lo2 = box.lo[2];
   Kokkos::parallel_for(
       "field_copy", policy, KOKKOS_LAMBDA(int k, int j, int i) {
-        for (int v = 0; v < source.nvar(); ++v) {
-          destination(v, i, j, k) = source(v, i, j, k);
+        const int sip = i - lo0 + sng;
+        const int sjp = j - lo1 + sng;
+        const int skp = k - lo2 + sng;
+        const int dip = i - lo0 + dng;
+        const int djp = j - lo1 + dng;
+        const int dkp = k - lo2 + dng;
+        for (int v = 0; v < nvar; ++v) {
+          dest(v, dkp, djp, dip) = src(v, skp, sjp, sip);
         }
       });
 }

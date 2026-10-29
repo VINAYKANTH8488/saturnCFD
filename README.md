@@ -4,12 +4,11 @@ Performance-portable, block-structured, high-order finite-volume DNS code for
 CPU and multiple GPUs, built on Kokkos. Basilisk-inspired in physics and
 workflow, designed for GPU-first scaling.
 
-**Status:** Phase 2 essentially complete on CPU; the CUDA backend is now
-operational on the local Quadro P600 (stencil, STREAM, scalar MMS, Sod, and
-incompressible paths verified; the 3D compressible GPU diagnostics still need
-a debugging pass). Phase 3 (incompressible) is in progress with periodic GMG
-and FFT Poisson solvers and a staggered-MAC projection prototype verified on
-the exact 2D Taylor–Green vortex. The full design, numerics, and roadmap are in
+**Status:** Phase 2 essentially complete on CPU and validated on the local
+Quadro P600 (full 32-test CUDA suite passing); multi-GPU scaling remains.
+Phase 3 (incompressible) is in progress with periodic GMG and FFT Poisson
+solvers and a staggered-MAC projection prototype verified on the exact 2D
+Taylor–Green vortex. The full design, numerics, and roadmap are in
 [PLAN.md](PLAN.md).
 
 Progress:
@@ -17,8 +16,9 @@ Progress:
 - CPU and CUDA toolchains verified: Kokkos 5.2.2 (Serial + OpenMP) and CUDA
   12.2 (sm_61, Quadro P600).
 - GPU baseline on the P600: 7-point stencil **27.93 GB/s** effective
-  (51.5% of STREAM copy) and STREAM **54.2 GB/s**; scalar MMS, Sod, and the
-  incompressible TGV pass on CUDA (`docs/performance/gpu_p600.md`).
+  (51.5% of STREAM copy) and STREAM **54.2 GB/s**; the **full 32-test CUDA
+  suite passes**, including compressible MMS/TGV, boundary conditions, and the
+  incompressible paths (`docs/performance/gpu_p600.md`).
 - 7-point stencil microbenchmark: **84% of STREAM copy** on 4 CPU threads and
   **52%** on the P600 (see `benchmarks/results/`).
 - EDAC pressure-free prototype completed; projection + GMG remains the

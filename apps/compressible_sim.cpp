@@ -605,31 +605,42 @@ int run(const Params& params) {
   // Returns {mass, momentum, kinetic, internal, total, max Mach}; the total
   // energy is kinetic + internal and is conserved for periodic inviscid flow.
   auto diagnostics = [&](double current_time) {
+    // Host-mirror diagnostics: robust on every backend and independent of
+    // device-lambda/reduction behaviour.
+    auto hq =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());
+    const int ngq = q.ng();
     double mass = 0.0;
     double momentum = 0.0;
     double kinetic = 0.0;
     double internal = 0.0;
     double max_mach = 0.0;
-    Kokkos::parallel_reduce(
-        "diagnostics", interior_policy,
-        KOKKOS_LAMBDA(int k, int j, int i, double& m, double& mom, double& kin,
-                      double& internal_energy, double& mach) {
-          const saturn::PrimitiveState state =
-              saturn::compressible::load_primitive(q, i, j, k, gas);
-          const double speed2 =
-              state.u * state.u + state.v * state.v + state.w * state.w;
-          const double speed = Kokkos::sqrt(speed2);
-          const double c = Kokkos::sqrt(gas.gamma * state.p / state.rho);
-          m += state.rho;
-          mom += state.rho * speed;
-          kin += 0.5 * state.rho * speed2;
-          internal_energy += state.p / (gas.gamma - 1.0);
-          const double local_mach = speed / c;
-          mach = local_mach > mach ? local_mach : mach;
-        },
-        Kokkos::Sum<double>{mass}, Kokkos::Sum<double>{momentum},
-        Kokkos::Sum<double>{kinetic}, Kokkos::Sum<double>{internal},
-        Kokkos::Max<double>{max_mach});
+    for (int k = box.lo[2]; k <= box.hi[2]; ++k) {
+      for (int j = box.lo[1]; j <= box.hi[1]; ++j) {
+        for (int i = box.lo[0]; i <= box.hi[0]; ++i) {
+          const int ip = i - box.lo[0] + ngq;
+          const int jp = j - box.lo[1] + ngq;
+          const int kp = k - box.lo[2] + ngq;
+          const double rho = hq(0, kp, jp, ip);
+          const double inv = 1.0 / rho;
+          const double u = hq(1, kp, jp, ip) * inv;
+          const double v = hq(2, kp, jp, ip) * inv;
+          const double w = hq(3, kp, jp, ip) * inv;
+          const double energy = hq(4, kp, jp, ip);
+          const double speed2 = u * u + v * v + w * w;
+          const double pressure =
+              (energy - 0.5 * rho * speed2) * (gas.gamma - 1.0);
+          const double sound = std::sqrt(gas.gamma * pressure / rho);
+          const double speed = std::sqrt(speed2);
+          mass += rho;
+          momentum += rho * speed;
+          kinetic += 0.5 * rho * speed2;
+          internal += pressure / (gas.gamma - 1.0);
+          const double mach = speed / sound;
+          max_mach = mach > max_mach ? mach : max_mach;
+        }
+      }
+    }
     mass = saturn::mpi_sum(mass) * cell_volume;
     momentum = saturn::mpi_sum(momentum) * cell_volume;
     kinetic = saturn::mpi_sum(kinetic) * cell_volume;

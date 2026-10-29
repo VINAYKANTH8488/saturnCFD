@@ -44,12 +44,17 @@ expected range for a 7-point stencil with two arrays on this class of GPU.
 | 1D Sod shock tube | passes (L1 rho 2.12e-3 at 200 cells) |
 | incompressible 2D TGV | passes, same 2.00 order and errors as CPU |
 | Poisson MMS / projection | passes after fixing a device-capture bug |
-| 3D compressible diagnostics | **known issue**: the energy/velocity diagnostics and MMS error norm report stale/zero values on CUDA even though the 1D Sod path passes; needs a dedicated debugging pass |
-| 3D compressible MMS | reports zero L2 on CUDA; not yet validated |
+| boundary conditions | passes after capturing BC scalars for the device |
+| 3D compressible MMS | passes, WENO5-Z order 5.14 at 8/16 |
+| 3D compressible driver | acoustic K `8.08e-10` matches CPU; TGV and double Mach run |
+| full CUDA CTest suite | **32/32 pass** |
 
-The 3D compressible issue does not affect the 1D Euler path or the
-incompressible/scalar kernels. It must be resolved before claiming Phase 2 GPU
-validation.
+Two CUDA-specific capture bugs were fixed: the generic RK helpers were
+capturing `PatchField` objects instead of their views (and using the
+destination's ghost offset for sources with different `ng`), and the boundary
+condition kernel captured a C array of boundary types. Both produced stale or
+host-memory reads on device. After the fixes the CUDA results match the CPU
+results bit-for-bit for the tested cases.
 
 ## Notes
 

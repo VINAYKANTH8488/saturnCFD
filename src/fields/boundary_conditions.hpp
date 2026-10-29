@@ -40,11 +40,21 @@ void apply_boundary_conditions(PatchField<ExecSpace>& q,
                                const BoundaryType bc[3][2]) {
   const Box box = q.box();
   const int ng = q.ng();
+  // Copy the boundary types into scalar captures. Capturing a C array or a
+  // std::array in a CUDA lambda can bind host memory / misbehave on device.
+  const BoundaryType bc00 = bc[0][0];
+  const BoundaryType bc01 = bc[0][1];
+  const BoundaryType bc10 = bc[1][0];
+  const BoundaryType bc11 = bc[1][1];
+  const BoundaryType bc20 = bc[2][0];
+  const BoundaryType bc21 = bc[2][1];
   const int np0 = box.length(0) + 2 * ng;
   const int np1 = box.length(1) + 2 * ng;
   const int np2 = box.length(2) + 2 * ng;
   const auto policy =
       make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
+  auto data = q.data();
+  const int nvar = q.nvar();
 
   Kokkos::parallel_for(
       "compressible_boundary", policy, KOKKOS_LAMBDA(int kp, int jp, int ip) {
@@ -74,14 +84,18 @@ void apply_boundary_conditions(PatchField<ExecSpace>& q,
             continue;
           }
           const int side = coordinate[d] < lo ? 0 : 1;
-          if (bc[d][side] == BoundaryType::Periodic) {
+          const BoundaryType type =
+              (d == 0) ? (side == 0 ? bc00 : bc01)
+                       : ((d == 1) ? (side == 0 ? bc10 : bc11)
+                                   : (side == 0 ? bc20 : bc21));
+          if (type == BoundaryType::Periodic) {
             const int n = hi - lo + 1;
             int wrapped = (coordinate[d] - lo) % n;
             if (wrapped < 0) {
               wrapped += n;
             }
             source[d] = lo + wrapped;
-          } else if (bc[d][side] == BoundaryType::SlipWall) {
+          } else if (type == BoundaryType::SlipWall) {
             if (coordinate[d] < lo) {
               source[d] = 2 * lo - coordinate[d] - 1;
             } else {
@@ -102,8 +116,7 @@ void apply_boundary_conditions(PatchField<ExecSpace>& q,
         const int source_ip = si - box.lo[0] + ng;
         const int source_jp = sj - box.lo[1] + ng;
         const int source_kp = sk - box.lo[2] + ng;
-        auto data = q.data();
-        for (int v = 0; v < q.nvar(); ++v) {
+        for (int v = 0; v < nvar; ++v) {
           double value = data(v, source_kp, source_jp, source_ip);
           if ((v == 1 && flip_x) || (v == 2 && flip_y) || (v == 3 && flip_z)) {
             value = -value;
