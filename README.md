@@ -90,8 +90,9 @@ Progress:
   match Ghia et al. to RMS 7.6e-3 (u) and 9.9e-3 (v), with `max|div| ~3e-11`.
   On the P600, Re=1000 central gives Ghia RMS 0.100/0.097 at 32² in 193 s;
   the selectable upwind/MUSCL/blend schemes reduce the coarse-grid Re=100 RMS
-  from 3.09e-2/1.95e-2 to 1.93e-2/1.52e-2, and the 25% blend lowers the
-  Re=1000 v RMS from 9.67e-2 to 5.64e-2. Re=5000 runs stably but
+  from 3.09e-2/1.95e-2 to 1.67e-2/1.28e-2, and MUSCL at 48² gives a Re=1000
+  u RMS of 1.74e-2 (5.7x better than central at 32²); the v RMS remains
+  wall-layer limited. Re=5000/10000 run stably at 48² but are
   under-resolved; see `scripts/verify_cavity_gpu.sh`
   (`docs/verification/cavity.md`). Re=400 tables are also wired in; a coarse
   24² run gives RMS 0.074 (u) / 0.072 (v).
@@ -483,9 +484,9 @@ centreline profiles are compared with Ghia, Ghia & Shin (1982):
 
 Advection is selectable with `--advection central|upwind|muscl|blend` and
 `--blend`. On the local Quadro P600,
-`scripts/verify_cavity_gpu.sh` runs Re=1000 with the robust 25% blend at 32²
-in 192 s, Ghia RMS **0.122/0.056** and `max|div|=9.2e-8` (15% gate), plus a
-stable Re=5000 smoke. At `n=32` (CPU, Re=100) the RMS difference from Ghia is
+`scripts/verify_cavity_gpu.sh` runs Re=1000 with MUSCL at 32² in 85 s, Ghia
+RMS **0.037/0.189** and `max|div|=1.0e-7`, plus a stable Re=5000 smoke. At
+`n=32` (CPU, Re=100) the RMS difference from Ghia is
 **7.6e-3** (u) and **9.9e-3** (v),
 with `max|div| ~3e-11`. The fast `n=16` gate runs in about 10 s. Details:
 `docs/verification/cavity.md`.

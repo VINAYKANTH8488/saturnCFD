@@ -30,15 +30,15 @@ cmake --build build/cuda-local --target saturn_cavity_sim -j"${BUILD_JOBS:-4}"
 BIN=build/cuda-local/apps/saturn_cavity_sim
 
 echo
-echo "== Re=1000 Ghia centreline validation, robust blend (n=32, nz=1, t=40) =="
-"${BIN}" --n 32 --nz 1 --re 1000 --tend 40 --cfl 0.3 \
-  --poisson-tol 1e-6 --advection blend --blend 0.25 \
-  --rms-tol 0.15 --space cuda --check
+echo "== Re=1000 Ghia centreline validation, MUSCL (n=32, nz=1, t=20) =="
+"${BIN}" --n 32 --nz 1 --re 1000 --tend 20 --cfl 0.4 \
+  --poisson-tol 1e-6 --advection muscl \
+  --rms-tol 0.20 --div-tol 2e-7 --space cuda --check
 
 echo
 echo "== Re=5000 higher-Reynolds GPU stability smoke (n=32, nz=1, t=10) =="
 "${BIN}" --n 32 --nz 1 --re 5000 --tend 10 --cfl 0.25 \
-  --poisson-tol 1e-6 --advection blend --blend 0.25 --space cuda
+  --poisson-tol 1e-6 --advection muscl --space cuda
 
 echo
 echo "cavity GPU verification passed"

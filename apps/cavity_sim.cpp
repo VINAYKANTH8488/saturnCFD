@@ -20,6 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -42,8 +43,10 @@ struct Params {
   double cfl = 0.3;
   double poisson_tol = 1.0e-10;
   double rms_tol = 0.03;
+  double div_tol = 1.0e-7;
   double blend = 0.25;
   std::string advection = "central";
+  std::string profile;
   std::string space = "default";
   bool check = false;
   bool verbose = false;
@@ -60,8 +63,10 @@ void usage(const char* argv0) {
       "  --tend VALUE       final time (default 15)\n"
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --rms-tol VALUE    Ghia centreline RMS tolerance (default 0.03)\n"
+      "  --div-tol VALUE    max divergence tolerance (default 1e-7)\n"
       "  --advection NAME   central|upwind|muscl|blend (default central)\n"
       "  --blend VALUE      central/upwind blend fraction (default 0.25)\n"
+      "  --profile FILE     write centreline u(y), v(x) samples\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
       "  --check            fail on divergence or Ghia RMS error\n"
       "  --verbose          print the Kokkos configuration\n"
@@ -140,10 +145,14 @@ Params parse(int argc, char** argv) {
       p.poisson_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--rms-tol") {
       p.rms_tol = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--div-tol") {
+      p.div_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--advection") {
       p.advection = require_value(i, argc, argv, a);
     } else if (a == "--blend") {
       p.blend = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--profile") {
+      p.profile = require_value(i, argc, argv, a);
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--check") {
@@ -441,6 +450,17 @@ CaseResult run_case(int n, const Params& params) {
     v_center[i] = 0.5 * (hv(k_center, j_center, i) + hv(k_center, jp, i));
   }
 
+  if (!params.profile.empty() && saturn::mpi_rank() == 0) {
+    std::ofstream out(params.profile);
+    out << "# kind station value\n";
+    for (int j = 0; j < n; ++j) {
+      out << "u " << (j + 0.5) * g.hy << ' ' << u_center[j] << '\n';
+    }
+    for (int i = 0; i < n; ++i) {
+      out << "v " << (i + 0.5) * g.hx << ' ' << v_center[i] << '\n';
+    }
+  }
+
   double sum_u = 0.0;
   double sum_v = 0.0;
   const double* ref_u = nullptr;
@@ -487,7 +507,7 @@ int run(const Params& params) {
                   result.divergence, result.seconds);
     }
     if (params.check) {
-      if (result.divergence > 1.0e-7) {
+      if (result.divergence > params.div_tol) {
         if (root) {
           std::fprintf(stderr, "cavity check failed: |div| = %.3e at n=%d\n",
                        result.divergence, n);

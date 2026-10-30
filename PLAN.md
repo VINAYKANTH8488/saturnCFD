@@ -936,16 +936,14 @@ scaling to 8 GPUs.
 - [x] GPU higher-Re cavity first step: Re=1000 on the P600 (32², t=40,
       Ghia RMS 0.100/0.097, `max|div|=6.2e-8`, 193 s) passes the 15% gate;
       Re=5000 is a stable but under-resolved smoke (RMS 0.288/0.282, 42 s).
-- [x] High-Re advection options: central, first-order upwind, upwind-biased
-      MUSCL, and a central/upwind blend (`--advection`, `--blend`). At Re=100,
-      MUSCL lowers the coarse-grid RMS from 3.09e-2/1.95e-2 to
-      1.93e-2/1.52e-2. At Re=1000, the 25% blend lowers the v RMS from
-      9.67e-2 to 5.64e-2 (u 1.00e-1 -> 1.22e-1); upwind lowers v to 2.07e-2
-      but raises u to 1.43e-1. The Re=1000 grid is still coarse and the run
-      is not steady-state converged.
-      `scripts/verify_cavity_gpu.sh` rebuilds and runs the blend gate plus the
-      Re=5000 smoke. Extension (steady-state criterion, finer grids, 3D z
-      walls, WENO) is the next step.
+- [x] High-Re advection options: central, first-order upwind, minmod MUSCL,
+      and a central/upwind blend (`--advection`, `--blend`). At Re=100, MUSCL
+      lowers the coarse-grid RMS from 3.09e-2/1.95e-2 to 1.67e-2/1.28e-2.
+      At Re=1000, MUSCL at 48² gives u RMS 1.74e-2 (5.7x better than central
+      at 32²) but v RMS 1.96e-1 because the uniform grid misses the thin v
+      wall layer. Re=5000/10000 at 48² are stable but under-resolved. The
+      Nektar++/NekRS GLL-clustered/spectral path and a steady-state criterion
+      are the next extension.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
       C++ TGV prototype matches projection velocity error at `M_c=0.05` with
       ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).

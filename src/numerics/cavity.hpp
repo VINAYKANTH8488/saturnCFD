@@ -129,15 +129,6 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           const double u_jp = (jp < 0) ? 2.0 * u_lid - u_here : u(k, jp, i);
           const double u_km = u(km, j, i);
           const double u_kp = u(kp, j, i);
-          const double u_im2 = (i >= 2) ? u(k, j, i - 2) : 0.0;
-          const double u_ip2 = (i + 2 < n0) ? u(k, j, i + 2) : 0.0;
-          const double u_jm2 =
-              (j >= 2) ? u(k, j - 2, i) : (jm < 0 ? -u_here : u(k, 0, i));
-          const double u_jp2 =
-              (j + 2 < n1) ? u(k, j + 2, i)
-                           : (jp < 0 ? 2.0 * u_lid - u_here : u(k, n1 - 1, i));
-          const double u_km2 = u((k + n2 - 2) % n2, j, i);
-          const double u_kp2 = u((k + 2) % n2, j, i);
           double dudx = (u_ip - u_im) / (2.0 * hx);
           double dudy = (u_jp - u_jm) / (2.0 * hy);
           double dudz = (u_kp - u_km) / (2.0 * hz);
@@ -153,9 +144,9 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
             dudy = v_at_u > 0.0 ? (u_here - u_jm) / hy : (u_jp - u_here) / hy;
             dudz = w_at_u > 0.0 ? (u_here - u_km) / hz : (u_kp - u_here) / hz;
           } else if (adv == 2) {
-            dudx = limited_upwind(u_here, u_im, u_im2, u_ip, u_ip2, u_here, hx);
-            dudy = limited_upwind(u_here, u_jm, u_jm2, u_jp, u_jp2, v_at_u, hy);
-            dudz = limited_upwind(u_here, u_km, u_km2, u_kp, u_kp2, w_at_u, hz);
+            dudx = minmod(u_here - u_im, u_ip - u_here) / hx;
+            dudy = minmod(u_here - u_jm, u_jp - u_here) / hy;
+            dudz = minmod(u_here - u_km, u_kp - u_here) / hz;
           } else if (adv == 3) {
             const double cx = (u_ip - u_im) / (2.0 * hx);
             const double cy = (u_jp - u_jm) / (2.0 * hy);
@@ -187,12 +178,6 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           const double v_jp = (jp < 0) ? 0.0 : v(k, jp, i);
           const double v_km = v(km, j, i);
           const double v_kp = v(kp, j, i);
-          const double v_im2 = (i >= 2) ? v(k, j, i - 2) : -v_here;
-          const double v_ip2 = (i + 2 < n0) ? v(k, j, i + 2) : -v_here;
-          const double v_jm2 = (j >= 2) ? v(k, j - 2, i) : 0.0;
-          const double v_jp2 = (j + 2 < n1) ? v(k, j + 2, i) : 0.0;
-          const double v_km2 = v((k + n2 - 2) % n2, j, i);
-          const double v_kp2 = v((k + 2) % n2, j, i);
           double dvdx = (v_ip - v_im) / (2.0 * hx);
           double dvdy = (v_jp - v_jm) / (2.0 * hy);
           double dvdz = (v_kp - v_km) / (2.0 * hz);
@@ -209,9 +194,9 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
             dvdy = v_here > 0.0 ? (v_here - v_jm) / hy : (v_jp - v_here) / hy;
             dvdz = w_at_v > 0.0 ? (v_here - v_km) / hz : (v_kp - v_here) / hz;
           } else if (adv == 2) {
-            dvdx = limited_upwind(v_here, v_im, v_im2, v_ip, v_ip2, u_at_v, hx);
-            dvdy = limited_upwind(v_here, v_jm, v_jm2, v_jp, v_jp2, v_here, hy);
-            dvdz = limited_upwind(v_here, v_km, v_km2, v_kp, v_kp2, w_at_v, hz);
+            dvdx = minmod(v_here - v_im, v_ip - v_here) / hx;
+            dvdy = minmod(v_here - v_jm, v_jp - v_here) / hy;
+            dvdz = minmod(v_here - v_km, v_kp - v_here) / hz;
           } else if (adv == 3) {
             const double cx = (v_ip - v_im) / (2.0 * hx);
             const double cy = (v_jp - v_jm) / (2.0 * hy);
@@ -240,12 +225,6 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
         const double w_jp = (jp < 0) ? -w_here : w(k, jp, i);
         const double w_km = w(km, j, i);
         const double w_kp = w(kp, j, i);
-        const double w_im2 = (i >= 2) ? w(k, j, i - 2) : -w_here;
-        const double w_ip2 = (i + 2 < n0) ? w(k, j, i + 2) : -w_here;
-        const double w_jm2 = (j >= 2) ? w(k, j - 2, i) : -w_here;
-        const double w_jp2 = (j + 2 < n1) ? w(k, j + 2, i) : -w_here;
-        const double w_km2 = w((k + n2 - 2) % n2, j, i);
-        const double w_kp2 = w((k + 2) % n2, j, i);
         double dwdx = (w_ip - w_im) / (2.0 * hx);
         double dwdy = (w_jp - w_jm) / (2.0 * hy);
         double dwdz = (w_kp - w_km) / (2.0 * hz);
@@ -262,9 +241,9 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           dwdy = v_at_w > 0.0 ? (w_here - w_jm) / hy : (w_jp - w_here) / hy;
           dwdz = w_here > 0.0 ? (w_here - w_km) / hz : (w_kp - w_here) / hz;
         } else if (adv == 2) {
-          dwdx = limited_upwind(w_here, w_im, w_im2, w_ip, w_ip2, u_at_w, hx);
-          dwdy = limited_upwind(w_here, w_jm, w_jm2, w_jp, w_jp2, v_at_w, hy);
-          dwdz = limited_upwind(w_here, w_km, w_km2, w_kp, w_kp2, w_here, hz);
+          dwdx = minmod(w_here - w_im, w_ip - w_here) / hx;
+          dwdy = minmod(w_here - w_jm, w_jp - w_here) / hy;
+          dwdz = minmod(w_here - w_km, w_kp - w_here) / hz;
         } else if (adv == 3) {
           const double cx = (w_ip - w_im) / (2.0 * hx);
           const double cy = (w_jp - w_jm) / (2.0 * hy);
