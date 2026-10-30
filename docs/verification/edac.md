@@ -4,7 +4,7 @@
 **Status:** periodic 2D TGV verification of the C++ EDAC path; matches the
 projection spatial error at `M_c=0.05` but needs ~12x more steps. Projection +
 GMG/FFT remains the production path.
-**Code:** `apps/edac_sim.cpp`, `src/numerics/edac.hpp`
+**Code:** `apps/edac_sim.cpp`, `src/numerics/incompressible/edac.hpp`
 
 ## Formulation
 

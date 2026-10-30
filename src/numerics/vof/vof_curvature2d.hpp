@@ -1,6 +1,6 @@
 #pragma once
 
-#include "numerics/vof2d.hpp"
+#include "numerics/vof/vof2d.hpp"
 
 #include <algorithm>
 #include <cmath>

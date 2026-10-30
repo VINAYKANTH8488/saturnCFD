@@ -7,8 +7,8 @@
 #include "fields/patch_field.hpp"
 #include "mesh/box.hpp"
 #include "mesh/uniform_grid.hpp"
-#include "numerics/reconstruction.hpp"
-#include "numerics/riemann.hpp"
+#include "numerics/compressible/reconstruction.hpp"
+#include "numerics/compressible/riemann.hpp"
 
 namespace saturn {
 namespace compressible {

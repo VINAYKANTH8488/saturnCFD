@@ -4,7 +4,7 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "numerics/riemann.hpp"
+#include "numerics/compressible/riemann.hpp"
 
 #include <algorithm>
 #include <cmath>

@@ -5,7 +5,7 @@
 and homogeneous-Dirichlet boundaries; second-order convergence verified on
 periodic and Neumann boxes. Variable coefficients, MPI, and wall-aware MAC
 projection are next.
-**Code:** `src/numerics/poisson.hpp`, `tests/test_poisson.cpp`
+**Code:** `src/numerics/incompressible/poisson.hpp`, `tests/test_poisson.cpp`
 
 ## Discretization
 
@@ -105,7 +105,7 @@ ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
 
 ## FFT fast path
 
-`src/numerics/fft_poisson.hpp` adds a direct FFT solver for periodic uniform
+`src/numerics/incompressible/fft_poisson.hpp` adds a direct FFT solver for periodic uniform
 boxes. The right-hand side is transformed with FFTW3, divided by the discrete
 eigenvalue
 

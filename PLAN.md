@@ -875,10 +875,10 @@ requires GPU streams / GPU-aware MPI and larger exchange fractions.
 ### Phase 2 — High-order compressible (3–4 weeks)
 
 - [x] WENO5-Z, TENO6, central 4/6 reconstruction
-      (`src/numerics/reconstruction.hpp`; orders 5.06 and 5.99 measured,
+      (`src/numerics/compressible/reconstruction.hpp`; orders 5.06 and 5.99 measured,
       `docs/verification/reconstruction.md`).
 - [x] Riemann solvers: HLLC, HLLC-low-Mach, AUSM⁺-up, LLF fallback
-      (`src/numerics/riemann.hpp`; unit-tested, full Sod/MMS validation in a
+      (`src/numerics/compressible/riemann.hpp`; unit-tested, full Sod/MMS validation in a
       time-dependent solver is the next step).
 - [ ] Compressible NS + ideal gas; Sod, double Mach, low-Mach vortex,
       acoustic pulse. 1D inviscid Euler Sod gate passing

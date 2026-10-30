@@ -4,7 +4,7 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "numerics/reconstruction.hpp"
+#include "numerics/compressible/reconstruction.hpp"
 
 #include <algorithm>
 #include <array>

@@ -3,7 +3,7 @@
 **Date:** 2026-10-27
 **Status:** unit tests pass on CPU (Kokkos Serial + OpenMP); device-callable.
 Full shock-tube/MMS validation in a time-dependent solver is the next step.
-**Code:** `src/numerics/riemann.hpp`, `tests/test_riemann.cpp`
+**Code:** `src/numerics/compressible/riemann.hpp`, `tests/test_riemann.cpp`
 
 ## Purpose
 

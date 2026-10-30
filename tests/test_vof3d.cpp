@@ -1,6 +1,6 @@
 // 3D PLIC VOF prototype: clipping check, translation, and rotation.
 
-#include "numerics/vof3d.hpp"
+#include "numerics/vof/vof3d.hpp"
 
 #include <algorithm>
 #include <cmath>

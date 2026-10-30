@@ -8,7 +8,7 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "numerics/poisson.hpp"
+#include "numerics/incompressible/poisson.hpp"
 
 #include <array>
 #include <cmath>

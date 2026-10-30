@@ -20,8 +20,8 @@
 #include "core/mpi.hpp"
 #include "core/parallel.hpp"
 #include "core/version.hpp"
-#include "numerics/edac.hpp"
-#include "numerics/projection.hpp"
+#include "numerics/incompressible/edac.hpp"
+#include "numerics/incompressible/projection.hpp"
 
 #include <algorithm>
 #include <array>

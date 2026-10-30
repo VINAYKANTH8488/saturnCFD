@@ -1,6 +1,6 @@
 // Level-set curvature on a circular interface.
 
-#include "numerics/vof_curvature_levelset2d.hpp"
+#include "numerics/vof/vof_curvature_levelset2d.hpp"
 
 #include <algorithm>
 #include <cmath>

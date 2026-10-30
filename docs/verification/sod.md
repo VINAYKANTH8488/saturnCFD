@@ -4,8 +4,8 @@
 **Status:** passing on CPU for WENO5-Z, TENO6, and central4 reconstruction with
 LLF, HLLC, HLLC-low-Mach, and AUSM+-up fluxes. The driver is a host-only 1D
 verification tool, not the production 3D solver.
-**Code:** `apps/euler1d.cpp`, `src/numerics/reconstruction.hpp`,
-`src/numerics/riemann.hpp`
+**Code:** `apps/euler1d.cpp`, `src/numerics/compressible/reconstruction.hpp`,
+`src/numerics/compressible/riemann.hpp`
 
 ## Purpose
 

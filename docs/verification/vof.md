@@ -4,7 +4,7 @@
 **Status:** 2D and 3D periodic prototypes (host-side) with PLIC reconstruction
 and Strang-split geometric fluxes; mass-conservative and bounded. Curvature/CSF,
 coupled momentum, and redistribution are next.
-**Code:** `src/numerics/vof2d.hpp`, `tests/test_vof.cpp`
+**Code:** `src/numerics/vof/vof2d.hpp`, `tests/test_vof.cpp`
 
 ## Method
 
@@ -48,7 +48,7 @@ ctest --test-dir build/cpu-openmp -R saturn.vof --output-on-failure
 
 ## 3D PLIC
 
-`src/numerics/vof3d.hpp` extends the reconstruction to 3D: the cell is a unit
+`src/numerics/vof/vof3d.hpp` extends the reconstruction to 3D: the cell is a unit
 cube, clipped by the PLIC half-plane; the plane constant is bisected on the
 clipped volume. The cap face is built from the intersection points and sorted
 around the plane normal; volume comes from a signed tetrahedral decomposition.
@@ -71,7 +71,7 @@ ctest --test-dir build/cpu-openmp -R saturn.vof3d --output-on-failure
 
 ## Height-function curvature (2D)
 
-`src/numerics/vof_curvature2d.hpp` computes the column (or row) height
+`src/numerics/vof/vof_curvature2d.hpp` computes the column (or row) height
 function
 
 ```
@@ -100,7 +100,7 @@ ctest --test-dir build/cpu-openmp -R saturn.vof_curvature --output-on-failure
 
 ## 3D height-function curvature
 
-`src/numerics/vof_curvature3d.hpp` computes the height function
+`src/numerics/vof/vof_curvature3d.hpp` computes the height function
 `h_ij = sum_k c_ijk hz`, 5-point derivatives in x/y, the mixed derivative, and
 
 ```
@@ -122,7 +122,7 @@ ctest --test-dir build/cpu-openmp -R saturn.vof_curvature3d --output-on-failure
 
 ## Bounded redistribution
 
-`src/numerics/vof_redistribute.hpp` clamps any overshoot and restores the
+`src/numerics/vof/vof_redistribute.hpp` clamps any overshoot and restores the
 pre-clamp mass by distributing the error to cells with available capacity
 (weighted by `1-c` or `c`), iterating until the mass matches. It is a safety
 net for sharp interfaces, not a replacement for bounded advection.
@@ -143,7 +143,7 @@ ctest --test-dir build/cpu-openmp -R saturn.vof_redistribute --output-on-failure
 
 ## Closed-interface curvature (level set)
 
-`src/numerics/vof_curvature_levelset2d.hpp` complements the height function
+`src/numerics/vof/vof_curvature_levelset2d.hpp` complements the height function
 for closed interfaces, where a column can cross the interface twice:
 
 ```
@@ -196,7 +196,7 @@ ctest --test-dir build/cpu-openmp -R saturn.variable_poisson --output-on-failure
 
 ## Balanced CSF and static bubble (2D)
 
-`src/numerics/twophase2d.hpp` couples the VOF field to a periodic MAC
+`src/numerics/multiphase/twophase2d.hpp` couples the VOF field to a periodic MAC
 projection solver with an FFT Poisson solve. The CSF force is evaluated on
 faces as
 
@@ -247,7 +247,7 @@ ctest --test-dir build/cpu-openmp -R saturn.twophase --output-on-failure
 
 ## Wall-bounded dam break (prototype)
 
-`src/numerics/dambreak2d.hpp` is a closed-box dam-break prototype:
+`src/numerics/multiphase/dambreak2d.hpp` is a closed-box dam-break prototype:
 
 - no-slip/no-penetration walls on all sides
 - variable density `rho(c)` and viscosity `mu(c)` and gravity

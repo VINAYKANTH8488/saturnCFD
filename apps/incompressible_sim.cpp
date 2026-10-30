@@ -16,10 +16,10 @@
 #include "core/mpi.hpp"
 #include "core/parallel.hpp"
 #include "core/version.hpp"
-#include "numerics/fft_poisson.hpp"
-#include "numerics/incompressible.hpp"
-#include "numerics/poisson.hpp"
-#include "numerics/projection.hpp"
+#include "numerics/incompressible/fft_poisson.hpp"
+#include "numerics/incompressible/incompressible.hpp"
+#include "numerics/incompressible/poisson.hpp"
+#include "numerics/incompressible/projection.hpp"
 
 #include <algorithm>
 #include <array>

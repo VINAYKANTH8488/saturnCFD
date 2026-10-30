@@ -22,9 +22,9 @@
 #include "halo/box_exchange.hpp"
 #include "mesh/decomposition.hpp"
 #include "mesh/uniform_grid.hpp"
-#include "numerics/compressible_ns.hpp"
-#include "numerics/reconstruction.hpp"
-#include "numerics/riemann.hpp"
+#include "numerics/compressible/compressible_ns.hpp"
+#include "numerics/compressible/reconstruction.hpp"
+#include "numerics/compressible/riemann.hpp"
 
 #include <algorithm>
 #include <cmath>

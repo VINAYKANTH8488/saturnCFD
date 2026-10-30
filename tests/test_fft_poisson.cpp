@@ -6,7 +6,7 @@
 
 #ifdef SATURN_HAVE_FFTW
 
-#include "numerics/fft_poisson.hpp"
+#include "numerics/incompressible/fft_poisson.hpp"
 
 #include <array>
 #include <cmath>

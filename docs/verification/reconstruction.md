@@ -4,7 +4,7 @@
 **Status:** unit and convergence tests pass on CPU (Kokkos Serial + OpenMP).
 The same functions are device-callable; a CUDA run is pending GPU access in
 the current environment.
-**Code:** `src/numerics/reconstruction.hpp`, `tests/test_reconstruction.cpp`
+**Code:** `src/numerics/compressible/reconstruction.hpp`, `tests/test_reconstruction.cpp`
 
 ## Purpose
 
@@ -123,7 +123,7 @@ behaviour and is asserted by the test.
 ## Usage
 
 ```cpp
-#include "numerics/reconstruction.hpp"
+#include "numerics/compressible/reconstruction.hpp"
 
 saturn::Reconstruction scheme = saturn::Reconstruction::Weno5Z;
 

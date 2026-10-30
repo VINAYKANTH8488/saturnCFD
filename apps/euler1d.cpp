@@ -5,8 +5,8 @@
 // purpose is to gate the reconstruction and flux modules against the exact Sod
 // solution before they are wired into the 3D compressible solver.
 
-#include "numerics/reconstruction.hpp"
-#include "numerics/riemann.hpp"
+#include "numerics/compressible/reconstruction.hpp"
+#include "numerics/compressible/riemann.hpp"
 
 #include <algorithm>
 #include <cmath>

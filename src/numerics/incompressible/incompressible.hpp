@@ -6,7 +6,7 @@
 #include <cmath>
 
 #include "core/parallel.hpp"
-#include "numerics/projection.hpp"
+#include "numerics/incompressible/projection.hpp"
 
 namespace saturn {
 namespace incompressible {

@@ -1,6 +1,6 @@
 // Height-function curvature on a smooth periodic 3D interface.
 
-#include "numerics/vof_curvature3d.hpp"
+#include "numerics/vof/vof_curvature3d.hpp"
 
 #include <algorithm>
 #include <cmath>

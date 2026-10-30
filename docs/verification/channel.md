@@ -4,8 +4,8 @@
 **Status:** single-rank, periodic x/z, no-slip y walls; Couette and plane
 Poiseuille verification at second order. Turbulent channel flow (Re_tau
 180/395) is not yet run.
-**Code:** `apps/channel_sim.cpp`, `src/numerics/channel.hpp`,
-`src/numerics/poisson.hpp`
+**Code:** `apps/channel_sim.cpp`, `src/numerics/incompressible/channel.hpp`,
+`src/numerics/incompressible/poisson.hpp`
 
 ## Setup
 
@@ -70,7 +70,7 @@ divergence is zero to round-off.
 
 ## Fast wall-bounded Poisson solver
 
-`--poisson fft` selects `src/numerics/channel_poisson.hpp`: 2D FFTs in the
+`--poisson fft` selects `src/numerics/incompressible/channel_poisson.hpp`: 2D FFTs in the
 periodic x/z directions plus a tridiagonal Thomas solve in y for each Fourier
 mode. It uses the same 7-point discretization and Neumann wall conditions as
 the multigrid path. For the laminar Poiseuille case the errors are identical

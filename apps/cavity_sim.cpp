@@ -11,9 +11,9 @@
 #include "core/mpi.hpp"
 #include "core/parallel.hpp"
 #include "core/version.hpp"
-#include "numerics/cavity.hpp"
-#include "numerics/poisson.hpp"
-#include "numerics/projection.hpp"
+#include "numerics/incompressible/cavity.hpp"
+#include "numerics/incompressible/poisson.hpp"
+#include "numerics/incompressible/projection.hpp"
 
 #include <algorithm>
 #include <array>

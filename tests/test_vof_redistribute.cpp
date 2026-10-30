@@ -1,6 +1,6 @@
 // Bounded redistribution: mass conservation and [0,1] bounds.
 
-#include "numerics/vof_redistribute.hpp"
+#include "numerics/vof/vof_redistribute.hpp"
 
 #include <algorithm>
 #include <cmath>

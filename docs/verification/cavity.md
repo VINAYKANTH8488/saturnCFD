@@ -5,7 +5,7 @@
 Re=100 centreline profiles agree with Ghia et al. (1982) to RMS 0.008 (u) and
 0.010 (v). Re=400 tables are included; the coarse 24² check gives RMS
 0.074/0.072. Higher resolutions and Re=1000 are not yet completed.
-**Code:** `apps/cavity_sim.cpp`, `src/numerics/cavity.hpp`
+**Code:** `apps/cavity_sim.cpp`, `src/numerics/incompressible/cavity.hpp`
 
 ## Setup
 

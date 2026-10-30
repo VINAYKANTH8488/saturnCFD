@@ -4,7 +4,7 @@
 **Status:** passing on CPU (Kokkos Serial + OpenMP) and on 2/4 MPI ranks for
 all-periodic cases. The 3D path is device-callable; CUDA verification is
 pending hardware access.
-**Code:** `src/numerics/compressible_ns.hpp`, `apps/compressible_mms.cpp`
+**Code:** `src/numerics/compressible/compressible_ns.hpp`, `apps/compressible_mms.cpp`
 
 ## Equations
 

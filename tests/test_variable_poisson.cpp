@@ -4,7 +4,7 @@
 
 #ifdef SATURN_HAVE_FFTW
 
-#include "numerics/twophase2d.hpp"
+#include "numerics/multiphase/twophase2d.hpp"
 
 #include <algorithm>
 #include <cmath>

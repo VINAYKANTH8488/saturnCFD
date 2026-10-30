@@ -9,7 +9,7 @@
 #include <complex>
 #include <vector>
 
-#include "numerics/vof2d.hpp"
+#include "numerics/vof/vof2d.hpp"
 
 namespace saturn {
 namespace twophase {

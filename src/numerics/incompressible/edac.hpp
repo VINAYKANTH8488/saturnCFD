@@ -6,8 +6,8 @@
 #include <cmath>
 
 #include "core/parallel.hpp"
-#include "numerics/incompressible.hpp"
-#include "numerics/projection.hpp"
+#include "numerics/incompressible/incompressible.hpp"
+#include "numerics/incompressible/projection.hpp"
 
 namespace saturn {
 namespace edac {

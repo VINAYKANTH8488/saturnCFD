@@ -10,7 +10,7 @@
 #include <complex>
 #include <vector>
 
-#include "numerics/poisson.hpp"
+#include "numerics/incompressible/poisson.hpp"
 
 namespace saturn {
 namespace poisson {

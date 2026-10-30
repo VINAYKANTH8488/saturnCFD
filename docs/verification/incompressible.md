@@ -5,8 +5,8 @@
 convergence on the exact 2D Taylor–Green vortex and the 3D ABC (Beltrami)
 flow. Variable density, physical boundaries, MPI, and the 3D TGV/channel/
 cavity cases are next.
-**Code:** `apps/incompressible_sim.cpp`, `src/numerics/incompressible.hpp`,
-`src/numerics/projection.hpp`, `src/numerics/poisson.hpp`
+**Code:** `apps/incompressible_sim.cpp`, `src/numerics/incompressible/incompressible.hpp`,
+`src/numerics/incompressible/projection.hpp`, `src/numerics/incompressible/poisson.hpp`
 
 ## Formulation
 
@@ -20,7 +20,7 @@ w(i,j,k): z-face at z_k, cell center x_i/y_j
 
 The discrete divergence and pressure gradient are exact adjoints, so
 `div(grad(p))` is the same 7-point Laplacian solved by the geometric-multigrid
-solver in `src/numerics/poisson.hpp`. The staggered arrangement avoids the
+solver in `src/numerics/incompressible/poisson.hpp`. The staggered arrangement avoids the
 pressure checkerboard mode, so Rhie–Chow interpolation is not needed on this
 path.
 

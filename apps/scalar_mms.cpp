@@ -18,7 +18,7 @@
 #include "io/vtk_writer.hpp"
 #include "mesh/decomposition.hpp"
 #include "mesh/uniform_grid.hpp"
-#include "numerics/scalar_advection.hpp"
+#include "numerics/compressible/scalar_advection.hpp"
 
 #include <algorithm>
 #include <array>

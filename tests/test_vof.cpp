@@ -1,6 +1,6 @@
 // 2D PLIC VOF prototype: translation and solid-body rotation.
 
-#include "numerics/vof2d.hpp"
+#include "numerics/vof/vof2d.hpp"
 
 #include <algorithm>
 #include <cmath>

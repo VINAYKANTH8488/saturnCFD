@@ -314,7 +314,7 @@ Details are in `docs/verification/scalar_mms.md`.
 
 ## High-order reconstruction (Phase 2)
 
-`src/numerics/reconstruction.hpp` provides device-callable left/right face
+`src/numerics/compressible/reconstruction.hpp` provides device-callable left/right face
 reconstruction for `central2`, `central4`, `central6`, `weno5z`, and `teno6`.
 The unit test checks polynomial exactness, 2nd–6th order convergence, symmetry,
 and non-oscillatory behaviour at a step:
@@ -328,7 +328,7 @@ the TENO6 formulation are in `docs/verification/reconstruction.md`.
 
 ## Riemann solvers (Phase 2)
 
-`src/numerics/riemann.hpp` provides device-callable LLF, HLLC, HLLC-low-Mach,
+`src/numerics/compressible/riemann.hpp` provides device-callable LLF, HLLC, HLLC-low-Mach,
 and AUSM+-up fluxes for the ideal-gas Euler equations in face-normal
 coordinates:
 
@@ -363,7 +363,7 @@ values to about 1e-4. Details and the full scheme/solver table are in
 
 ## Compressible Navier–Stokes (Phase 2)
 
-`src/numerics/compressible_ns.hpp` implements the 3D ideal-gas compressible
+`src/numerics/compressible/compressible_ns.hpp` implements the 3D ideal-gas compressible
 Navier–Stokes RHS: reconstruction + Riemann inviscid fluxes, 4th-order viscous
 stress and heat-flux terms, and a periodic multi-dimensional update. The
 verification driver has two exact cases:
@@ -418,7 +418,7 @@ dissipation diagnostics and the WENO5-Z/central4 stability comparison are in
 
 ## Poisson solver (Phase 3)
 
-`src/numerics/poisson.hpp` provides a matrix-free geometric-multigrid solver
+`src/numerics/incompressible/poisson.hpp` provides a matrix-free geometric-multigrid solver
 for the cell-centered Poisson problem `laplacian(p) = f`, with periodic,
 homogeneous-Neumann, and homogeneous-Dirichlet boundaries. It is the
 pressure-solver building block for the incompressible projection path:
@@ -429,7 +429,7 @@ ctest --test-dir build/cpu-openmp -R saturn.poisson --output-on-failure
 
 The manufactured-solution tests give second-order convergence for both a
 periodic sine and a Neumann-wall cosine (2.00–2.01 at 32³ and 48³; final
-relative residual `~1e-10`). `src/numerics/fft_poisson.hpp` adds a host-side
+relative residual `~1e-10`). `src/numerics/incompressible/fft_poisson.hpp` adds a host-side
 FFTW3 fast path for periodic boxes (`--poisson fft`), with the same
 discretization and ~40x lower solve time at n=64. The solvers are currently
 single-rank and constant-coefficient. Details and limitations are in
@@ -514,7 +514,7 @@ Details: `docs/verification/edac.md`.
 
 ## VOF (Phase 4)
 
-`src/numerics/vof2d.hpp` and `src/numerics/vof3d.hpp` are PLIC prototypes:
+`src/numerics/vof/vof2d.hpp` and `src/numerics/vof/vof3d.hpp` are PLIC prototypes:
 Youngs normals, a bisected plane constant, and Strang-split geometric face
 fluxes on a periodic grid. Volume fraction stays bounded and mass is conserved
 to round-off.

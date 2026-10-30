@@ -4,7 +4,7 @@
 
 #ifdef SATURN_HAVE_FFTW
 
-#include "numerics/dambreak2d.hpp"
+#include "numerics/multiphase/dambreak2d.hpp"
 
 #include <algorithm>
 #include <cmath>
