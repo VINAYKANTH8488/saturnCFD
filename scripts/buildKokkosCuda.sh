@@ -2,7 +2,7 @@
 # Build and install Kokkos with the CUDA backend for the local Quadro P600.
 #
 # Prerequisite: the CUDA 12.2 toolkit is installed under $CUDA_ROOT (default
-# ~/opt/cuda-12.2) and the NVIDIA driver is loaded (scripts/verify_gpu.sh).
+# ~/opt/cuda-12.2) and the NVIDIA driver is loaded (scripts/verifyGpu.sh).
 set -euo pipefail
 
 CUDA_ROOT="${CUDA_ROOT:-$HOME/opt/cuda-12.2}"

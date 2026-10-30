@@ -117,7 +117,7 @@ steps, which gives the Taylor–Green kinetic-energy dissipation curve:
 ./build/cpu-openmp/apps/saturn_compressible_sim \
   --case tgv --n 64 --tend 10 --diag-every 10 --history tgv_dissipation.csv
 
-python3 scripts/tgv_dissipation.py tgv_dissipation.csv \
+python3 scripts/tgvDissipation.py tgv_dissipation.csv \
   --volume 248.0502134 --out tgv_eps.csv
 ```
 

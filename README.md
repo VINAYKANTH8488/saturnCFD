@@ -4,12 +4,15 @@ Performance-portable, block-structured, high-order finite-volume DNS code for
 CPU and multiple GPUs, built on Kokkos. Basilisk-inspired in physics and
 workflow, designed for GPU-first scaling.
 
-**Status:** Phase 2 essentially complete on CPU and validated on the local
-Quadro P600 (32/32 serial and 44/44 MPI CUDA tests passing); multi-GPU scaling
-remains. Phase 3 (incompressible) is in progress with periodic GMG and FFT
-Poisson solvers and a staggered-MAC projection prototype verified on the exact
-2D Taylor–Green vortex. Phase 4 VOF prototyping has started with a verified 2D
-PLIC advection scheme. The full design, numerics, and roadmap are in
+**Author:** Vinaykanth  
+**Version:** 0.1.0
+
+**Status:** Phases 0–2 are complete on CPU and the local Quadro P600. Phase 3
+(incompressible) is in progress: periodic GMG and FFT Poisson, staggered-MAC
+projection, and a lid-driven cavity validated on the GPU to Re=1000 (coarse
+48²); Re=10000 is stable but not yet fully validated. Phase 4 wall-bounded
+multiphase is validated for dam-break, RTI, Laplace pressure, and a
+coarse-grid rising bubble. The full design, numerics, and roadmap are in
 [PLAN.md](PLAN.md).
 
 Progress:
@@ -25,7 +28,7 @@ Progress:
 - 7-point stencil microbenchmark: **84% of STREAM copy** on 4 CPU threads and
   **52%** on the P600 (see `benchmarks/results/`).
 - EDAC pressure-free prototype completed; projection + GMG remains the
-  production default (see `experiments/edac_tgv/`).
+  production default (see `experiments/edacTgv/`).
 - 2nd-order scalar advection–diffusion MMS passes on **Serial, OpenMP, and
   CUDA**: observed order **2.00**, mass drift ~1e-16 (see
   `docs/verification/scalar_mms.md`).
@@ -97,8 +100,9 @@ Progress:
   2D grid (`--stretch`) with a variable-coefficient PCG reaches Re=10000
   48²/t=50 at u/v **1.00e-1/1.12e-1** (combined 0.150, |div| 5.2e-8), a
   coarse ~10% validation; uniform WENO5 stalled at ~0.25/0.31. Re=5000/10000
-  are not fully steady/grid-converged; see
-  `scripts/verify_cavity_gpu.sh`
+  are not fully steady/grid-converged. The clustered 48² Re=10000 WENO5 run
+  reaches u/v **1.00e-1/1.12e-1** at t=50; see
+  `scripts/verifyCavityGpu.sh`
   (`docs/verification/cavity.md`). Re=400 tables are also wired in; a coarse
   24² run gives RMS 0.074 (u) / 0.072 (v).
 - Phase 3 EDAC prototype (`apps/edac_sim.cpp`): the exact 2D TGV matches the
@@ -170,9 +174,9 @@ The local Quadro P600 is currently driven by `nouveau`, which does not support
 CUDA. The proprietary driver must be installed as root and the machine rebooted:
 
 ```bash
-sudo scripts/install_nvidia_driver.sh
+sudo scripts/installNvidiaDriver.sh
 sudo reboot
-scripts/verify_gpu.sh
+scripts/verifyGpu.sh
 ```
 
 The script installs `nvidia-driver-580` (new enough for CUDA 12.2, still
@@ -192,11 +196,11 @@ sh cuda_12.2.2_535.104.05_linux.run --silent --toolkit \
 Then build the CUDA Kokkos and run the GPU smoke test:
 
 ```bash
-scripts/build_kokkos_cuda.sh
-scripts/verify_cuda.sh
+scripts/buildKokkosCuda.sh
+scripts/verifyCuda.sh
 ```
 
-`build_kokkos_cuda.sh` uses the `nvcc_wrapper` and `-allow-unsupported-compiler`
+`buildKokkosCuda.sh` uses the `nvcc_wrapper` and `-allow-unsupported-compiler`
 (CUDA 12.2 nominally supports GCC ≤12; this machine has GCC 13). The manual
 CMake recipe is:
 
@@ -212,13 +216,13 @@ cmake --build "$HOME/opt/build/kokkos-5.2.2-cuda" -j4
 cmake --install "$HOME/opt/build/kokkos-5.2.2-cuda"
 ```
 
-`verify_cuda.sh` configures the `cuda-local` preset, builds, and runs the
+`verifyCuda.sh` configures the `cuda-local` preset, builds, and runs the
 stencil/STREAM smoke tests plus the selected GPU CTests. For manual CUDA work
-use `scripts/env_cuda.sh`, which adds the CUDA libraries and the GCC 12 host
+use `scripts/envCuda.sh`, which adds the CUDA libraries and the GCC 12 host
 compiler to the environment:
 
 ```bash
-source scripts/env_cuda.sh
+source scripts/envCuda.sh
 cmake --preset cuda-local
 cmake --build build/cuda-local -j4
 ```
@@ -399,7 +403,7 @@ and checkpoint/restart:
 # Global diagnostics every 10 steps (CSV for dissipation curves).
 ./build/cpu-openmp/apps/saturn_compressible_sim \
   --case tgv --n 64 --tend 10 --diag-every 10 --history tgv.csv
-python3 scripts/tgv_dissipation.py tgv.csv --volume 248.0502134
+python3 scripts/tgvDissipation.py tgv.csv --volume 248.0502134
 ```
 
 Short stability gates:
@@ -487,10 +491,11 @@ centreline profiles are compared with Ghia, Ghia & Shin (1982):
 ./build/cpu-openmp/apps/saturn_cavity_sim --n 32 --re 100 --tend 15 --check
 ```
 
-Advection is selectable with `--advection central|upwind|muscl|blend` and
-`--blend`. On the local Quadro P600,
-`scripts/verify_cavity_gpu.sh` runs Re=1000 with MUSCL at 32² in 79 s, Ghia
-RMS **0.037/0.064** and `max|div|=1.0e-7`, plus a stable Re=5000 smoke. At
+Advection is selectable with
+`--advection central|upwind|muscl|blend|weno5`, and `--stretch` enables the
+wall-clustered 2D grid. On the local Quadro P600,
+`scripts/verifyCavityGpu.sh` runs Re=1000 with WENO5 at 32² in ~75 s, Ghia
+RMS **0.035/0.062** and `max|div|=1.4e-7`, plus a stable Re=5000 smoke. At
 `n=32` (CPU, Re=100) the RMS difference from Ghia is
 **7.6e-3** (u) and **9.9e-3** (v),
 with `max|div| ~3e-11`. The fast `n=16` gate runs in about 10 s. Details:

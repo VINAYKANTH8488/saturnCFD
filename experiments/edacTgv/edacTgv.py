@@ -22,8 +22,8 @@ Exact solution (periodic domain [0, 2*pi]^2):
     p =  (cos(2x) + cos(2y)) / 4 * exp(-4 nu t)
 
 Usage:
-    python3 edac_tgv.py --N 128 --nu 0.01 --tend 2 --mc 0.05
-    python3 edac_tgv.py --sweep --N 64 128 256 --mc 0.2 0.1 0.05
+    python3 edacTgv.py --N 128 --nu 0.01 --tend 2 --mc 0.05
+    python3 edacTgv.py --sweep --N 64 128 256 --mc 0.2 0.1 0.05
 """
 
 from __future__ import annotations

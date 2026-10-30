@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Environment for CUDA builds/runs on this machine.
 #
-#   source scripts/env_cuda.sh
+#   source scripts/envCuda.sh
 #   cmake --preset cuda-local
 #   cmake --build build/cuda-local -j4
 #

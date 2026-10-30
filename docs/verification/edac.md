@@ -61,7 +61,7 @@ divergence is `O(M_c)` and is not driven to round-off.
 
 The velocity error sits on the spatial floor for this short run; the divergence
 falls roughly linearly with `M_c`, and the step count scales as `1/M_c`, as in
-the Python prototype (`experiments/edac_tgv/`).
+the Python prototype (`experiments/edacTgv/`).
 
 ### Initial-pressure sensitivity
 

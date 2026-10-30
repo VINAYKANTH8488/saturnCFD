@@ -5,7 +5,7 @@
 standard low-Mach (`M=0.1`) setup; `central4` is unstable at this resolution.
 A 64³/128³/256³ convergence study against tabulated reference data is still
 pending.
-**Code:** `apps/compressible_sim.cpp`, `scripts/tgv_dissipation.py`
+**Code:** `apps/compressible_sim.cpp`, `scripts/tgvDissipation.py`
 
 ## Setup
 
@@ -39,7 +39,7 @@ periodic boundaries. The base pressure is `p0 = 1/(gamma M^2)`:
   --case tgv --n 64 --mach 0.1 --tend 10 --cfl 0.3 --scheme weno5z \
   --diag-every 10 --history tgv_n64_m0.1_weno5z_history.csv --check
 
-python3 scripts/tgv_dissipation.py <history.csv> \
+python3 scripts/tgvDissipation.py <history.csv> \
   --volume 248.0502134 --out <dissipation.csv>
 ```
 

@@ -2,7 +2,7 @@
 # Install the proprietary NVIDIA driver for the local Quadro P600.
 #
 # This must be run as root (sudo). It does NOT reboot automatically: after it
-# finishes, reboot and run scripts/verify_gpu.sh.
+# finishes, reboot and run scripts/verifyGpu.sh.
 #
 # Driver choice: the distro recommends 470, but CUDA 12.2 needs a driver newer
 # than 525. On Ubuntu 24.04 the 535/550/570 metapackages transition to the 580
@@ -47,7 +47,7 @@ NVIDIA driver installed.
 
 Next steps:
   1. reboot:            sudo reboot
-  2. verify the driver: scripts/verify_gpu.sh
+  2. verify the driver: scripts/verifyGpu.sh
   3. build/run CUDA:    source scripts/env.sh
                         cmake --preset cuda-local
                         cmake --build build/cuda-local -j4

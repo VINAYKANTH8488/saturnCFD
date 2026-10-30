@@ -15,6 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check version and author
+        run: ./scripts/checkVersion.sh
+
       - name: Install toolchain
         run: |
           sudo apt-get update

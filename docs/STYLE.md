@@ -1,5 +1,8 @@
 # Coding style and layout
 
+**Author:** Vinaykanth  
+**Version:** 0.1.0
+
 ## Naming
 
 | Kind | Convention | Example |
@@ -10,6 +13,7 @@
 | Local variables | `snake_case` | `max_speed`, `cell_volume` |
 | Member data | trailing underscore | `nx_`, `u_` |
 | Files | `snake_case` | `cavity.hpp`, `poisson.hpp` |
+| Scripts | `camelCase` | `verifyCavityGpu.sh`, `buildDocs.sh` |
 
 **Functions never contain underscores.** Third-party APIs (Kokkos, MPI, FFTW,
 the C++ standard library, CMake) keep their published names and are the only
@@ -40,8 +44,11 @@ docs/                verification notes, style, Doxygen output
 - Build the API docs with:
 
 ```bash
-./scripts/build_docs.sh
+./scripts/buildDocs.sh
 ```
+
+This writes HTML to `docs/doxygen/html` and a PDF to
+`docs/saturnCFD-0.1.0.pdf`.
 
 The generated HTML is written to `docs/doxygen/html`.
 
@@ -61,7 +68,7 @@ source scripts/env.sh
 cmake --build build/cpu-openmp -j8
 ctest --test-dir build/cpu-openmp
 
-source scripts/env_cuda.sh
+source scripts/envCuda.sh
 cmake --build build/cuda-local -j4
 ctest --test-dir build/cuda-local -R 'saturn.(vof|twophase|variable_poisson|dambreak|cavity)'
 ```

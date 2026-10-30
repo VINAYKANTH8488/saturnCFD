@@ -11,7 +11,7 @@ epsilon = -dK/dt. Use --volume to report per-volume quantities (for the
 Taylor-Green box the volume is (2*pi)^3).
 
 Example:
-    python3 scripts/tgv_dissipation.py tgv.csv --volume 248.0502134
+    python3 scripts/tgvDissipation.py tgv.csv --volume 248.0502134
 """
 
 from __future__ import annotations

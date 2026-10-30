@@ -248,12 +248,13 @@ claimed as validated.
 | Robust/cheap fallback | MUSCL | lower cost, similar combined error at Re=1000 |
 
 Central advection is only competitive at low Re/coarse grids; upwind is
-over-damped. The next quantitative step is a wall-clustered grid with a
-variable-coefficient Poisson, not a larger uniform grid.
+over-damped. The wall-clustered grid with a variable-coefficient Poisson is
+implemented; the next step is a longer, fully steady Re=10000 clustered run
+and a 64² clustered grid.
 
 ## GPU higher-Reynolds validation (Quadro P600)
 
-`scripts/verify_cavity_gpu.sh` builds the `cuda-local` preset and runs:
+`scripts/verifyCavityGpu.sh` builds the `cuda-local` preset and runs:
 
 | Re | scheme | grid | t | RMS u | RMS v | `max|div|` | time |
 |---|---|---|---|---|---|---|---|
@@ -264,8 +265,8 @@ The Re=1000 gate uses `--rms-tol 0.20 --div-tol 2e-7`; the script completes in
 ~3 minutes. Both runs use WENO5.
 
 ```bash
-source scripts/env_cuda.sh
-./scripts/verify_cavity_gpu.sh
+source scripts/envCuda.sh
+./scripts/verifyCavityGpu.sh
 ```
 
 ## Steady-state check and 64²

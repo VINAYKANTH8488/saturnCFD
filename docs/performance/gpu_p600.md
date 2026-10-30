@@ -19,7 +19,7 @@ Median of three runs:
 | time per cell-update | 0.573 ns |
 | max abs error (verify) | 0 |
 
-Raw data: `benchmarks/results/gpu/stencil_cuda_p600_256_run{1,2,3}.json`.
+Raw data: `benchmarks/results/runs/stencil_cuda_p600_256_run{1,2,3}.json`.
 
 ## STREAM
 
@@ -30,7 +30,7 @@ Raw data: `benchmarks/results/gpu/stencil_cuda_p600_256_run{1,2,3}.json`.
 | copy | 16 | **54.24 GB/s** | 0.295 |
 | triad | 24 | **54.31 GB/s** | 0.442 |
 
-Raw data: `benchmarks/results/gpu/stream_{copy,triad}_cuda_p600_run{1,2,3}.json`.
+Raw data: `benchmarks/results/runs/stream_{copy,triad}_cuda_p600_run{1,2,3}.json`.
 
 The stencil reaches **51.5%** of the STREAM copy bandwidth, which is the
 expected range for a 7-point stencil with two arrays on this class of GPU.
@@ -79,7 +79,7 @@ for these cases.
 
 - CUDA 12.2 does not support GCC 13; the local GCC 12 tree under
   `~/opt/gcc-12` is used as `NVCC_WRAPPER_DEFAULT_COMPILER`.
-- `scripts/env_cuda.sh` sets the host compiler, CUDA library path, and Kokkos
+- `scripts/envCuda.sh` sets the host compiler, CUDA library path, and Kokkos
   environment for `cmake --preset cuda-local`.
 - The P600 has 2 GB, so large 3D cases (e.g. 256³ compressible) need care; the
   stencil/STREAM tests above fit comfortably.

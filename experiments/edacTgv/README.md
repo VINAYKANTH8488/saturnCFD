@@ -113,17 +113,17 @@ or a spin-up phase).
 ## Reproduce
 
 ```bash
-python3 experiments/edac_tgv/edac_tgv.py \
+python3 experiments/edacTgv/edacTgv.py \
   --n-list 64 128 --mc-list 0.2 0.1 0.05 0.025 \
   --nu 0.01 --tend 2.0 --tau 0.01 --method both \
-  --json experiments/edac_tgv/results/sweep.json \
-  --plot experiments/edac_tgv/results/sweep.png
+  --json experiments/edacTgv/results/sweep.json \
+  --plot experiments/edacTgv/results/sweep.png
 ```
 
 Single run:
 
 ```bash
-python3 experiments/edac_tgv/edac_tgv.py --n 128 --nu 0.01 --tend 2 \
+python3 experiments/edacTgv/edacTgv.py --n 128 --nu 0.01 --tend 2 \
   --mc 0.05 --tau 0.01 --method both
 ```
 

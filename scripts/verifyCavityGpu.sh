@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # GPU lid-driven cavity verification.
 #
-#   ./scripts/verify_cavity_gpu.sh
+#   ./scripts/verifyCavityGpu.sh
 #
 # Quantitative Ghia Re=1000 check on the local Quadro P600 plus a Re=5000
 # higher-Reynolds stability smoke. The CUDA build is created with the
@@ -13,8 +13,8 @@ _root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${_root}"
 unset _root
 
-# shellcheck source=env_cuda.sh
-source scripts/env_cuda.sh
+# shellcheck source=envCuda.sh
+source scripts/envCuda.sh
 
 if ! command -v nvidia-smi >/dev/null 2>&1; then
   echo "error: nvidia-smi not found; a CUDA GPU is required" >&2

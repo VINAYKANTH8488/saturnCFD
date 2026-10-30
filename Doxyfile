@@ -1,5 +1,6 @@
 PROJECT_NAME           = "saturnCFD"
-PROJECT_BRIEF          = "GPU finite-volume CFD research code"
+PROJECT_NUMBER         = "0.1.0"
+PROJECT_BRIEF          = "GPU finite-volume CFD research code — Vinaykanth"
 OUTPUT_DIRECTORY       = docs/doxygen
 INPUT                  = src apps
 RECURSIVE              = YES
@@ -8,8 +9,11 @@ EXTRACT_ALL            = YES
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = YES
 GENERATE_HTML          = YES
-GENERATE_LATEX         = NO
+GENERATE_LATEX         = YES
+
 HTML_OUTPUT            = html
+LATEX_OUTPUT           = latex
+PAPER_TYPE             = a4
 QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO
 WARN_IF_DOC_ERROR      = YES
