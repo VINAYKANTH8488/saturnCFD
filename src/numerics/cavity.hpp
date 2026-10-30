@@ -35,7 +35,33 @@ struct Geometry {
   double hy = 1.0;
   double hz = 1.0;
   double u_lid = 1.0;
+  // 0 = central, 1 = first-order upwind, 2 = upwind-biased MUSCL,
+  // 3 = blended central/upwind.
+  int adv = 0;
+  double adv_blend = 0.25;
 };
+
+KOKKOS_INLINE_FUNCTION
+double minmod(double a, double b) {
+  if (a * b <= 0.0) {
+    return 0.0;
+  }
+  return Kokkos::abs(a) < Kokkos::abs(b) ? a : b;
+}
+
+// Second-order upwind derivative with a minmod limiter.
+KOKKOS_INLINE_FUNCTION
+double limited_upwind(double q0, double qm1, double qm2, double qp1, double qp2,
+                      double vel, double h) {
+  if (vel > 0.0) {
+    const double d1 = (q0 - qm1) / h;
+    const double d2 = (3.0 * q0 - 4.0 * qm1 + qm2) / (2.0 * h);
+    return minmod(d1, d2);
+  }
+  const double d1 = (qp1 - q0) / h;
+  const double d2 = (-3.0 * q0 + 4.0 * qp1 - qp2) / (2.0 * h);
+  return minmod(d1, d2);
+}
 
 template <class ExecSpace>
 void divergence(const projection::ScalarView<ExecSpace>& u,
@@ -77,6 +103,8 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
   const double hy2 = hy * hy;
   const double hz2 = hz * hz;
   const double u_lid = g.u_lid;
+  const int adv = g.adv;
+  const double adv_blend = g.adv_blend;
   const auto policy =
       make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
@@ -99,9 +127,20 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           const double u_ip = (ip < 0) ? 0.0 : u(k, j, ip);
           const double u_jm = (jm < 0) ? -u_here : u(k, jm, i);
           const double u_jp = (jp < 0) ? 2.0 * u_lid - u_here : u(k, jp, i);
-          const double dudx = (u_ip - u_im) / (2.0 * hx);
-          const double dudy = (u_jp - u_jm) / (2.0 * hy);
-          const double dudz = (u(kp, j, i) - u(km, j, i)) / (2.0 * hz);
+          const double u_km = u(km, j, i);
+          const double u_kp = u(kp, j, i);
+          const double u_im2 = (i >= 2) ? u(k, j, i - 2) : 0.0;
+          const double u_ip2 = (i + 2 < n0) ? u(k, j, i + 2) : 0.0;
+          const double u_jm2 =
+              (j >= 2) ? u(k, j - 2, i) : (jm < 0 ? -u_here : u(k, 0, i));
+          const double u_jp2 =
+              (j + 2 < n1) ? u(k, j + 2, i)
+                           : (jp < 0 ? 2.0 * u_lid - u_here : u(k, n1 - 1, i));
+          const double u_km2 = u((k + n2 - 2) % n2, j, i);
+          const double u_kp2 = u((k + 2) % n2, j, i);
+          double dudx = (u_ip - u_im) / (2.0 * hx);
+          double dudy = (u_jp - u_jm) / (2.0 * hy);
+          double dudz = (u_kp - u_km) / (2.0 * hz);
           const double v_jm = (jm < 0) ? 0.0 : v(k, jm, i);
           const double v_jp = (jp < 0) ? 0.0 : v(k, jp, i);
           const double v_jm_im = (jm < 0) ? 0.0 : v(k, jm, im);
@@ -109,6 +148,28 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           const double v_at_u = 0.25 * (v_jm_im + v_jm + v_jp_im + v_jp);
           const double w_at_u =
               0.25 * (w(k, j, im) + w(k, j, i) + w(kp, j, im) + w(kp, j, i));
+          if (adv == 1) {
+            dudx = u_here > 0.0 ? (u_here - u_im) / hx : (u_ip - u_here) / hx;
+            dudy = v_at_u > 0.0 ? (u_here - u_jm) / hy : (u_jp - u_here) / hy;
+            dudz = w_at_u > 0.0 ? (u_here - u_km) / hz : (u_kp - u_here) / hz;
+          } else if (adv == 2) {
+            dudx = limited_upwind(u_here, u_im, u_im2, u_ip, u_ip2, u_here, hx);
+            dudy = limited_upwind(u_here, u_jm, u_jm2, u_jp, u_jp2, v_at_u, hy);
+            dudz = limited_upwind(u_here, u_km, u_km2, u_kp, u_kp2, w_at_u, hz);
+          } else if (adv == 3) {
+            const double cx = (u_ip - u_im) / (2.0 * hx);
+            const double cy = (u_jp - u_jm) / (2.0 * hy);
+            const double cz = (u_kp - u_km) / (2.0 * hz);
+            const double ux =
+                u_here > 0.0 ? (u_here - u_im) / hx : (u_ip - u_here) / hx;
+            const double uy =
+                v_at_u > 0.0 ? (u_here - u_jm) / hy : (u_jp - u_here) / hy;
+            const double uz =
+                w_at_u > 0.0 ? (u_here - u_km) / hz : (u_kp - u_here) / hz;
+            dudx = (1.0 - adv_blend) * cx + adv_blend * ux;
+            dudy = (1.0 - adv_blend) * cy + adv_blend * uy;
+            dudz = (1.0 - adv_blend) * cz + adv_blend * uz;
+          }
           const double lap_u = (u_ip - 2.0 * u_here + u_im) / hx2 +
                                (u_jp - 2.0 * u_here + u_jm) / hy2 +
                                (u(kp, j, i) - 2.0 * u_here + u(km, j, i)) / hz2;
@@ -124,9 +185,17 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           const double v_ip = (ip < 0) ? -v_here : v(k, j, ip);
           const double v_jm = (jm < 0) ? 0.0 : v(k, jm, i);
           const double v_jp = (jp < 0) ? 0.0 : v(k, jp, i);
-          const double dvdx = (v_ip - v_im) / (2.0 * hx);
-          const double dvdy = (v_jp - v_jm) / (2.0 * hy);
-          const double dvdz = (v(kp, j, i) - v(km, j, i)) / (2.0 * hz);
+          const double v_km = v(km, j, i);
+          const double v_kp = v(kp, j, i);
+          const double v_im2 = (i >= 2) ? v(k, j, i - 2) : -v_here;
+          const double v_ip2 = (i + 2 < n0) ? v(k, j, i + 2) : -v_here;
+          const double v_jm2 = (j >= 2) ? v(k, j - 2, i) : 0.0;
+          const double v_jp2 = (j + 2 < n1) ? v(k, j + 2, i) : 0.0;
+          const double v_km2 = v((k + n2 - 2) % n2, j, i);
+          const double v_kp2 = v((k + 2) % n2, j, i);
+          double dvdx = (v_ip - v_im) / (2.0 * hx);
+          double dvdy = (v_jp - v_jm) / (2.0 * hy);
+          double dvdz = (v_kp - v_km) / (2.0 * hz);
           const double u_here_i = (i == 0) ? 0.0 : u(k, j, i);
           const double u_here_ip = (ip < 0) ? 0.0 : u(k, j, ip);
           const double u_jm_i = (jm < 0) ? 0.0 : u(k, jm, i);
@@ -135,6 +204,28 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
               0.25 * (u_jm_i + u_here_i + u_jm_ip + u_here_ip);
           const double w_at_v =
               0.25 * (w(k, jm, i) + w(k, j, i) + w(kp, jm, i) + w(kp, j, i));
+          if (adv == 1) {
+            dvdx = u_at_v > 0.0 ? (v_here - v_im) / hx : (v_ip - v_here) / hx;
+            dvdy = v_here > 0.0 ? (v_here - v_jm) / hy : (v_jp - v_here) / hy;
+            dvdz = w_at_v > 0.0 ? (v_here - v_km) / hz : (v_kp - v_here) / hz;
+          } else if (adv == 2) {
+            dvdx = limited_upwind(v_here, v_im, v_im2, v_ip, v_ip2, u_at_v, hx);
+            dvdy = limited_upwind(v_here, v_jm, v_jm2, v_jp, v_jp2, v_here, hy);
+            dvdz = limited_upwind(v_here, v_km, v_km2, v_kp, v_kp2, w_at_v, hz);
+          } else if (adv == 3) {
+            const double cx = (v_ip - v_im) / (2.0 * hx);
+            const double cy = (v_jp - v_jm) / (2.0 * hy);
+            const double cz = (v_kp - v_km) / (2.0 * hz);
+            const double ux =
+                u_at_v > 0.0 ? (v_here - v_im) / hx : (v_ip - v_here) / hx;
+            const double uy =
+                v_here > 0.0 ? (v_here - v_jm) / hy : (v_jp - v_here) / hy;
+            const double uz =
+                w_at_v > 0.0 ? (v_here - v_km) / hz : (v_kp - v_here) / hz;
+            dvdx = (1.0 - adv_blend) * cx + adv_blend * ux;
+            dvdy = (1.0 - adv_blend) * cy + adv_blend * uy;
+            dvdz = (1.0 - adv_blend) * cz + adv_blend * uz;
+          }
           const double lap_v = (v_ip - 2.0 * v_here + v_im) / hx2 +
                                (v_jp - 2.0 * v_here + v_jm) / hy2 +
                                (v(kp, j, i) - 2.0 * v_here + v(km, j, i)) / hz2;
@@ -147,9 +238,17 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
         const double w_ip = (ip < 0) ? -w_here : w(k, j, ip);
         const double w_jm = (jm < 0) ? -w_here : w(k, jm, i);
         const double w_jp = (jp < 0) ? -w_here : w(k, jp, i);
-        const double dwdx = (w_ip - w_im) / (2.0 * hx);
-        const double dwdy = (w_jp - w_jm) / (2.0 * hy);
-        const double dwdz = (w(kp, j, i) - w(km, j, i)) / (2.0 * hz);
+        const double w_km = w(km, j, i);
+        const double w_kp = w(kp, j, i);
+        const double w_im2 = (i >= 2) ? w(k, j, i - 2) : -w_here;
+        const double w_ip2 = (i + 2 < n0) ? w(k, j, i + 2) : -w_here;
+        const double w_jm2 = (j >= 2) ? w(k, j - 2, i) : -w_here;
+        const double w_jp2 = (j + 2 < n1) ? w(k, j + 2, i) : -w_here;
+        const double w_km2 = w((k + n2 - 2) % n2, j, i);
+        const double w_kp2 = w((k + 2) % n2, j, i);
+        double dwdx = (w_ip - w_im) / (2.0 * hx);
+        double dwdy = (w_jp - w_jm) / (2.0 * hy);
+        double dwdz = (w_kp - w_km) / (2.0 * hz);
         const double u_ip = (ip < 0) ? 0.0 : u(k, j, ip);
         const double u_km_ip = (ip < 0) ? 0.0 : u(km, j, ip);
         const double u_at_w =
@@ -158,6 +257,28 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
         const double v_km_jp = (jp < 0) ? 0.0 : v(km, jp, i);
         const double v_at_w =
             0.25 * (v(km, j, i) + v(k, j, i) + v_km_jp + v_jp_local);
+        if (adv == 1) {
+          dwdx = u_at_w > 0.0 ? (w_here - w_im) / hx : (w_ip - w_here) / hx;
+          dwdy = v_at_w > 0.0 ? (w_here - w_jm) / hy : (w_jp - w_here) / hy;
+          dwdz = w_here > 0.0 ? (w_here - w_km) / hz : (w_kp - w_here) / hz;
+        } else if (adv == 2) {
+          dwdx = limited_upwind(w_here, w_im, w_im2, w_ip, w_ip2, u_at_w, hx);
+          dwdy = limited_upwind(w_here, w_jm, w_jm2, w_jp, w_jp2, v_at_w, hy);
+          dwdz = limited_upwind(w_here, w_km, w_km2, w_kp, w_kp2, w_here, hz);
+        } else if (adv == 3) {
+          const double cx = (w_ip - w_im) / (2.0 * hx);
+          const double cy = (w_jp - w_jm) / (2.0 * hy);
+          const double cz = (w_kp - w_km) / (2.0 * hz);
+          const double ux =
+              u_at_w > 0.0 ? (w_here - w_im) / hx : (w_ip - w_here) / hx;
+          const double uy =
+              v_at_w > 0.0 ? (w_here - w_jm) / hy : (w_jp - w_here) / hy;
+          const double uz =
+              w_here > 0.0 ? (w_here - w_km) / hz : (w_kp - w_here) / hz;
+          dwdx = (1.0 - adv_blend) * cx + adv_blend * ux;
+          dwdy = (1.0 - adv_blend) * cy + adv_blend * uy;
+          dwdz = (1.0 - adv_blend) * cz + adv_blend * uz;
+        }
         const double lap_w = (w_ip - 2.0 * w_here + w_im) / hx2 +
                              (w_jp - 2.0 * w_here + w_jm) / hy2 +
                              (w(kp, j, i) - 2.0 * w_here + w(km, j, i)) / hz2;

@@ -2,7 +2,8 @@
 //
 // Square cavity [0,1]^2, periodic in z, no-slip x/y walls, moving top lid
 // u_lid=1 (Re = u_lid L / nu). The steady centreline profiles are compared
-// with the Ghia, Ghia & Shin (1982) Re=100 data.
+// with the Ghia, Ghia & Shin (1982) data. Advection is selectable:
+// central, first-order upwind, upwind-biased MUSCL, or a central/upwind blend.
 
 #include <Kokkos_Core.hpp>
 
@@ -41,6 +42,8 @@ struct Params {
   double cfl = 0.3;
   double poisson_tol = 1.0e-10;
   double rms_tol = 0.03;
+  double blend = 0.25;
+  std::string advection = "central";
   std::string space = "default";
   bool check = false;
   bool verbose = false;
@@ -57,6 +60,8 @@ void usage(const char* argv0) {
       "  --tend VALUE       final time (default 15)\n"
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --rms-tol VALUE    Ghia centreline RMS tolerance (default 0.03)\n"
+      "  --advection NAME   central|upwind|muscl|blend (default central)\n"
+      "  --blend VALUE      central/upwind blend fraction (default 0.25)\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
       "  --check            fail on divergence or Ghia RMS error\n"
       "  --verbose          print the Kokkos configuration\n"
@@ -135,6 +140,10 @@ Params parse(int argc, char** argv) {
       p.poisson_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--rms-tol") {
       p.rms_tol = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--advection") {
+      p.advection = require_value(i, argc, argv, a);
+    } else if (a == "--blend") {
+      p.blend = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--check") {
@@ -238,6 +247,23 @@ bool ghia_tables(double re, const double*& u, const double*& v) {
   return false;
 }
 
+int advection_id(const std::string& name) {
+  if (name == "central") {
+    return 0;
+  }
+  if (name == "upwind") {
+    return 1;
+  }
+  if (name == "muscl") {
+    return 2;
+  }
+  if (name == "blend") {
+    return 3;
+  }
+  std::fprintf(stderr, "unknown advection scheme '%s'\n", name.c_str());
+  std::exit(2);
+}
+
 struct CaseResult {
   int n = 0;
   int steps = 0;
@@ -281,6 +307,8 @@ CaseResult run_case(int n, const Params& params) {
   g.hy = 1.0 / static_cast<double>(n);
   g.hz = 1.0 / static_cast<double>(params.nz);
   g.u_lid = params.u_lid;
+  g.adv = advection_id(params.advection);
+  g.adv_blend = params.blend;
   const double nu = params.u_lid / params.re;
 
   view_type u("u", g.n2, g.n1, g.n0);
@@ -440,8 +468,9 @@ int run(const Params& params) {
   if (root) {
     std::printf("\n%s %s lid-driven cavity Re=%.0f\n", saturn::kProjectName,
                 saturn::kVersion, params.re);
-    std::printf("Kokkos: %s (concurrency %d)\n", ExecSpace::name(),
-                ExecSpace{}.concurrency());
+    std::printf("Kokkos: %s (concurrency %d), advection %s\n",
+                ExecSpace::name(), ExecSpace{}.concurrency(),
+                params.advection.c_str());
     if (params.verbose) {
       Kokkos::print_configuration(std::cout, true);
     }

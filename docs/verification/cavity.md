@@ -96,6 +96,45 @@ ctest --test-dir build/cpu-openmp -R saturn.cavity --output-on-failure
   needed for production.
 - No-slip wall ghosts are currently limited to x/y walls aligned with the grid.
 
+## Advection schemes for high Reynolds numbers
+
+`momentum_rhs` now supports four selectable advection forms:
+
+| `--advection` | Form |
+|---|---|
+| `central` | second-order central (previous default) |
+| `upwind` | first-order upwind |
+| `muscl` | second-order upwind-biased MUSCL with a minmod limiter |
+| `blend` | central/upwind blend, fraction set by `--blend` |
+
+Ghia centreline RMS at Re=100, `n=16`, `nz=1`, `t=5` (quadrature grid):
+
+| Scheme | RMS u | RMS v |
+|---|---|---|
+| central | 3.09e-2 | 1.95e-2 |
+| upwind | 2.60e-2 | 1.70e-2 |
+| muscl | **1.93e-2** | **1.52e-2** |
+| blend 0.25 | 2.93e-2 | 1.85e-2 |
+
+The upwind-biased MUSCL reduces the coarse-grid Re=100 error by ~37% (u) and
+~22% (v) relative to central.
+
+At Re=1000 on the P600 (`n=32`, `nz=1`, `t=40`):
+
+| Scheme | RMS u | RMS v | `max|div|` | time |
+|---|---|---|---|---|
+| central | **1.00e-1** | 9.67e-2 | 6.2e-8 | 193 s |
+| upwind | 1.43e-1 | **2.07e-2** | 3.1e-7 | 186 s |
+| blend 0.25 | 1.22e-1 | 5.64e-2 | 9.2e-8 | 192 s |
+| muscl | not run to `t=40` (small time step) | | | |
+
+The robust schemes remove the central scheme's `v` oscillations: upwind cuts
+the `v` RMS by 79% but raises the `u` RMS by 43%; the 25% blend cuts `v` by
+42% for a 22% `u` penalty and gives a small net reduction in combined RMS.
+The Re=1000 ranking is still dominated by the 32² grid and the finite `t=40`
+transient, so it is a stability/robustness result, not a converged
+high-Re accuracy result.
+
 ## GPU higher-Reynolds validation (Quadro P600)
 
 The CUDA build selects the Kokkos Cuda backend with `--space cuda`. Ghia
@@ -104,18 +143,16 @@ PetIBM transcription of Ghia et al. (the Re=3200 column has a known typo at
 `y=0.4531` and is not used).
 
 `scripts/verify_cavity_gpu.sh` builds `saturn_cavity_sim` with the
-`cuda-local` preset and runs:
+`cuda-local` preset and runs the robust blend scheme:
 
 | Re | grid | t | steps | RMS u | RMS v | `max|div|` | GPU time |
 |---|---|---|---|---|---|---|---|
-| 1000 | 32x32x1 | 40 | 3404 | **1.00e-1** | **9.67e-2** | `6.2e-8` | 192.6 s |
-| 5000 | 32x32x1 | 10 | 729 | 2.88e-1 | 2.82e-1 | `1.1e-7` | 41.7 s |
+| 1000 | 32x32x1 | 40 | 3063 | **1.22e-1** | **5.64e-2** | `9.2e-8` | 192 s |
+| 5000 | 32x32x1 | 10 | 632 | 2.88e-1 | 3.26e-1 | `4.6e-8` | 36 s |
 
-The Re=1000 run passes `--check` with `--rms-tol 0.15`: the centreline RMS
-error is ~10% of the lid speed on this coarse 32² grid, a first GPU
-validation. The Re=5000 run is a stability smoke; it remains bounded and
-mass-conserving but the 32² grid is far too coarse for a quantitative Ghia
-comparison.
+The Re=1000 run passes `--check` with `--rms-tol 0.15`. The Re=5000 run is a
+stability smoke; it remains bounded and mass-conserving but the 32² grid is
+far too coarse for a quantitative Ghia comparison.
 
 ```bash
 source scripts/env_cuda.sh
@@ -124,15 +161,15 @@ source scripts/env_cuda.sh
 
 ### Code extension needed
 
-The next step is not just a larger grid. The current explicit central
-advection + explicit viscous step needs:
-- a robust high-Re advection scheme (upwind/limiter or WENO) to avoid
-  under-resolved central oscillations;
-- finer grids (64²–128²) and longer transients, which the GPU makes
-  affordable;
+The next step is not just a larger grid. The current solver still needs:
+- a steady-state convergence criterion (the Re=1000 runs stop at a fixed
+  `t=40`, which is not necessarily steady);
+- finer grids (64²–128²) and longer transients, now affordable on the GPU;
 - a 3D cavity with z walls for genuinely turbulent states;
+- a fully upwind-biased high-order scheme (WENO) that does not shrink the
+  time step as much as the current MUSCL limiter;
 - a distributed/GPU Poisson or a faster multigrid path at larger sizes.
 
-The Re=1000 GPU result is the first validated step; the Re=5000 run shows the
-solver is stable in that direction, but the high-Re/turbulent validation
-requires the extensions above.
+The new schemes make the high-Re path stable and give a measurable Re=100
+accuracy improvement; the quantitative Re=1000/turbulent validation requires
+the extensions above.
