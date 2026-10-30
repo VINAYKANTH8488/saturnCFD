@@ -99,7 +99,7 @@ struct Decomposition {
 
   // Box owned by the given Cartesian coordinates. The same split rule is
   // used for every rank, so this can reconstruct any rank's interior box.
-  Box box_for_coords(const int coords_in[3]) const {
+  Box boxForCoords(const int coords_in[3]) const {
     Box result;
     for (int d = 0; d < 3; ++d) {
       const int n = global.length(d);

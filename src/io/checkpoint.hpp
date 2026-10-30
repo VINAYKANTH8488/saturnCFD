@@ -30,9 +30,9 @@ struct CheckpointHeader {
 static_assert(std::is_trivially_copyable_v<CheckpointHeader>);
 
 template <class ExecSpace>
-bool write_checkpoint(const std::string& base, const PatchField<ExecSpace>& q,
-                      int step, double time,
-                      const Decomposition& decomposition) {
+bool writeCheckpoint(const std::string& base, const PatchField<ExecSpace>& q,
+                     int step, double time,
+                     const Decomposition& decomposition) {
   const Box box = q.box();
   CheckpointHeader header;
   header.rank = decomposition.rank;
@@ -48,8 +48,8 @@ bool write_checkpoint(const std::string& base, const PatchField<ExecSpace>& q,
   header.step = step;
   header.time = time;
 
-  const std::string path = base + rank_suffix(decomposition.rank) + ".bin";
-  ensure_parent(path);
+  const std::string path = base + rankSuffix(decomposition.rank) + ".bin";
+  ensureParent(path);
   std::ofstream out(path, std::ios::binary);
   if (!out) {
     std::fprintf(stderr, "could not open %s for writing\n", path.c_str());
@@ -78,10 +78,10 @@ bool write_checkpoint(const std::string& base, const PatchField<ExecSpace>& q,
 }
 
 template <class ExecSpace>
-bool read_checkpoint(const std::string& base, PatchField<ExecSpace>& q,
-                     int& step, double& time,
-                     const Decomposition& decomposition) {
-  const std::string path = base + rank_suffix(decomposition.rank) + ".bin";
+bool readCheckpoint(const std::string& base, PatchField<ExecSpace>& q,
+                    int& step, double& time,
+                    const Decomposition& decomposition) {
+  const std::string path = base + rankSuffix(decomposition.rank) + ".bin";
   std::ifstream in(path, std::ios::binary);
   if (!in) {
     return false;

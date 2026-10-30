@@ -23,7 +23,7 @@ struct Curvature3D {
   bool valid = false;
 };
 
-inline double column_height(const Grid3D& g, int i, int j) {
+inline double columnHeight(const Grid3D& g, int i, int j) {
   double sum = 0.0;
   for (int k = 0; k < g.nz(); ++k) {
     sum += g(i, j, k) * g.hz();
@@ -31,7 +31,7 @@ inline double column_height(const Grid3D& g, int i, int j) {
   return sum;
 }
 
-inline Curvature3D curvature_z(const Grid3D& g, int i, int j) {
+inline Curvature3D curvatureZ(const Grid3D& g, int i, int j) {
   Curvature3D result;
   const int s = 2;
   if (i - s < 0 || i + s >= g.nx() || j - s < 0 || j + s >= g.ny()) {
@@ -39,16 +39,16 @@ inline Curvature3D curvature_z(const Grid3D& g, int i, int j) {
   }
   const double hx = g.hx();
   const double hy = g.hy();
-  const double hm2 = column_height(g, i - 2, j);
-  const double hm1 = column_height(g, i - 1, j);
-  const double h0 = column_height(g, i, j);
-  const double hp1 = column_height(g, i + 1, j);
-  const double hp2 = column_height(g, i + 2, j);
+  const double hm2 = columnHeight(g, i - 2, j);
+  const double hm1 = columnHeight(g, i - 1, j);
+  const double h0 = columnHeight(g, i, j);
+  const double hp1 = columnHeight(g, i + 1, j);
+  const double hp2 = columnHeight(g, i + 2, j);
 
-  const double jm2 = column_height(g, i, j - 2);
-  const double jm1 = column_height(g, i, j - 1);
-  const double jp1 = column_height(g, i, j + 1);
-  const double jp2 = column_height(g, i, j + 2);
+  const double jm2 = columnHeight(g, i, j - 2);
+  const double jm1 = columnHeight(g, i, j - 1);
+  const double jp1 = columnHeight(g, i, j + 1);
+  const double jp2 = columnHeight(g, i, j + 2);
 
   const double hx_der = (hm2 - 8.0 * hm1 + 8.0 * hp1 - hp2) / (12.0 * hx);
   const double hy_der = (jm2 - 8.0 * jm1 + 8.0 * jp1 - jp2) / (12.0 * hy);
@@ -58,10 +58,10 @@ inline Curvature3D curvature_z(const Grid3D& g, int i, int j) {
       (-jp2 + 16.0 * jp1 - 30.0 * h0 + 16.0 * jm1 - jm2) / (12.0 * hy * hy);
   // Mixed derivative from the 4-point central difference of h_x in y.
   const double hx_jm =
-      (column_height(g, i + 1, j - 1) - column_height(g, i - 1, j - 1)) /
+      (columnHeight(g, i + 1, j - 1) - columnHeight(g, i - 1, j - 1)) /
       (2.0 * hx);
   const double hx_jp =
-      (column_height(g, i + 1, j + 1) - column_height(g, i - 1, j + 1)) /
+      (columnHeight(g, i + 1, j + 1) - columnHeight(g, i - 1, j + 1)) /
       (2.0 * hx);
   const double hxy = (hx_jp - hx_jm) / (2.0 * hy);
 

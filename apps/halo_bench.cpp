@@ -53,7 +53,7 @@ void usage(const char* argv0) {
       << "  --help                 show this help\n";
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -68,8 +68,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -85,17 +85,17 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--n") {
-      p.n = parse_int(a, require_value(i, argc, argv, a));
+      p.n = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--ng") {
-      p.ng = parse_int(a, require_value(i, argc, argv, a));
+      p.ng = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--iters") {
-      p.iters = parse_int(a, require_value(i, argc, argv, a));
+      p.iters = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--warmup") {
-      p.warmup = parse_int(a, require_value(i, argc, argv, a));
+      p.warmup = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--json") {
-      p.json = require_value(i, argc, argv, a);
+      p.json = requireValue(i, argc, argv, a);
     } else if (a == "--verbose") {
       p.verbose = true;
     } else if (a.rfind("--kokkos-", 0) == 0) {
@@ -113,15 +113,15 @@ Params parse(int argc, char** argv) {
 }
 
 template <class ExecSpace>
-int run_impl(const Params& p) {
+int runImpl(const Params& p) {
   using field_type = saturn::PatchField<ExecSpace>;
 
   const bool periodic[3] = {true, true, true};
   const auto decomposition = saturn::Decomposition::create(
-      saturn::Box::from_extents(p.n, p.n, p.n), periodic);
-  const auto grid = saturn::UniformGrid::from_cells_local(
+      saturn::Box::fromExtents(p.n, p.n, p.n), periodic);
+  const auto grid = saturn::UniformGrid::fromCellsLocal(
       p.n, p.n, p.n, 1.0, 1.0, 1.0, p.ng, decomposition.local);
-  const saturn::Box box = grid.local_box();
+  const saturn::Box box = grid.localBox();
 
   field_type q(box, 1, p.ng, "q");
   auto hq = Kokkos::create_mirror_view(q.data());
@@ -146,7 +146,7 @@ int run_impl(const Params& p) {
     exchange.exchange(q);
   }
   ExecSpace().fence();
-  const double seconds = saturn::mpi_max(timer.seconds());
+  const double seconds = saturn::mpiMax(timer.seconds());
 
   // Aggregate bytes across all ranks: two messages (send+recv) per
   // non-self, non-null face.
@@ -224,7 +224,7 @@ int run_impl(const Params& p) {
         << "  \"n\": " << p.n << ",\n"
         << "  \"ng\": " << p.ng << ",\n"
         << "  \"iters\": " << p.iters << ",\n"
-        << "  \"local_cells\": " << box.num_cells() << ",\n"
+        << "  \"local_cells\": " << box.numCells() << ",\n"
         << "  \"seconds\": " << seconds << ",\n"
         << "  \"us_per_exchange\": " << us_per_exchange << ",\n"
         << "  \"gbps_aggregate\": " << gbps << ",\n"
@@ -247,10 +247,10 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
-        return run_impl<space_type>(params);
+        return runImpl<space_type>(params);
       });
   Kokkos::finalize();
 

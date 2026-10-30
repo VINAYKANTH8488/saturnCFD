@@ -18,10 +18,10 @@ namespace saturn {
 // The caller must ensure the required neighbors are valid. This helper is
 // shared by the interior and boundary-shell kernels.
 template <class PatchType>
-KOKKOS_INLINE_FUNCTION double scalar_rhs_value(const PatchType& c, int i, int j,
-                                               int k, double ux, double uy,
-                                               double uz, double hx, double hy,
-                                               double hz, double nu) {
+KOKKOS_INLINE_FUNCTION double scalarRhsValue(const PatchType& c, int i, int j,
+                                             int k, double ux, double uy,
+                                             double uz, double hx, double hy,
+                                             double hz, double nu) {
   const double cc = c(0, i, j, k);
   const double adv = 0.5 * ux * (c(0, i + 1, j, k) - c(0, i - 1, j, k)) / hx +
                      0.5 * uy * (c(0, i, j + 1, k) - c(0, i, j - 1, k)) / hy +
@@ -34,15 +34,15 @@ KOKKOS_INLINE_FUNCTION double scalar_rhs_value(const PatchType& c, int i, int j,
 }
 
 template <class ExecSpace>
-void scalar_advection_diffusion_rhs(const PatchField<ExecSpace>& c,
-                                    PatchField<ExecSpace>& rhs,
-                                    const std::array<double, 3>& velocity,
-                                    double nu, const std::array<double, 3>& h,
-                                    const Box& region) {
+void scalarAdvectionDiffusionRhs(const PatchField<ExecSpace>& c,
+                                 PatchField<ExecSpace>& rhs,
+                                 const std::array<double, 3>& velocity,
+                                 double nu, const std::array<double, 3>& h,
+                                 const Box& region) {
   if (region.empty()) {
     return;
   }
-  const auto policy = make_mdrange3<ExecSpace>(
+  const auto policy = makeMdrange3<ExecSpace>(
       Int3{{region.lo[2], region.lo[1], region.lo[0]}},
       Int3{{region.hi[2] + 1, region.hi[1] + 1, region.hi[0] + 1}});
 
@@ -56,28 +56,27 @@ void scalar_advection_diffusion_rhs(const PatchField<ExecSpace>& c,
   Kokkos::parallel_for(
       "scalar_advection_diffusion", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         rhs(0, i, j, k) =
-            scalar_rhs_value(c, i, j, k, ux, uy, uz, hx, hy, hz, nu);
+            scalarRhsValue(c, i, j, k, ux, uy, uz, hx, hy, hz, nu);
       });
 }
 
 // Full-box operator (all interior cells).
 template <class ExecSpace>
-void scalar_advection_diffusion_rhs(const PatchField<ExecSpace>& c,
-                                    PatchField<ExecSpace>& rhs,
-                                    const std::array<double, 3>& velocity,
-                                    double nu, const std::array<double, 3>& h) {
-  scalar_advection_diffusion_rhs(c, rhs, velocity, nu, h, c.box());
+void scalarAdvectionDiffusionRhs(const PatchField<ExecSpace>& c,
+                                 PatchField<ExecSpace>& rhs,
+                                 const std::array<double, 3>& velocity,
+                                 double nu, const std::array<double, 3>& h) {
+  scalarAdvectionDiffusionRhs(c, rhs, velocity, nu, h, c.box());
 }
 
 // Boundary shell of a box: six faces, partitioned so every shell cell is
 // visited exactly once. Requires valid ghosts (call after FaceExchange::end).
 template <class ExecSpace>
-void scalar_advection_diffusion_rhs_shell(const PatchField<ExecSpace>& c,
-                                          PatchField<ExecSpace>& rhs,
-                                          const std::array<double, 3>& velocity,
-                                          double nu,
-                                          const std::array<double, 3>& h,
-                                          const Box& box) {
+void scalarAdvectionDiffusionRhsShell(const PatchField<ExecSpace>& c,
+                                      PatchField<ExecSpace>& rhs,
+                                      const std::array<double, 3>& velocity,
+                                      double nu, const std::array<double, 3>& h,
+                                      const Box& box) {
   const int lo0 = box.lo[0];
   const int hi0 = box.hi[0];
   const int lo1 = box.lo[1];
@@ -90,7 +89,7 @@ void scalar_advection_diffusion_rhs_shell(const PatchField<ExecSpace>& c,
   const int nmax = std::max({nx, ny, nz});
 
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{6, nmax, nmax}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{6, nmax, nmax}});
 
   const double ux = velocity[0];
   const double uy = velocity[1];
@@ -132,7 +131,7 @@ void scalar_advection_diffusion_rhs_shell(const PatchField<ExecSpace>& c,
         }
         if (active) {
           rhs(0, i, j, k) =
-              scalar_rhs_value(c, i, j, k, ux, uy, uz, hx, hy, hz, nu);
+              scalarRhsValue(c, i, j, k, ux, uy, uz, hx, hy, hz, nu);
         }
       });
 }

@@ -35,7 +35,7 @@ int main() {
     const double slope = amplitude * k * std::cos(k * x);
     const double second = -amplitude * k * k * std::sin(k * x);
     const double exact = second / std::pow(1.0 + slope * slope, 1.5);
-    const auto curvature = saturn::vof::curvature_y(grid, i, 2);
+    const auto curvature = saturn::vof::curvatureY(grid, i, 2);
     if (!curvature.valid) {
       continue;
     }

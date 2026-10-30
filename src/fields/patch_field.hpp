@@ -43,7 +43,7 @@ class PatchField {
 
   // Periodic ghost fill for a patch that spans the full periodic domain.
   // Multi-rank exchanges will replace this with halo messages.
-  void fill_periodic() {
+  void fillPeriodic() {
     const int n0 = box_.length(0);
     const int n1 = box_.length(1);
     const int n2 = box_.length(2);
@@ -55,7 +55,7 @@ class PatchField {
     const int ng = ng_;
     const int nvar = nvar_;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
 
     Kokkos::parallel_for(
         "periodic_fill", policy, KOKKOS_LAMBDA(int kp, int jp, int ip) {

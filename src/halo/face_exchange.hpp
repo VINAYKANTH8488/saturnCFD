@@ -47,7 +47,7 @@ class FaceExchange {
   // are safe to compute in between.
   void begin(PatchField<ExecSpace>& q) {
 #ifndef SATURN_ENABLE_MPI
-    q.fill_periodic();
+    q.fillPeriodic();
     (void)q;
 #else
     nrequests_ = 0;
@@ -130,7 +130,7 @@ class FaceExchange {
     const int hi2 = box.hi[2];
 
     const auto policy =
-        make_mdrange4<ExecSpace>(Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
+        makeMdrange4<ExecSpace>(Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
     Kokkos::parallel_for(
         "halo_pack", policy, KOKKOS_LAMBDA(int v, int f, int a, int b) {
           int i = 0;
@@ -169,7 +169,7 @@ class FaceExchange {
     const int hi2 = box.hi[2];
 
     const auto policy =
-        make_mdrange4<ExecSpace>(Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
+        makeMdrange4<ExecSpace>(Int4{{0, 0, 0, 0}}, Int4{{nvar, ng, n1, n2}});
     Kokkos::parallel_for(
         "halo_unpack", policy, KOKKOS_LAMBDA(int v, int f, int a, int b) {
           int i = 0;

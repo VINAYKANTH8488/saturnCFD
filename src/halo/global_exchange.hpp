@@ -33,11 +33,11 @@ class GlobalExchange {
 
   void exchange(PatchField<ExecSpace>& q, const BoundaryType bc[3][2]) {
 #ifndef SATURN_ENABLE_MPI
-    apply_boundary_conditions(q, bc);
+    applyBoundaryConditions(q, bc);
     (void)q;
 #else
     if (decomposition_.size == 1) {
-      apply_boundary_conditions(q, bc);
+      applyBoundaryConditions(q, bc);
       return;
     }
 

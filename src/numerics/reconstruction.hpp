@@ -12,8 +12,8 @@ namespace saturn {
 //   v[-2] v[-1] v[0] | v[1] v[2] v[3]
 //                     ^ face
 //
-// `reconstruct_left` returns the state on the left of the face (upwind for a
-// positive velocity); `reconstruct_right` mirrors the stencil around the face.
+// `reconstructLeft` returns the state on the left of the face (upwind for a
+// positive velocity); `reconstructRight` mirrors the stencil around the face.
 // The caller supplies ghost cells; no boundary handling is done here.
 //
 // Schemes:
@@ -41,7 +41,7 @@ enum class Reconstruction {
 };
 
 // Number of cells touched by a scheme (the largest offset is 3 on each side).
-constexpr int reconstruction_stencil_width(Reconstruction scheme) noexcept {
+constexpr int reconstructionStencilWidth(Reconstruction scheme) noexcept {
   switch (scheme) {
     case Reconstruction::Central2:
       return 2;
@@ -91,8 +91,8 @@ double central6(double vm2, double vm1, double v0, double vp1, double vp2,
 // Jiang-Shu smoothness indicators for the three 3-point WENO5 candidates.
 // Ordered backward ({-2,-1,0}), central ({-1,0,1}), forward ({0,1,2}).
 KOKKOS_INLINE_FUNCTION
-void weno5_smoothness(double vm2, double vm1, double v0, double vp1, double vp2,
-                      double& beta0, double& beta1, double& beta2) {
+void weno5Smoothness(double vm2, double vm1, double v0, double vp1, double vp2,
+                     double& beta0, double& beta1, double& beta2) {
   const double d0 = vm2 - 2.0 * vm1 + v0;
   const double d1 = vm1 - 2.0 * v0 + vp1;
   const double d2 = v0 - 2.0 * vp1 + vp2;
@@ -114,7 +114,7 @@ double weno5z(double vm2, double vm1, double v0, double vp1, double vp2,
   double beta0 = 0.0;
   double beta1 = 0.0;
   double beta2 = 0.0;
-  weno5_smoothness(vm2, vm1, v0, vp1, vp2, beta0, beta1, beta2);
+  weno5Smoothness(vm2, vm1, v0, vp1, vp2, beta0, beta1, beta2);
 
   // Normalize by the largest indicator so that the nonlinear weights are
   // scale invariant and cannot overflow for very large jumps.
@@ -149,8 +149,8 @@ double weno5z(double vm2, double vm1, double v0, double vp1, double vp2,
 // {-2,...,3}, integrated over the cell adjacent to the face. The rational
 // matrix is the exact derivative integral (denominator 120960).
 KOKKOS_INLINE_FUNCTION
-double stencil6_smoothness(double vm2, double vm1, double v0, double vp1,
-                           double vp2, double vp3) {
+double stencil6Smoothness(double vm2, double vm1, double v0, double vp1,
+                          double vp2, double vp3) {
   const double v[6] = {vm2, vm1, v0, vp1, vp2, vp3};
   const double kNumerator[6][6] = {
       {271779.0, -1190400.0, 2043176.0, -1731126.0, 729381.0, -122810.0},
@@ -171,7 +171,7 @@ double stencil6_smoothness(double vm2, double vm1, double v0, double vp1,
 
 // gamma = (normalized_beta + eps)^-7, evaluated with multiplications only.
 KOKKOS_INLINE_FUNCTION
-double teno_inverse_smoothness(double normalized_beta) {
+double tenoInverseSmoothness(double normalized_beta) {
   const double inv = 1.0 / (normalized_beta + kEpsilon);
   const double inv2 = inv * inv;
   const double inv4 = inv2 * inv2;
@@ -189,8 +189,8 @@ double teno6(double vm2, double vm1, double v0, double vp1, double vp2,
   double beta0 = 0.0;
   double beta1 = 0.0;
   double beta2 = 0.0;
-  weno5_smoothness(vm2, vm1, v0, vp1, vp2, beta0, beta1, beta2);
-  const double beta6 = stencil6_smoothness(vm2, vm1, v0, vp1, vp2, vp3);
+  weno5Smoothness(vm2, vm1, v0, vp1, vp2, beta0, beta1, beta2);
+  const double beta6 = stencil6Smoothness(vm2, vm1, v0, vp1, vp2, vp3);
 
   double beta_max = beta0 > beta1 ? beta0 : beta1;
   beta_max = beta_max > beta2 ? beta_max : beta2;
@@ -201,10 +201,10 @@ double teno6(double vm2, double vm1, double v0, double vp1, double vp2,
 
   // gamma_k = (beta_k / beta_max + eps)^-7. The common beta_max^-7 factor
   // cancels in the normalized chi_k, so this is scale invariant and safe.
-  const double g0 = teno_inverse_smoothness(beta0 / beta_max);
-  const double g1 = teno_inverse_smoothness(beta1 / beta_max);
-  const double g2 = teno_inverse_smoothness(beta2 / beta_max);
-  const double g6 = teno_inverse_smoothness(beta6 / beta_max);
+  const double g0 = tenoInverseSmoothness(beta0 / beta_max);
+  const double g1 = tenoInverseSmoothness(beta1 / beta_max);
+  const double g2 = tenoInverseSmoothness(beta2 / beta_max);
+  const double g6 = tenoInverseSmoothness(beta6 / beta_max);
 
   const double sum6 = g0 + g1 + g2 + g6;
   if (!(sum6 > 0.0)) {
@@ -235,8 +235,8 @@ double teno6(double vm2, double vm1, double v0, double vp1, double vp2,
 
 // Reconstruct the left state at the face between v0 and vp1.
 KOKKOS_INLINE_FUNCTION
-double reconstruct_left(Reconstruction scheme, double vm2, double vm1,
-                        double v0, double vp1, double vp2, double vp3) {
+double reconstructLeft(Reconstruction scheme, double vm2, double vm1, double v0,
+                       double vp1, double vp2, double vp3) {
   switch (scheme) {
     case Reconstruction::Central2:
       return central2(vm2, vm1, v0, vp1, vp2, vp3);
@@ -254,28 +254,28 @@ double reconstruct_left(Reconstruction scheme, double vm2, double vm1,
 
 // Reconstruct the right state at the same face by mirroring the stencil.
 KOKKOS_INLINE_FUNCTION
-double reconstruct_right(Reconstruction scheme, double vm2, double vm1,
-                         double v0, double vp1, double vp2, double vp3) {
-  return reconstruct_left(scheme, vp3, vp2, vp1, v0, vm1, vm2);
+double reconstructRight(Reconstruction scheme, double vm2, double vm1,
+                        double v0, double vp1, double vp2, double vp3) {
+  return reconstructLeft(scheme, vp3, vp2, vp1, v0, vm1, vm2);
 }
 
 // Convenience overload for a callable indexed by an offset in [-2, 3], e.g.
 //
-//   reconstruct_left(scheme, [&](int d) { return c(0, i + d, j, k); });
+//   reconstructLeft(scheme, [&](int d) { return c(0, i + d, j, k); });
 //
 // The callable may be a device lambda.
 template <class Accessor>
-KOKKOS_INLINE_FUNCTION double reconstruct_left(Reconstruction scheme,
-                                               const Accessor& accessor) {
-  return reconstruct_left(scheme, accessor(-2), accessor(-1), accessor(0),
-                          accessor(1), accessor(2), accessor(3));
+KOKKOS_INLINE_FUNCTION double reconstructLeft(Reconstruction scheme,
+                                              const Accessor& accessor) {
+  return reconstructLeft(scheme, accessor(-2), accessor(-1), accessor(0),
+                         accessor(1), accessor(2), accessor(3));
 }
 
 template <class Accessor>
-KOKKOS_INLINE_FUNCTION double reconstruct_right(Reconstruction scheme,
-                                                const Accessor& accessor) {
-  return reconstruct_right(scheme, accessor(-2), accessor(-1), accessor(0),
-                           accessor(1), accessor(2), accessor(3));
+KOKKOS_INLINE_FUNCTION double reconstructRight(Reconstruction scheme,
+                                               const Accessor& accessor) {
+  return reconstructRight(scheme, accessor(-2), accessor(-1), accessor(0),
+                          accessor(1), accessor(2), accessor(3));
 }
 
 }  // namespace recon

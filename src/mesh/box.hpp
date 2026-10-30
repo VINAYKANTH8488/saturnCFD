@@ -20,7 +20,7 @@ struct Box {
   int length(int d) const { return hi[d] - lo[d] + 1; }
 
   KOKKOS_INLINE_FUNCTION
-  long long num_cells() const {
+  long long numCells() const {
     if (empty()) {
       return 0;
     }
@@ -78,7 +78,7 @@ struct Box {
   KOKKOS_INLINE_FUNCTION
   bool operator!=(const Box& other) const { return !(*this == other); }
 
-  static Box from_extents(int nx, int ny, int nz) {
+  static Box fromExtents(int nx, int ny, int nz) {
     Box result;
     result.lo[0] = 0;
     result.lo[1] = 0;

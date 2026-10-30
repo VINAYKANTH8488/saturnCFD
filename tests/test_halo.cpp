@@ -38,9 +38,9 @@ int main(int argc, char** argv) {
     const int ng = 2;
     const bool periodic[3] = {true, true, true};
     const auto dec = saturn::Decomposition::create(
-        saturn::Box::from_extents(n, n, n), periodic);
-    const auto grid = saturn::UniformGrid::from_cells_local(n, n, n, 1.0, 1.0,
-                                                            1.0, ng, dec.local);
+        saturn::Box::fromExtents(n, n, n), periodic);
+    const auto grid = saturn::UniformGrid::fromCellsLocal(n, n, n, 1.0, 1.0,
+                                                          1.0, ng, dec.local);
     (void)grid;
 
     using exec_space = Kokkos::DefaultExecutionSpace;

@@ -15,7 +15,7 @@ double circle(double x, double y, double x0, double y0, double r) {
   return (x - x0) * (x - x0) + (y - y0) * (y - y0) <= r * r ? 1.0 : 0.0;
 }
 
-void fill_circle(saturn::vof::Grid2D& g, double x0, double y0, double r) {
+void fillCircle(saturn::vof::Grid2D& g, double x0, double y0, double r) {
   for (int i = 0; i < g.nx(); ++i) {
     for (int j = 0; j < g.ny(); ++j) {
       const double x = (i + 0.5) * g.hx();
@@ -25,13 +25,12 @@ void fill_circle(saturn::vof::Grid2D& g, double x0, double y0, double r) {
   }
 }
 
-std::vector<double> face_u_translation(const saturn::vof::Grid2D& g,
-                                       double speed) {
+std::vector<double> faceUTranslation(const saturn::vof::Grid2D& g,
+                                     double speed) {
   return std::vector<double>(static_cast<std::size_t>(g.nx()) * g.ny(), speed);
 }
 
-std::vector<double> face_u_rotation(const saturn::vof::Grid2D& g,
-                                    double omega) {
+std::vector<double> faceURotation(const saturn::vof::Grid2D& g, double omega) {
   std::vector<double> u(static_cast<std::size_t>(g.nx()) * g.ny(), 0.0);
   for (int i = 0; i < g.nx(); ++i) {
     for (int j = 0; j < g.ny(); ++j) {
@@ -42,8 +41,7 @@ std::vector<double> face_u_rotation(const saturn::vof::Grid2D& g,
   return u;
 }
 
-std::vector<double> face_v_rotation(const saturn::vof::Grid2D& g,
-                                    double omega) {
+std::vector<double> faceVRotation(const saturn::vof::Grid2D& g, double omega) {
   std::vector<double> v(static_cast<std::size_t>(g.nx()) * g.ny(), 0.0);
   for (int i = 0; i < g.nx(); ++i) {
     for (int j = 0; j < g.ny(); ++j) {
@@ -54,7 +52,7 @@ std::vector<double> face_v_rotation(const saturn::vof::Grid2D& g,
   return v;
 }
 
-double l1_error(const saturn::vof::Grid2D& a, const saturn::vof::Grid2D& b) {
+double l1Error(const saturn::vof::Grid2D& a, const saturn::vof::Grid2D& b) {
   double sum = 0.0;
   for (int i = 0; i < a.nx(); ++i) {
     for (int j = 0; j < a.ny(); ++j) {
@@ -64,7 +62,7 @@ double l1_error(const saturn::vof::Grid2D& a, const saturn::vof::Grid2D& b) {
   return sum / static_cast<double>(a.nx()) / a.ny();
 }
 
-int check_bounds(const saturn::vof::Grid2D& g) {
+int checkBounds(const saturn::vof::Grid2D& g) {
   for (double c : g.data()) {
     if (c < -1.0e-8 || c > 1.0 + 1.0e-8) {
       return 1;
@@ -100,11 +98,11 @@ int main() {
       const double xs = i - shift;
       exact(i, 0) = (xs >= 0.0 && xs < n / 2.0) ? 1.0 : 0.0;
     }
-    const double error = l1_error(grid, exact);
+    const double error = l1Error(grid, exact);
     const double drift = std::abs(grid.mass() - mass0) / mass0;
     std::printf("step 1D:     L1=%.3e mass_drift=%.3e bounds=%s\n", error,
-                drift, check_bounds(grid) == 0 ? "ok" : "bad");
-    if (error > 5.0e-3 || drift > 1.0e-12 || check_bounds(grid) != 0) {
+                drift, checkBounds(grid) == 0 ? "ok" : "bad");
+    if (error > 5.0e-3 || drift > 1.0e-12 || checkBounds(grid) != 0) {
       status = 1;
     }
   }
@@ -112,7 +110,7 @@ int main() {
   {
     const int n = 32;
     saturn::vof::Grid2D grid(n, n);
-    fill_circle(grid, 0.4, 0.5, 0.15);
+    fillCircle(grid, 0.4, 0.5, 0.15);
     const double mass0 = grid.mass();
 
     const double speed = 0.2;
@@ -120,7 +118,7 @@ int main() {
     const double h = grid.hx();
     const double dt = 0.25 * h / speed;
     const int steps = static_cast<int>(std::ceil(tend / dt));
-    const auto u = face_u_translation(grid, speed);
+    const auto u = faceUTranslation(grid, speed);
     const std::vector<double> v(grid.data().size(), 0.0);
     for (int s = 0; s < steps; ++s) {
       const double local_dt = std::min(dt, tend - static_cast<double>(s) * dt);
@@ -128,12 +126,12 @@ int main() {
     }
 
     saturn::vof::Grid2D exact(n, n);
-    fill_circle(exact, 0.4 + speed * tend, 0.5, 0.15);
-    const double error = l1_error(grid, exact);
+    fillCircle(exact, 0.4 + speed * tend, 0.5, 0.15);
+    const double error = l1Error(grid, exact);
     const double drift = std::abs(grid.mass() - mass0) / mass0;
     std::printf("translation: L1=%.3e mass_drift=%.3e bounds=%s\n", error,
-                drift, check_bounds(grid) == 0 ? "ok" : "bad");
-    if (error > 0.02 || drift > 1.0e-10 || check_bounds(grid) != 0) {
+                drift, checkBounds(grid) == 0 ? "ok" : "bad");
+    if (error > 0.02 || drift > 1.0e-10 || checkBounds(grid) != 0) {
       status = 1;
     }
   }
@@ -141,15 +139,15 @@ int main() {
   {
     const int n = 32;
     saturn::vof::Grid2D grid(n, n);
-    fill_circle(grid, 0.5, 0.7, 0.15);
+    fillCircle(grid, 0.5, 0.7, 0.15);
     const double mass0 = grid.mass();
     saturn::vof::Grid2D initial = grid;
 
     const double omega = 1.0;
-    const auto u = face_u_rotation(grid, omega);
-    const auto v = face_v_rotation(grid, omega);
-    const double max_speed = omega * 0.5;
-    const double dt = 0.25 * grid.hx() / max_speed;
+    const auto u = faceURotation(grid, omega);
+    const auto v = faceVRotation(grid, omega);
+    const double maxSpeed = omega * 0.5;
+    const double dt = 0.25 * grid.hx() / maxSpeed;
     const double period = 2.0 * kPi / omega;
     const int steps = static_cast<int>(std::ceil(period / dt));
     for (int s = 0; s < steps; ++s) {
@@ -157,11 +155,11 @@ int main() {
           std::min(dt, period - static_cast<double>(s) * dt);
       grid.advance(u, v, local_dt);
     }
-    const double error = l1_error(grid, initial);
+    const double error = l1Error(grid, initial);
     const double drift = std::abs(grid.mass() - mass0) / mass0;
     std::printf("rotation:    L1=%.3e mass_drift=%.3e bounds=%s\n", error,
-                drift, check_bounds(grid) == 0 ? "ok" : "bad");
-    if (error > 2.0e-2 || drift > 1.0e-10 || check_bounds(grid) != 0) {
+                drift, checkBounds(grid) == 0 ? "ok" : "bad");
+    if (error > 2.0e-2 || drift > 1.0e-10 || checkBounds(grid) != 0) {
       status = 1;
     }
   }

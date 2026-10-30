@@ -20,7 +20,7 @@ namespace {
 constexpr double kPi = 3.14159265358979323846;
 
 KOKKOS_INLINE_FUNCTION
-double exact_value(int case_id, double x, double y, double z) {
+double exactValue(int case_id, double x, double y, double z) {
   if (case_id == 1) {
     return Kokkos::cos(kPi * x) * Kokkos::cos(kPi * y) * Kokkos::cos(kPi * z);
   }
@@ -32,7 +32,7 @@ double exact_value(int case_id, double x, double y, double z) {
          Kokkos::sin(2.0 * kPi * z);
 }
 
-double exact_value_host(int case_id, double x, double y, double z) {
+double exactValueHost(int case_id, double x, double y, double z) {
   if (case_id == 1) {
     return std::cos(kPi * x) * std::cos(kPi * y) * std::cos(kPi * z);
   }
@@ -44,10 +44,10 @@ double exact_value_host(int case_id, double x, double y, double z) {
          std::sin(2.0 * kPi * z);
 }
 
-int run_config(int case_id, const char* name,
-               const std::array<saturn::poisson::Boundary, 3>& bc_low,
-               const std::array<saturn::poisson::Boundary, 3>& bc_high,
-               double source_coefficient) {
+int runConfig(int case_id, const char* name,
+              const std::array<saturn::poisson::Boundary, 3>& bc_low,
+              const std::array<saturn::poisson::Boundary, 3>& bc_high,
+              double source_coefficient) {
   using exec_space = Kokkos::DefaultExecutionSpace;
   using view_type = saturn::poisson::GeometricMultigrid<exec_space>::view_type;
 
@@ -78,7 +78,7 @@ int run_config(int case_id, const char* name,
           const double px = (i + 0.5) * h;
           const double py = (j + 0.5) * h;
           const double pz = (k + 0.5) * h;
-          b(k, j, i) = source * exact_value(case_id, px, py, pz);
+          b(k, j, i) = source * exactValue(case_id, px, py, pz);
           x(k, j, i) = 0.0;
         });
 
@@ -97,7 +97,7 @@ int run_config(int case_id, const char* name,
           const double py = (j + 0.5) * h;
           const double pz = (k + 0.5) * h;
           const double error =
-              hx(k, j, i) - exact_value_host(case_id, px, py, pz);
+              hx(k, j, i) - exactValueHost(case_id, px, py, pz);
           sum += error * error;
         }
       }
@@ -149,12 +149,11 @@ int main(int argc, char** argv) {
          saturn::poisson::Boundary::Neumann,
          saturn::poisson::Boundary::Periodic}};
 
-    status |= run_config(0, "periodic", periodic, periodic,
-                         -3.0 * (2.0 * kPi) * (2.0 * kPi));
-    status |=
-        run_config(1, "Neumann walls", neumann, neumann, -3.0 * kPi * kPi);
-    status |= run_config(2, "periodic x/z, Neumann y", mixed_low, mixed_high,
-                         -9.0 * kPi * kPi);
+    status |= runConfig(0, "periodic", periodic, periodic,
+                        -3.0 * (2.0 * kPi) * (2.0 * kPi));
+    status |= runConfig(1, "Neumann walls", neumann, neumann, -3.0 * kPi * kPi);
+    status |= runConfig(2, "periodic x/z, Neumann y", mixed_low, mixed_high,
+                        -9.0 * kPi * kPi);
     std::printf("\nPoisson test %s\n", status == 0 ? "passed" : "failed");
   }
   Kokkos::finalize();

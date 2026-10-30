@@ -23,7 +23,7 @@ enum class BoundaryType {
   SlipWall,
 };
 
-inline BoundaryType parse_boundary_type(const std::string& name) {
+inline BoundaryType parseBoundaryType(const std::string& name) {
   if (name == "periodic") {
     return BoundaryType::Periodic;
   }
@@ -36,8 +36,8 @@ inline BoundaryType parse_boundary_type(const std::string& name) {
 // Fill all ghost cells of a five-variable compressible field. The kernel
 // treats each coordinate independently, so edges and corners are filled too.
 template <class ExecSpace>
-void apply_boundary_conditions(PatchField<ExecSpace>& q,
-                               const BoundaryType bc[3][2]) {
+void applyBoundaryConditions(PatchField<ExecSpace>& q,
+                             const BoundaryType bc[3][2]) {
   const Box box = q.box();
   const int ng = q.ng();
   // Copy the boundary types into scalar captures. Capturing a C array or a
@@ -52,7 +52,7 @@ void apply_boundary_conditions(PatchField<ExecSpace>& q,
   const int np1 = box.length(1) + 2 * ng;
   const int np2 = box.length(2) + 2 * ng;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{np2, np1, np0}});
   auto data = q.data();
   const int nvar = q.nvar();
 

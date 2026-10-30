@@ -204,7 +204,7 @@ class VariablePoisson2D {
         z[i] = r[i] / diag[i];
       }
     };
-    auto residual_norm = [&]() {
+    auto residualNorm = [&]() {
       double sum = 0.0;
       for (double value : r) {
         sum += value * value;
@@ -217,7 +217,7 @@ class VariablePoisson2D {
     dir = z;
     double rz = dot(r, z);
     for (int it = 0; it < max_iterations; ++it) {
-      if (residual_norm() <= target) {
+      if (residualNorm() <= target) {
         break;
       }
       apply(dir, ap);
@@ -276,8 +276,8 @@ class Solver2D {
 
   // CSF force faces from a cell-centered curvature field. The force is
   // sigma*kappa_face*(c_R-c_L)/h.
-  void csf_faces(const std::vector<double>& kappa, double sigma,
-                 std::vector<double>& fx, std::vector<double>& fy) const {
+  void csfFaces(const std::vector<double>& kappa, double sigma,
+                std::vector<double>& fx, std::vector<double>& fy) const {
     fx.assign(u_.size(), 0.0);
     fy.assign(u_.size(), 0.0);
     for (int j = 0; j < ny_; ++j) {
@@ -299,9 +299,9 @@ class Solver2D {
 
   // One projection step from the CSF force, with an optional explicit
   // advection/viscous term omitted in this static-bubble prototype.
-  void project_force(const std::vector<double>& fx,
-                     const std::vector<double>& fy, double dt,
-                     double rho = 1.0) {
+  void projectForce(const std::vector<double>& fx,
+                    const std::vector<double>& fy, double dt,
+                    double rho = 1.0) {
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
         const int index = j * nx_ + i;
@@ -344,9 +344,9 @@ class Solver2D {
   // Variable-density projection. rho(c) is interpolated arithmetically to
   // cell centers and harmonically to faces; the CSF force and the pressure
   // gradient use the same face density, which keeps a static bubble balanced.
-  void project_force_variable(const std::vector<double>& fx,
-                              const std::vector<double>& fy, double dt,
-                              double rho_l, double rho_g) {
+  void projectForceVariable(const std::vector<double>& fx,
+                            const std::vector<double>& fy, double dt,
+                            double rho_l, double rho_g) {
     const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
     std::vector<double> rho_cell(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
@@ -479,7 +479,7 @@ class Solver2D {
     std::vector<double> fx;
     std::vector<double> fy;
     if (sigma > 0.0 && !kappa.empty()) {
-      csf_faces(kappa, sigma, fx, fy);
+      csfFaces(kappa, sigma, fx, fy);
     } else {
       fx.assign(total, 0.0);
       fy.assign(total, 0.0);
@@ -524,7 +524,7 @@ class Solver2D {
   // Advect the volume fraction with the current face velocities.
   void advect(double dt) { c_.advance(u_, v_, dt); }
 
-  double max_speed() const {
+  double maxSpeed() const {
     double result = 0.0;
     for (double x : u_) {
       result = std::max(result, std::abs(x));
@@ -535,7 +535,7 @@ class Solver2D {
     return result;
   }
 
-  double max_divergence() const {
+  double maxDivergence() const {
     double result = 0.0;
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {

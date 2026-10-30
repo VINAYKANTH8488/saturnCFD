@@ -56,7 +56,7 @@ struct Result {
 namespace detail {
 
 KOKKOS_INLINE_FUNCTION
-int plus_index(int i, int n, Boundary bc, int& sign) {
+int plusIndex(int i, int n, Boundary bc, int& sign) {
   sign = 1;
   if (i + 1 < n) {
     return i + 1;
@@ -72,7 +72,7 @@ int plus_index(int i, int n, Boundary bc, int& sign) {
 }
 
 KOKKOS_INLINE_FUNCTION
-int minus_index(int i, int n, Boundary bc, int& sign) {
+int minusIndex(int i, int n, Boundary bc, int& sign) {
   sign = 1;
   if (i > 0) {
     return i - 1;
@@ -89,7 +89,7 @@ int minus_index(int i, int n, Boundary bc, int& sign) {
 
 // Map an index that may lie one cell outside [0,n) through the boundary.
 KOKKOS_INLINE_FUNCTION
-int extended_index(int index, int n, Boundary low, Boundary high, int& sign) {
+int extendedIndex(int index, int n, Boundary low, Boundary high, int& sign) {
   sign = 1;
   if (index >= 0 && index < n) {
     return index;
@@ -173,12 +173,12 @@ class GeometricMultigrid {
     Kokkos::deep_copy(levels_[0].x, x);
     Kokkos::deep_copy(levels_[0].b, b);
     if (!has_dirichlet_) {
-      project_mean_impl(levels_[0].x);
-      project_mean_impl(levels_[0].b);
+      projectMeanImpl(levels_[0].x);
+      projectMeanImpl(levels_[0].b);
     }
 
     Result result;
-    result.initial_residual = residual_norm(0);
+    result.initial_residual = residualNorm(0);
     result.final_residual = result.initial_residual;
     const double rhs_norm = norm(levels_[0].b);
     const double target = options.tolerance * rhs_norm;
@@ -193,10 +193,10 @@ class GeometricMultigrid {
       }
       vcycle(0, options);
       if (!has_dirichlet_) {
-        project_mean_impl(levels_[0].x);
+        projectMeanImpl(levels_[0].x);
       }
       result.cycles = cycle + 1;
-      result.final_residual = residual_norm(0);
+      result.final_residual = residualNorm(0);
     }
     if (result.final_residual <= target) {
       result.converged = true;
@@ -224,13 +224,13 @@ class GeometricMultigrid {
     }
 
     smooth(level, options.pre_smooth);
-    compute_residual(level);
+    computeResidual(level);
 
     Level& coarse = levels_[static_cast<std::size_t>(level_index + 1)];
     restrict(level, coarse);
     Kokkos::deep_copy(coarse.x, 0.0);
     vcycle(level_index + 1, options);
-    prolong_add(coarse, level);
+    prolongAdd(coarse, level);
 
     smooth(level, options.post_smooth);
   }
@@ -252,7 +252,7 @@ class GeometricMultigrid {
     auto x = level.x;
     auto b = level.b;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
     if (all_periodic_) {
       for (int sweep = 0; sweep < sweeps; ++sweep) {
         for (int color = 0; color < 2; ++color) {
@@ -290,12 +290,12 @@ class GeometricMultigrid {
               int sjp;
               int skm;
               int skp;
-              const int im = detail::minus_index(i, n0, bl0, sim);
-              const int ip = detail::plus_index(i, n0, bh0, sip);
-              const int jm = detail::minus_index(j, n1, bl1, sjm);
-              const int jp = detail::plus_index(j, n1, bh1, sjp);
-              const int km = detail::minus_index(k, n2, bl2, skm);
-              const int kp = detail::plus_index(k, n2, bh2, skp);
+              const int im = detail::minusIndex(i, n0, bl0, sim);
+              const int ip = detail::plusIndex(i, n0, bh0, sip);
+              const int jm = detail::minusIndex(j, n1, bl1, sjm);
+              const int jp = detail::plusIndex(j, n1, bh1, sjp);
+              const int km = detail::minusIndex(k, n2, bl2, skm);
+              const int kp = detail::plusIndex(k, n2, bh2, skp);
               const double off = (sim * x(k, j, im) + sip * x(k, j, ip)) / hx2 +
                                  (sjm * x(k, jm, i) + sjp * x(k, jp, i)) / hy2 +
                                  (skm * x(km, j, i) + skp * x(kp, j, i)) / hz2;
@@ -305,7 +305,7 @@ class GeometricMultigrid {
     }
   }
 
-  void compute_residual(const Level& level) const {
+  void computeResidual(const Level& level) const {
     const int n0 = level.n[0];
     const int n1 = level.n[1];
     const int n2 = level.n[2];
@@ -322,7 +322,7 @@ class GeometricMultigrid {
     auto b = level.b;
     auto r = level.r;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
     if (all_periodic_) {
       Kokkos::parallel_for(
           "poisson_residual_periodic", policy,
@@ -349,12 +349,12 @@ class GeometricMultigrid {
           int sjp;
           int skm;
           int skp;
-          const int im = detail::minus_index(i, n0, bl0, sim);
-          const int ip = detail::plus_index(i, n0, bh0, sip);
-          const int jm = detail::minus_index(j, n1, bl1, sjm);
-          const int jp = detail::plus_index(j, n1, bh1, sjp);
-          const int km = detail::minus_index(k, n2, bl2, skm);
-          const int kp = detail::plus_index(k, n2, bh2, skp);
+          const int im = detail::minusIndex(i, n0, bl0, sim);
+          const int ip = detail::plusIndex(i, n0, bh0, sip);
+          const int jm = detail::minusIndex(j, n1, bl1, sjm);
+          const int jp = detail::plusIndex(j, n1, bh1, sjp);
+          const int km = detail::minusIndex(k, n2, bl2, skm);
+          const int kp = detail::plusIndex(k, n2, bh2, skp);
           const double lap =
               (sip * x(k, j, ip) - 2.0 * x(k, j, i) + sim * x(k, j, im)) / hx2 +
               (sjp * x(k, jp, i) - 2.0 * x(k, j, i) + sjm * x(k, jm, i)) / hy2 +
@@ -379,24 +379,24 @@ class GeometricMultigrid {
     auto r = fine.r;
     auto b = coarse.b;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{c2, c1, c0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{c2, c1, c0}});
     Kokkos::parallel_for(
         "poisson_restrict", policy, KOKKOS_LAMBDA(int ck, int cj, int ci) {
           double sum = 0.0;
           for (int dk = -1; dk <= 1; ++dk) {
             const double wz = (dk == 0) ? 0.5 : 0.25;
             int sz;
-            const int k = detail::extended_index(2 * ck + dk, n2, bl2, bh2, sz);
+            const int k = detail::extendedIndex(2 * ck + dk, n2, bl2, bh2, sz);
             for (int dj = -1; dj <= 1; ++dj) {
               const double wy = (dj == 0) ? 0.5 : 0.25;
               int sy;
               const int j =
-                  detail::extended_index(2 * cj + dj, n1, bl1, bh1, sy);
+                  detail::extendedIndex(2 * cj + dj, n1, bl1, bh1, sy);
               for (int di = -1; di <= 1; ++di) {
                 const double wx = (di == 0) ? 0.5 : 0.25;
                 int sx;
                 const int i =
-                    detail::extended_index(2 * ci + di, n0, bl0, bh0, sx);
+                    detail::extendedIndex(2 * ci + di, n0, bl0, bh0, sx);
                 sum += wx * wy * wz * sx * sy * sz * r(k, j, i);
               }
             }
@@ -405,7 +405,7 @@ class GeometricMultigrid {
         });
   }
 
-  void prolong_add(const Level& coarse, Level& fine) const {
+  void prolongAdd(const Level& coarse, Level& fine) const {
     const int c0 = coarse.n[0];
     const int c1 = coarse.n[1];
     const int c2 = coarse.n[2];
@@ -421,7 +421,7 @@ class GeometricMultigrid {
     auto xc = coarse.x;
     auto xf = fine.x;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
     Kokkos::parallel_for(
         "poisson_prolong", policy, KOKKOS_LAMBDA(int k, int j, int i) {
           const int ci = i / 2;
@@ -430,21 +430,21 @@ class GeometricMultigrid {
           int s0;
           int s1;
           const int i0 =
-              detail::extended_index((i & 1) ? ci : ci - 1, c0, bl0, bh0, s0);
+              detail::extendedIndex((i & 1) ? ci : ci - 1, c0, bl0, bh0, s0);
           const int i1 =
-              detail::extended_index((i & 1) ? ci + 1 : ci, c0, bl0, bh0, s1);
+              detail::extendedIndex((i & 1) ? ci + 1 : ci, c0, bl0, bh0, s1);
           const double wi0 = (i & 1) ? 0.75 : 0.25;
           const double wi1 = 1.0 - wi0;
           const int j0 =
-              detail::extended_index((j & 1) ? cj : cj - 1, c1, bl1, bh1, s0);
+              detail::extendedIndex((j & 1) ? cj : cj - 1, c1, bl1, bh1, s0);
           const int j1 =
-              detail::extended_index((j & 1) ? cj + 1 : cj, c1, bl1, bh1, s1);
+              detail::extendedIndex((j & 1) ? cj + 1 : cj, c1, bl1, bh1, s1);
           const double wj0 = (j & 1) ? 0.75 : 0.25;
           const double wj1 = 1.0 - wj0;
           const int k0 =
-              detail::extended_index((k & 1) ? ck : ck - 1, c2, bl2, bh2, s0);
+              detail::extendedIndex((k & 1) ? ck : ck - 1, c2, bl2, bh2, s0);
           const int k1 =
-              detail::extended_index((k & 1) ? ck + 1 : ck, c2, bl2, bh2, s1);
+              detail::extendedIndex((k & 1) ? ck + 1 : ck, c2, bl2, bh2, s1);
           const double wk0 = (k & 1) ? 0.75 : 0.25;
           const double wk1 = 1.0 - wk0;
           const double value =
@@ -463,7 +463,7 @@ class GeometricMultigrid {
     const long long cells = static_cast<long long>(n0) * n1 * n2;
     double sum = 0.0;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
     Kokkos::parallel_reduce(
         "poisson_norm", policy,
         KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
@@ -473,15 +473,15 @@ class GeometricMultigrid {
     return std::sqrt(sum / static_cast<double>(cells));
   }
 
-  double residual_norm(int level_index) const {
+  double residualNorm(int level_index) const {
     const Level& level = levels_[static_cast<std::size_t>(level_index)];
     const long long cells =
         static_cast<long long>(level.n[0]) * level.n[1] * level.n[2];
     double sum = 0.0;
-    const auto policy = make_mdrange3<ExecSpace>(
+    const auto policy = makeMdrange3<ExecSpace>(
         Int3{{0, 0, 0}}, Int3{{level.n[2], level.n[1], level.n[0]}});
     auto r = level.r;
-    compute_residual(level);
+    computeResidual(level);
     Kokkos::parallel_reduce(
         "poisson_residual_norm", policy,
         KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
@@ -491,14 +491,14 @@ class GeometricMultigrid {
     return std::sqrt(sum / static_cast<double>(cells));
   }
 
-  static void project_mean_impl(const view_type& v) {
+  static void projectMeanImpl(const view_type& v) {
     const int n0 = static_cast<int>(v.extent(2));
     const int n1 = static_cast<int>(v.extent(1));
     const int n2 = static_cast<int>(v.extent(0));
     const long long cells = static_cast<long long>(n0) * n1 * n2;
     double sum = 0.0;
     const auto policy =
-        make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+        makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
     Kokkos::parallel_reduce(
         "poisson_mean", policy,
         KOKKOS_LAMBDA(int k, int j, int i, double& acc) { acc += v(k, j, i); },

@@ -22,7 +22,7 @@ int main() {
   }
   for (int passes = 1; passes <= 16; ++passes) {
     saturn::vof::Grid2D smoothed(n, n);
-    saturn::vof::smooth_binomial(g, smoothed, passes);
+    saturn::vof::smoothBinomial(g, smoothed, passes);
     double max_error = 0.0;
     double sum_sq = 0.0;
     int count = 0;
@@ -31,7 +31,7 @@ int main() {
         if (g(i, j) <= 0.0 || g(i, j) >= 1.0) {
           continue;
         }
-        const auto k = saturn::vof::curvature_levelset(smoothed, i, j);
+        const auto k = saturn::vof::curvatureLevelset(smoothed, i, j);
         if (!k.valid) {
           continue;
         }
@@ -48,7 +48,7 @@ int main() {
   // Use 16 smoothing passes for the pass/fail decision (the smoothing width
   // trades grid noise against curvature bias).
   saturn::vof::Grid2D smoothed(n, n);
-  saturn::vof::smooth_binomial(g, smoothed, 16);
+  saturn::vof::smoothBinomial(g, smoothed, 16);
   double max_error = 0.0;
   int count = 0;
   for (int i = 0; i < n; ++i) {
@@ -56,7 +56,7 @@ int main() {
       if (g(i, j) <= 0.0 || g(i, j) >= 1.0) {
         continue;
       }
-      const auto k = saturn::vof::curvature_levelset(smoothed, i, j);
+      const auto k = saturn::vof::curvatureLevelset(smoothed, i, j);
       if (k.valid) {
         max_error = std::max(max_error, std::abs(k.kappa - 1.0 / radius));
         ++count;

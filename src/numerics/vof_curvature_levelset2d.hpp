@@ -19,7 +19,7 @@ namespace vof {
 // sharp PLIC field. This works for closed interfaces (bubbles) where the
 // column height function is not single-valued.
 
-inline void smooth_binomial(const Grid2D& in, Grid2D& out, int passes) {
+inline void smoothBinomial(const Grid2D& in, Grid2D& out, int passes) {
   const int nx = in.nx();
   const int ny = in.ny();
   std::vector<double> buffer(in.data().size(), 0.0);
@@ -49,8 +49,8 @@ struct LevelSetCurvature {
   bool valid = false;
 };
 
-inline LevelSetCurvature curvature_levelset(const Grid2D& smoothed, int i,
-                                            int j) {
+inline LevelSetCurvature curvatureLevelset(const Grid2D& smoothed, int i,
+                                           int j) {
   LevelSetCurvature result;
   const double hx = smoothed.hx();
   const double hy = smoothed.hy();
@@ -61,20 +61,20 @@ inline LevelSetCurvature curvature_levelset(const Grid2D& smoothed, int i,
     return result;
   }
   // Divergence of the normalized gradient.
-  auto normal_x = [&](int ii, int jj) {
+  auto normalX = [&](int ii, int jj) {
     const double x = 0.5 * (smoothed(ii + 1, jj) - smoothed(ii - 1, jj)) / hx;
     const double y = 0.5 * (smoothed(ii, jj + 1) - smoothed(ii, jj - 1)) / hy;
     const double n = std::sqrt(x * x + y * y);
     return n > 1.0e-10 ? x / n : 0.0;
   };
-  auto normal_y = [&](int ii, int jj) {
+  auto normalY = [&](int ii, int jj) {
     const double x = 0.5 * (smoothed(ii + 1, jj) - smoothed(ii - 1, jj)) / hx;
     const double y = 0.5 * (smoothed(ii, jj + 1) - smoothed(ii, jj - 1)) / hy;
     const double n = std::sqrt(x * x + y * y);
     return n > 1.0e-10 ? y / n : 0.0;
   };
-  const double div = 0.5 * (normal_x(i + 1, j) - normal_x(i - 1, j)) / hx +
-                     0.5 * (normal_y(i, j + 1) - normal_y(i, j - 1)) / hy;
+  const double div = 0.5 * (normalX(i + 1, j) - normalX(i - 1, j)) / hx +
+                     0.5 * (normalY(i, j + 1) - normalY(i, j - 1)) / hy;
   result.kappa = -div;
   result.valid = true;
   return result;

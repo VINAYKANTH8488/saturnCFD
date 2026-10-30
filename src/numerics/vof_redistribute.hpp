@@ -48,7 +48,7 @@ inline void redistribute(Grid2D& g, int sweeps = 20) {
 
 inline void redistribute(Grid3D& g, int sweeps = 20) {
   const double target = g.mass();
-  const double volume = g.cell_volume();
+  const double volume = g.cellVolume();
   for (int sweep = 0; sweep < sweeps; ++sweep) {
     for (double& c : g.data()) {
       c = std::min(1.0, std::max(0.0, c));

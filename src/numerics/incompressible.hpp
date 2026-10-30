@@ -20,13 +20,13 @@ namespace incompressible {
 // to the face from the four surrounding faces.
 
 template <class ExecSpace>
-void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
-                  const projection::ScalarView<ExecSpace>& v,
-                  const projection::ScalarView<ExecSpace>& w,
-                  projection::ScalarView<ExecSpace>& du,
-                  projection::ScalarView<ExecSpace>& dv,
-                  projection::ScalarView<ExecSpace>& dw,
-                  const std::array<double, 3>& h, double nu) {
+void momentumRhs(const projection::ScalarView<ExecSpace>& u,
+                 const projection::ScalarView<ExecSpace>& v,
+                 const projection::ScalarView<ExecSpace>& w,
+                 projection::ScalarView<ExecSpace>& du,
+                 projection::ScalarView<ExecSpace>& dv,
+                 projection::ScalarView<ExecSpace>& dw,
+                 const std::array<double, 3>& h, double nu) {
   const int n0 = static_cast<int>(u.extent(2));
   const int n1 = static_cast<int>(u.extent(1));
   const int n2 = static_cast<int>(u.extent(0));
@@ -37,7 +37,7 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
   const double hy2 = hy * hy;
   const double hz2 = hz * hz;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "incompressible_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int im = (i == 0) ? n0 - 1 : i - 1;
@@ -103,7 +103,7 @@ void combine(const projection::ScalarView<ExecSpace>& a, double alpha,
   const int n1 = static_cast<int>(out.extent(1));
   const int n2 = static_cast<int>(out.extent(0));
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "incompressible_combine", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         out(k, j, i) =
@@ -119,14 +119,14 @@ void combine(const projection::ScalarView<ExecSpace>& a, double alpha,
 // well-resolved modes are barely touched. This is a numerical stabilization
 // for under-resolved transitional flows, not part of the physical model.
 template <class ExecSpace>
-void filter_dimension(const projection::ScalarView<ExecSpace>& in,
-                      projection::ScalarView<ExecSpace>& out, double alpha,
-                      int dimension) {
+void filterDimension(const projection::ScalarView<ExecSpace>& in,
+                     projection::ScalarView<ExecSpace>& out, double alpha,
+                     int dimension) {
   const int n0 = static_cast<int>(in.extent(2));
   const int n1 = static_cast<int>(in.extent(1));
   const int n2 = static_cast<int>(in.extent(0));
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "incompressible_filter", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         double value = 0.0;
@@ -166,19 +166,19 @@ void filter4(projection::ScalarView<ExecSpace>& u,
   if (alpha <= 0.0) {
     return;
   }
-  filter_dimension<ExecSpace>(u, tu, alpha, 0);
-  filter_dimension<ExecSpace>(tu, u, alpha, 1);
-  filter_dimension<ExecSpace>(u, tu, alpha, 2);
+  filterDimension<ExecSpace>(u, tu, alpha, 0);
+  filterDimension<ExecSpace>(tu, u, alpha, 1);
+  filterDimension<ExecSpace>(u, tu, alpha, 2);
   Kokkos::deep_copy(u, tu);
 
-  filter_dimension<ExecSpace>(v, tv, alpha, 0);
-  filter_dimension<ExecSpace>(tv, v, alpha, 1);
-  filter_dimension<ExecSpace>(v, tv, alpha, 2);
+  filterDimension<ExecSpace>(v, tv, alpha, 0);
+  filterDimension<ExecSpace>(tv, v, alpha, 1);
+  filterDimension<ExecSpace>(v, tv, alpha, 2);
   Kokkos::deep_copy(v, tv);
 
-  filter_dimension<ExecSpace>(w, tw, alpha, 0);
-  filter_dimension<ExecSpace>(tw, w, alpha, 1);
-  filter_dimension<ExecSpace>(w, tw, alpha, 2);
+  filterDimension<ExecSpace>(w, tw, alpha, 0);
+  filterDimension<ExecSpace>(tw, w, alpha, 1);
+  filterDimension<ExecSpace>(w, tw, alpha, 2);
   Kokkos::deep_copy(w, tw);
 }
 
@@ -186,33 +186,33 @@ void filter4(projection::ScalarView<ExecSpace>& u,
 // after every stage. The projection callback takes the three velocity views
 // and must make them discretely divergence-free.
 template <class ExecSpace, class Project>
-void advance_ssprk3(projection::ScalarView<ExecSpace>& u,
-                    projection::ScalarView<ExecSpace>& v,
-                    projection::ScalarView<ExecSpace>& w,
-                    projection::ScalarView<ExecSpace>& u1,
-                    projection::ScalarView<ExecSpace>& v1,
-                    projection::ScalarView<ExecSpace>& w1,
-                    projection::ScalarView<ExecSpace>& u2,
-                    projection::ScalarView<ExecSpace>& v2,
-                    projection::ScalarView<ExecSpace>& w2,
-                    projection::ScalarView<ExecSpace>& ku,
-                    projection::ScalarView<ExecSpace>& kv,
-                    projection::ScalarView<ExecSpace>& kw,
-                    const std::array<double, 3>& h, double nu, double dt,
-                    Project& project) {
-  momentum_rhs<ExecSpace>(u, v, w, ku, kv, kw, h, nu);
+void advanceSsprk3(projection::ScalarView<ExecSpace>& u,
+                   projection::ScalarView<ExecSpace>& v,
+                   projection::ScalarView<ExecSpace>& w,
+                   projection::ScalarView<ExecSpace>& u1,
+                   projection::ScalarView<ExecSpace>& v1,
+                   projection::ScalarView<ExecSpace>& w1,
+                   projection::ScalarView<ExecSpace>& u2,
+                   projection::ScalarView<ExecSpace>& v2,
+                   projection::ScalarView<ExecSpace>& w2,
+                   projection::ScalarView<ExecSpace>& ku,
+                   projection::ScalarView<ExecSpace>& kv,
+                   projection::ScalarView<ExecSpace>& kw,
+                   const std::array<double, 3>& h, double nu, double dt,
+                   Project& project) {
+  momentumRhs<ExecSpace>(u, v, w, ku, kv, kw, h, nu);
   combine<ExecSpace>(u, 1.0, ku, dt, ku, 0.0, u1);
   combine<ExecSpace>(v, 1.0, kv, dt, ku, 0.0, v1);
   combine<ExecSpace>(w, 1.0, kw, dt, ku, 0.0, w1);
   project(u1, v1, w1);
 
-  momentum_rhs<ExecSpace>(u1, v1, w1, ku, kv, kw, h, nu);
+  momentumRhs<ExecSpace>(u1, v1, w1, ku, kv, kw, h, nu);
   combine<ExecSpace>(u, 0.75, u1, 0.25, ku, 0.25 * dt, u2);
   combine<ExecSpace>(v, 0.75, v1, 0.25, kv, 0.25 * dt, v2);
   combine<ExecSpace>(w, 0.75, w1, 0.25, kw, 0.25 * dt, w2);
   project(u2, v2, w2);
 
-  momentum_rhs<ExecSpace>(u2, v2, w2, ku, kv, kw, h, nu);
+  momentumRhs<ExecSpace>(u2, v2, w2, ku, kv, kw, h, nu);
   combine<ExecSpace>(u, 1.0 / 3.0, u2, 2.0 / 3.0, ku, (2.0 / 3.0) * dt, u);
   combine<ExecSpace>(v, 1.0 / 3.0, v2, 2.0 / 3.0, kv, (2.0 / 3.0) * dt, v);
   combine<ExecSpace>(w, 1.0 / 3.0, w2, 2.0 / 3.0, kw, (2.0 / 3.0) * dt, w);

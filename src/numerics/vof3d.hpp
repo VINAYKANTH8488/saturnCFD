@@ -42,7 +42,7 @@ inline Vec3 cross(const Vec3& a, const Vec3& b) {
               a.x * b.y - a.y * b.x};
 }
 
-inline Polyhedron unit_cube() {
+inline Polyhedron unitCube() {
   Polyhedron cube;
   cube.push_back({{0, 0, 0}, {0, 0, 1}, {0, 1, 1}, {0, 1, 0}});  // -x
   cube.push_back({{1, 0, 0}, {1, 1, 0}, {1, 1, 1}, {1, 0, 1}});  // +x
@@ -53,7 +53,7 @@ inline Polyhedron unit_cube() {
   return cube;
 }
 
-inline double polyhedron_volume(const Polyhedron& poly) {
+inline double polyhedronVolume(const Polyhedron& poly) {
   double volume = 0.0;
   for (const auto& face : poly) {
     if (face.size() < 3) {
@@ -69,8 +69,8 @@ inline double polyhedron_volume(const Polyhedron& poly) {
 
 // Clip a convex polyhedron by n.x <= alpha. Intersection points are collected
 // into a new cap face, sorted around the plane normal.
-inline Polyhedron clip_half_plane(const Polyhedron& poly, const Vec3& n,
-                                  double alpha) {
+inline Polyhedron clipHalfPlane(const Polyhedron& poly, const Vec3& n,
+                                double alpha) {
   Polyhedron result;
   std::vector<Vec3> cap;
   for (const auto& face : poly) {
@@ -151,14 +151,14 @@ inline Reconstruction3D reconstruct(double c, double nx, double ny, double nz) {
   result.nz = nz / norm;
   const Vec3 normal{result.nx, result.ny, result.nz};
   const double center_offset = 0.5 * (result.nx + result.ny + result.nz);
-  const Polyhedron cube = unit_cube();
+  const Polyhedron cube = unitCube();
   double lo =
       -0.5 * (std::abs(result.nx) + std::abs(result.ny) + std::abs(result.nz));
   double hi = -lo;
   for (int iter = 0; iter < 42; ++iter) {
     const double mid = 0.5 * (lo + hi);
     const double volume =
-        polyhedron_volume(clip_half_plane(cube, normal, mid + center_offset));
+        polyhedronVolume(clipHalfPlane(cube, normal, mid + center_offset));
     if (volume < c) {
       lo = mid;
     } else {
@@ -169,9 +169,9 @@ inline Reconstruction3D reconstruct(double c, double nx, double ny, double nz) {
   return result;
 }
 
-inline Polyhedron fluid_polyhedron(const Reconstruction3D& r) {
+inline Polyhedron fluidPolyhedron(const Reconstruction3D& r) {
   const double plane_alpha = r.alpha + 0.5 * (r.nx + r.ny + r.nz);
-  return clip_half_plane(unit_cube(), Vec3{r.nx, r.ny, r.nz}, plane_alpha);
+  return clipHalfPlane(unitCube(), Vec3{r.nx, r.ny, r.nz}, plane_alpha);
 }
 
 class Grid3D {
@@ -198,7 +198,7 @@ class Grid3D {
   std::vector<double>& data() { return c_; }
   const std::vector<double>& data() const { return c_; }
 
-  double cell_volume() const { return hx_ * hy_ * hz_; }
+  double cellVolume() const { return hx_ * hy_ * hz_; }
 
   std::vector<Reconstruction3D> reconstructions() const {
     std::vector<Reconstruction3D> r(c_.size());
@@ -218,7 +218,7 @@ class Grid3D {
     return r;
   }
 
-  void sweep_x(const std::vector<double>& u, double dt) {
+  void sweepX(const std::vector<double>& u, double dt) {
     const auto rec = reconstructions();
     std::vector<double> flux(c_.size(), 0.0);
     for (int i = 0; i < nx_; ++i) {
@@ -231,17 +231,17 @@ class Grid3D {
           const int up = vel > 0.0 ? i - 1 : i;
           const auto& r = rec[index(up, j, k)];
           const double width = std::min(std::abs(vel) * dt / hx_, 1.0);
-          Polyhedron poly = fluid_polyhedron(r);
+          Polyhedron poly = fluidPolyhedron(r);
           if (vel > 0.0) {
-            poly = clip_half_plane(poly, Vec3{1, 0, 0}, 1.0);
-            poly = clip_half_plane(poly, Vec3{-1, 0, 0}, -(1.0 - width));
+            poly = clipHalfPlane(poly, Vec3{1, 0, 0}, 1.0);
+            poly = clipHalfPlane(poly, Vec3{-1, 0, 0}, -(1.0 - width));
           } else {
-            poly = clip_half_plane(poly, Vec3{-1, 0, 0}, 0.0);
-            poly = clip_half_plane(poly, Vec3{1, 0, 0}, width);
+            poly = clipHalfPlane(poly, Vec3{-1, 0, 0}, 0.0);
+            poly = clipHalfPlane(poly, Vec3{1, 0, 0}, width);
           }
-          const double fraction = polyhedron_volume(poly);
+          const double fraction = polyhedronVolume(poly);
           flux[index(i, j, k)] =
-              (vel > 0.0 ? 1.0 : -1.0) * fraction * cell_volume();
+              (vel > 0.0 ? 1.0 : -1.0) * fraction * cellVolume();
         }
       }
     }
@@ -250,13 +250,13 @@ class Grid3D {
         for (int k = 0; k < nz_; ++k) {
           const double left = flux[index(i, j, k)];
           const double right = flux[index(i + 1, j, k)];
-          (*this)(i, j, k) -= (right - left) / cell_volume();
+          (*this)(i, j, k) -= (right - left) / cellVolume();
         }
       }
     }
   }
 
-  void sweep_y(const std::vector<double>& v, double dt) {
+  void sweepY(const std::vector<double>& v, double dt) {
     const auto rec = reconstructions();
     std::vector<double> flux(c_.size(), 0.0);
     for (int i = 0; i < nx_; ++i) {
@@ -269,17 +269,17 @@ class Grid3D {
           const int up = vel > 0.0 ? j - 1 : j;
           const auto& r = rec[index(i, up, k)];
           const double width = std::min(std::abs(vel) * dt / hy_, 1.0);
-          Polyhedron poly = fluid_polyhedron(r);
+          Polyhedron poly = fluidPolyhedron(r);
           if (vel > 0.0) {
-            poly = clip_half_plane(poly, Vec3{0, 1, 0}, 1.0);
-            poly = clip_half_plane(poly, Vec3{0, -1, 0}, -(1.0 - width));
+            poly = clipHalfPlane(poly, Vec3{0, 1, 0}, 1.0);
+            poly = clipHalfPlane(poly, Vec3{0, -1, 0}, -(1.0 - width));
           } else {
-            poly = clip_half_plane(poly, Vec3{0, -1, 0}, 0.0);
-            poly = clip_half_plane(poly, Vec3{0, 1, 0}, width);
+            poly = clipHalfPlane(poly, Vec3{0, -1, 0}, 0.0);
+            poly = clipHalfPlane(poly, Vec3{0, 1, 0}, width);
           }
-          const double fraction = polyhedron_volume(poly);
+          const double fraction = polyhedronVolume(poly);
           flux[index(i, j, k)] =
-              (vel > 0.0 ? 1.0 : -1.0) * fraction * cell_volume();
+              (vel > 0.0 ? 1.0 : -1.0) * fraction * cellVolume();
         }
       }
     }
@@ -288,13 +288,13 @@ class Grid3D {
         for (int k = 0; k < nz_; ++k) {
           const double lower = flux[index(i, j, k)];
           const double upper = flux[index(i, j + 1, k)];
-          (*this)(i, j, k) -= (upper - lower) / cell_volume();
+          (*this)(i, j, k) -= (upper - lower) / cellVolume();
         }
       }
     }
   }
 
-  void sweep_z(const std::vector<double>& w, double dt) {
+  void sweepZ(const std::vector<double>& w, double dt) {
     const auto rec = reconstructions();
     std::vector<double> flux(c_.size(), 0.0);
     for (int i = 0; i < nx_; ++i) {
@@ -307,17 +307,17 @@ class Grid3D {
           const int up = vel > 0.0 ? k - 1 : k;
           const auto& r = rec[index(i, j, up)];
           const double width = std::min(std::abs(vel) * dt / hz_, 1.0);
-          Polyhedron poly = fluid_polyhedron(r);
+          Polyhedron poly = fluidPolyhedron(r);
           if (vel > 0.0) {
-            poly = clip_half_plane(poly, Vec3{0, 0, 1}, 1.0);
-            poly = clip_half_plane(poly, Vec3{0, 0, -1}, -(1.0 - width));
+            poly = clipHalfPlane(poly, Vec3{0, 0, 1}, 1.0);
+            poly = clipHalfPlane(poly, Vec3{0, 0, -1}, -(1.0 - width));
           } else {
-            poly = clip_half_plane(poly, Vec3{0, 0, -1}, 0.0);
-            poly = clip_half_plane(poly, Vec3{0, 0, 1}, width);
+            poly = clipHalfPlane(poly, Vec3{0, 0, -1}, 0.0);
+            poly = clipHalfPlane(poly, Vec3{0, 0, 1}, width);
           }
-          const double fraction = polyhedron_volume(poly);
+          const double fraction = polyhedronVolume(poly);
           flux[index(i, j, k)] =
-              (vel > 0.0 ? 1.0 : -1.0) * fraction * cell_volume();
+              (vel > 0.0 ? 1.0 : -1.0) * fraction * cellVolume();
         }
       }
     }
@@ -326,7 +326,7 @@ class Grid3D {
         for (int k = 0; k < nz_; ++k) {
           const double lower = flux[index(i, j, k)];
           const double upper = flux[index(i, j, k + 1)];
-          (*this)(i, j, k) -= (upper - lower) / cell_volume();
+          (*this)(i, j, k) -= (upper - lower) / cellVolume();
         }
       }
     }
@@ -334,11 +334,11 @@ class Grid3D {
 
   void advance(const std::vector<double>& u, const std::vector<double>& v,
                const std::vector<double>& w, double dt) {
-    sweep_x(u, 0.5 * dt);
-    sweep_y(v, 0.5 * dt);
-    sweep_z(w, dt);
-    sweep_y(v, 0.5 * dt);
-    sweep_x(u, 0.5 * dt);
+    sweepX(u, 0.5 * dt);
+    sweepY(v, 0.5 * dt);
+    sweepZ(w, dt);
+    sweepY(v, 0.5 * dt);
+    sweepX(u, 0.5 * dt);
   }
 
   double mass() const {
@@ -346,7 +346,7 @@ class Grid3D {
     for (double c : c_) {
       sum += c;
     }
-    return sum * cell_volume();
+    return sum * cellVolume();
   }
 
  private:

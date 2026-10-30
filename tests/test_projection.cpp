@@ -27,8 +27,8 @@ double psi(double x, double y, double z) {
          Kokkos::sin(2.0 * kPi * z);
 }
 
-double max_abs_divergence(const view_type& u, const view_type& v,
-                          const view_type& w, const std::array<double, 3>& h) {
+double maxAbsDivergence(const view_type& u, const view_type& v,
+                        const view_type& w, const std::array<double, 3>& h) {
   view_type div("div", u.extent(0), u.extent(1), u.extent(2));
   saturn::projection::divergence<exec_space>(u, v, w, div, h);
   double maximum = 0.0;
@@ -44,10 +44,10 @@ double max_abs_divergence(const view_type& u, const view_type& v,
   return maximum;
 }
 
-double max_abs(const view_type& a) {
+double maxAbs(const view_type& a) {
   double maximum = 0.0;
   Kokkos::parallel_reduce(
-      "max_abs",
+      "maxAbs",
       Kokkos::MDRangePolicy<exec_space, Kokkos::Rank<3>>(
           {0, 0, 0}, {a.extent(0), a.extent(1), a.extent(2)}),
       KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
@@ -89,10 +89,10 @@ int check(int n) {
         w(k, j, i) = Kokkos::sin(2.0 * kPi * x) * Kokkos::sin(2.0 * kPi * y);
       });
 
-  const double before = max_abs_divergence(u, v, w, spacing);
+  const double before = maxAbsDivergence(u, v, w, spacing);
   auto result = saturn::projection::project<exec_space>(
       u, v, w, phi, scratch, spacing, 1.0e-3, solver, options);
-  const double after = max_abs_divergence(u, v, w, spacing);
+  const double after = maxAbsDivergence(u, v, w, spacing);
 
   // Pure gradient field: projection should cancel it.
   Kokkos::parallel_for(
@@ -115,9 +115,9 @@ int check(int n) {
 
   auto result_gradient = saturn::projection::project<exec_space>(
       u, v, w, phi, scratch, spacing, 1.0e-3, solver, options);
-  const double gradient_left = max_abs(u);
-  const double gradient_left_v = max_abs(v);
-  const double gradient_left_w = max_abs(w);
+  const double gradient_left = maxAbs(u);
+  const double gradient_left_v = maxAbs(v);
+  const double gradient_left_w = maxAbs(w);
 
   std::printf(
       "n=%d div=%.3e -> %.3e (cycles %d)  |grad| left %.3e %.3e %.3e "

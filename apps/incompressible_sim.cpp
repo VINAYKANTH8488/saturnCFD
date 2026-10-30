@@ -80,7 +80,7 @@ void usage(const char* argv0) {
       argv0);
 }
 
-double parse_double(const std::string& flag, const std::string& value) {
+double parseDouble(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
@@ -95,7 +95,7 @@ double parse_double(const std::string& flag, const std::string& value) {
   }
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -110,8 +110,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -127,40 +127,40 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--case") {
-      p.case_name = require_value(i, argc, argv, a);
+      p.case_name = requireValue(i, argc, argv, a);
     } else if (a == "--n") {
-      p.n_list = {parse_int(a, require_value(i, argc, argv, a))};
+      p.n_list = {parseInt(a, requireValue(i, argc, argv, a))};
     } else if (a == "--n-list") {
       p.n_list.clear();
       while (i + 1 < argc && argv[i + 1][0] != '-') {
-        p.n_list.push_back(parse_int(a, argv[++i]));
+        p.n_list.push_back(parseInt(a, argv[++i]));
       }
       if (p.n_list.empty()) {
         std::fprintf(stderr, "--n-list needs at least one value\n");
         std::exit(2);
       }
     } else if (a == "--nz") {
-      p.nz = parse_int(a, require_value(i, argc, argv, a));
+      p.nz = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--nu") {
-      p.nu = parse_double(a, require_value(i, argc, argv, a));
+      p.nu = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--tend") {
-      p.tend = parse_double(a, require_value(i, argc, argv, a));
+      p.tend = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--cfl") {
-      p.cfl = parse_double(a, require_value(i, argc, argv, a));
+      p.cfl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--min-order") {
-      p.min_order = parse_double(a, require_value(i, argc, argv, a));
+      p.min_order = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--poisson-tol") {
-      p.poisson_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.poisson_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--filter") {
-      p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
+      p.filter_alpha = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--poisson") {
-      p.poisson = require_value(i, argc, argv, a);
+      p.poisson = requireValue(i, argc, argv, a);
     } else if (a == "--history") {
-      p.history = require_value(i, argc, argv, a);
+      p.history = requireValue(i, argc, argv, a);
     } else if (a == "--diag-every") {
-      p.diag_every = parse_int(a, require_value(i, argc, argv, a));
+      p.diag_every = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--check") {
       p.check = true;
     } else if (a == "--verbose") {
@@ -197,7 +197,7 @@ struct CaseResult {
 };
 
 template <class ExecSpace, class Solver>
-CaseResult run_case(int n, const Params& params) {
+CaseResult runCase(int n, const Params& params) {
   using view_type = saturn::projection::ScalarView<ExecSpace>;
 
   const double lx = 2.0 * kPi;
@@ -229,8 +229,8 @@ CaseResult run_case(int n, const Params& params) {
   Kokkos::deep_copy(phi, 0.0);
   view_type scratch("scratch", nz, n, n);
 
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
-      saturn::Int3{{0, 0, 0}}, saturn::Int3{{nz, n, n}});
+  const auto policy = saturn::makeMdrange3<ExecSpace>(saturn::Int3{{0, 0, 0}},
+                                                      saturn::Int3{{nz, n, n}});
   Kokkos::parallel_for(
       "incompressible_initial", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const double xf = i * hx;
@@ -263,12 +263,12 @@ CaseResult run_case(int n, const Params& params) {
   saturn::projection::project<ExecSpace>(u, v, w, phi, scratch, h, 1.0, solver,
                                          poptions);
 
-  auto do_project = [&](view_type& pu, view_type& pv, view_type& pw) {
+  auto doProject = [&](view_type& pu, view_type& pv, view_type& pw) {
     saturn::projection::project<ExecSpace>(pu, pv, pw, phi, scratch, h, 1.0,
                                            solver, poptions);
   };
 
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
   std::ofstream history;
   if (root && !params.history.empty()) {
     history.open(params.history);
@@ -298,8 +298,8 @@ CaseResult run_case(int n, const Params& params) {
           div = d > div ? d : div;
         },
         Kokkos::Sum<double>{sum_kinetic}, Kokkos::Max<double>{max_div});
-    const double kinetic = 0.5 * saturn::mpi_sum(sum_kinetic) * hx * hy * hz;
-    const double divergence = saturn::mpi_max(max_div);
+    const double kinetic = 0.5 * saturn::mpiSum(sum_kinetic) * hx * hy * hz;
+    const double divergence = saturn::mpiMax(max_div);
     if (root && history.is_open()) {
       history << current_time << "," << kinetic << "," << divergence << "\n";
       history.flush();
@@ -315,10 +315,10 @@ CaseResult run_case(int n, const Params& params) {
   double last_dt = 0.0;
   bool valid = true;
   while (time < params.tend - 1.0e-14) {
-    double max_speed = 0.0;
+    double maxSpeed = 0.0;
     double non_finite = 0.0;
     Kokkos::parallel_reduce(
-        "max_speed", policy,
+        "maxSpeed", policy,
         KOKKOS_LAMBDA(int k, int j, int i, double& acc, double& bad) {
           const double speed =
               Kokkos::sqrt(u(k, j, i) * u(k, j, i) + v(k, j, i) * v(k, j, i) +
@@ -329,17 +329,17 @@ CaseResult run_case(int n, const Params& params) {
           }
           acc = speed > acc ? speed : acc;
         },
-        Kokkos::Max<double>{max_speed}, Kokkos::Sum<double>{non_finite});
-    non_finite = saturn::mpi_sum(non_finite);
+        Kokkos::Max<double>{maxSpeed}, Kokkos::Sum<double>{non_finite});
+    non_finite = saturn::mpiSum(non_finite);
     if (non_finite > 0.0) {
       valid = false;
       break;
     }
-    double dt = params.cfl * hmin / std::max(max_speed, 1.0e-12);
+    double dt = params.cfl * hmin / std::max(maxSpeed, 1.0e-12);
     if (params.nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / params.nu);
     }
-    if (max_speed > 1.0e6 || dt < 1.0e-10 * hmin) {
+    if (maxSpeed > 1.0e6 || dt < 1.0e-10 * hmin) {
       valid = false;
       break;
     }
@@ -348,13 +348,13 @@ CaseResult run_case(int n, const Params& params) {
     }
     last_dt = dt;
 
-    saturn::incompressible::advance_ssprk3<ExecSpace>(
-        u, v, w, u1, v1, w1, u2, v2, w2, ku, kv, kw, h, params.nu, dt,
-        do_project);
+    saturn::incompressible::advanceSsprk3<ExecSpace>(u, v, w, u1, v1, w1, u2,
+                                                     v2, w2, ku, kv, kw, h,
+                                                     params.nu, dt, doProject);
     if (params.filter_alpha > 0.0) {
       saturn::incompressible::filter4<ExecSpace>(u, v, w, u1, v1, w1,
                                                  params.filter_alpha);
-      do_project(u, v, w);
+      doProject(u, v, w);
     }
     time += dt;
     ++steps;
@@ -367,7 +367,7 @@ CaseResult run_case(int n, const Params& params) {
   if (steps != last_record_step) {
     record(time);
   }
-  const double seconds = saturn::mpi_max(timer.seconds());
+  const double seconds = saturn::mpiMax(timer.seconds());
 
   // Cell-centered velocities and the exact solution at t_end.
   double sum_error = 0.0;
@@ -416,7 +416,7 @@ CaseResult run_case(int n, const Params& params) {
       Kokkos::Max<double>{max_div});
 
   const double cells = static_cast<double>(n) * n * nz;
-  const double cell_volume = hx * hy * hz;
+  const double cellVolume = hx * hy * hz;
   CaseResult result;
   result.n = n;
   result.steps = steps;
@@ -425,21 +425,21 @@ CaseResult run_case(int n, const Params& params) {
     result.l2 = std::numeric_limits<double>::infinity();
     result.kinetic = std::numeric_limits<double>::quiet_NaN();
     result.divergence = std::numeric_limits<double>::infinity();
-    result.seconds = saturn::mpi_max(timer.seconds());
+    result.seconds = saturn::mpiMax(timer.seconds());
     return result;
   }
   result.l2 = (case_id == 2)
                   ? 0.0
-                  : std::sqrt(saturn::mpi_sum(sum_error) / (3.0 * cells));
-  result.kinetic = 0.5 * saturn::mpi_sum(sum_kinetic) * cell_volume;
-  result.divergence = saturn::mpi_max(max_div);
+                  : std::sqrt(saturn::mpiSum(sum_error) / (3.0 * cells));
+  result.kinetic = 0.5 * saturn::mpiSum(sum_kinetic) * cellVolume;
+  result.divergence = saturn::mpiMax(max_div);
   result.seconds = seconds;
   return result;
 }
 
 template <class ExecSpace>
 int run(const Params& params) {
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
 #ifndef SATURN_HAVE_FFTW
   if (params.poisson == "fft") {
     if (root) {
@@ -467,17 +467,16 @@ int run(const Params& params) {
     CaseResult result;
 #ifdef SATURN_HAVE_FFTW
     if (params.poisson == "fft") {
-      result = run_case<ExecSpace, saturn::poisson::FftPoisson<ExecSpace>>(
-          n, params);
+      result =
+          runCase<ExecSpace, saturn::poisson::FftPoisson<ExecSpace>>(n, params);
     } else {
       result =
-          run_case<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
+          runCase<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
               n, params);
     }
 #else
-    result =
-        run_case<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
-            n, params);
+    result = runCase<ExecSpace, saturn::poisson::GeometricMultigrid<ExecSpace>>(
+        n, params);
 #endif
     if (params.case_name != "tgv3d" && previous_error > 0.0) {
       const double h = 2.0 * kPi / static_cast<double>(n);
@@ -542,7 +541,7 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
         return run<space_type>(params);

@@ -45,7 +45,7 @@ struct Geometry {
   double beta = 0.0;
 
   KOKKOS_INLINE_FUNCTION
-  double map_x(double xi) const {
+  double mapX(double xi) const {
     if (beta <= 0.0) {
       return xi;
     }
@@ -53,7 +53,7 @@ struct Geometry {
            (1.0 + Kokkos::tanh(beta * (2.0 * xi - 1.0)) / Kokkos::tanh(beta));
   }
   KOKKOS_INLINE_FUNCTION
-  double dmap_x(double xi) const {
+  double dmapX(double xi) const {
     if (beta <= 0.0) {
       return 1.0;
     }
@@ -61,13 +61,13 @@ struct Geometry {
     return beta / Kokkos::tanh(beta) * (1.0 - t * t);
   }
   KOKKOS_INLINE_FUNCTION
-  double xf(int i) const { return map_x(static_cast<double>(i) / n0); }
+  double xf(int i) const { return mapX(static_cast<double>(i) / n0); }
   KOKKOS_INLINE_FUNCTION
-  double xc(int i) const { return map_x((static_cast<double>(i) + 0.5) / n0); }
+  double xc(int i) const { return mapX((static_cast<double>(i) + 0.5) / n0); }
   KOKKOS_INLINE_FUNCTION
-  double yf(int j) const { return map_x(static_cast<double>(j) / n1); }
+  double yf(int j) const { return mapX(static_cast<double>(j) / n1); }
   KOKKOS_INLINE_FUNCTION
-  double yc(int j) const { return map_x((static_cast<double>(j) + 0.5) / n1); }
+  double yc(int j) const { return mapX((static_cast<double>(j) + 0.5) / n1); }
 };
 
 KOKKOS_INLINE_FUNCTION
@@ -81,9 +81,9 @@ double minmod(double a, double b) {
 // WENO5 derivative from six samples q[i-3..i+2]: reconstruct the two
 // midpoints with weno5z and difference them.
 KOKKOS_INLINE_FUNCTION
-double weno5_derivative(double qm3, double qm2, double qm1, double q0,
-                        double qp1, double qp2, double qp3, double vel,
-                        double h) {
+double weno5Derivative(double qm3, double qm2, double qm1, double q0,
+                       double qp1, double qp2, double qp3, double vel,
+                       double h) {
   if (vel >= 0.0) {
     const double left = recon::weno5z(qm3, qm2, qm1, q0, qp1, 0.0);
     const double right = recon::weno5z(qm2, qm1, q0, qp1, qp2, 0.0);
@@ -97,8 +97,8 @@ double weno5_derivative(double qm3, double qm2, double qm1, double q0,
 
 // Second-order upwind derivative with a minmod limiter.
 KOKKOS_INLINE_FUNCTION
-double limited_upwind(double q0, double qm1, double qm2, double qp1, double qp2,
-                      double vel, double h) {
+double limitedUpwind(double q0, double qm1, double qm2, double qp1, double qp2,
+                     double vel, double h) {
   if (vel > 0.0) {
     const double d1 = (q0 - qm1) / h;
     const double d2 = (3.0 * q0 - 4.0 * qm1 + qm2) / (2.0 * h);
@@ -118,7 +118,7 @@ void divergence(const projection::ScalarView<ExecSpace>& u,
   const int n1 = g.n1;
   const int n2 = g.n2;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "cavity_divergence", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int ip = (i + 1 == n0) ? -1 : i + 1;
@@ -135,13 +135,13 @@ void divergence(const projection::ScalarView<ExecSpace>& u,
 }
 
 template <class ExecSpace>
-void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
-                  const projection::ScalarView<ExecSpace>& v,
-                  const projection::ScalarView<ExecSpace>& w,
-                  projection::ScalarView<ExecSpace>& du,
-                  projection::ScalarView<ExecSpace>& dv,
-                  projection::ScalarView<ExecSpace>& dw, const Geometry& g,
-                  double nu) {
+void momentumRhs(const projection::ScalarView<ExecSpace>& u,
+                 const projection::ScalarView<ExecSpace>& v,
+                 const projection::ScalarView<ExecSpace>& w,
+                 projection::ScalarView<ExecSpace>& du,
+                 projection::ScalarView<ExecSpace>& dv,
+                 projection::ScalarView<ExecSpace>& dw, const Geometry& g,
+                 double nu) {
   const int n0 = g.n0;
   const int n1 = g.n1;
   const int n2 = g.n2;
@@ -153,7 +153,7 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
   const int adv = g.adv;
   const double adv_blend = g.adv_blend;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "cavity_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int im = (i == 0) ? -1 : i - 1;
@@ -211,28 +211,28 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
             dudz = (1.0 - adv_blend) * cz + adv_blend * uz;
           } else if (adv == 4) {
             if (i >= 3 && i + 3 < n0) {
-              dudx = weno5_derivative(
+              dudx = weno5Derivative(
                   u(k, j, i - 3), u(k, j, i - 2), u(k, j, i - 1), u_here,
                   u(k, j, i + 1), u(k, j, i + 2), u(k, j, i + 3), u_here, hx);
             } else {
               dudx = minmod(u_here - u_im, u_ip - u_here) / hx;
             }
             if (j >= 3 && j + 3 < n1) {
-              dudy = weno5_derivative(
+              dudy = weno5Derivative(
                   u(k, j - 3, i), u(k, j - 2, i), u(k, j - 1, i), u_here,
                   u(k, j + 1, i), u(k, j + 2, i), u(k, j + 3, i), v_at_u, hy);
             } else {
               dudy = minmod(u_here - u_jm, u_jp - u_here) / hy;
             }
             if (!g.z_wall && n2 >= 5) {
-              dudz = weno5_derivative(
+              dudz = weno5Derivative(
                   u((k + n2 - 3) % n2, j, i), u((k + n2 - 2) % n2, j, i),
                   u((k + n2 - 1) % n2, j, i), u_here, u((k + 1) % n2, j, i),
                   u((k + 2) % n2, j, i), u((k + 3) % n2, j, i), w_at_u, hz);
             }
           }
-          dudx /= g.dmap_x(i * hx);
-          dudy /= g.dmap_x((j + 0.5) * hy);
+          dudx /= g.dmapX(i * hx);
+          dudy /= g.dmapX((j + 0.5) * hy);
           const double dxm_u = g.xf(i) - g.xf(i - 1);
           const double dxp_u = g.xf(i + 1) - g.xf(i);
           const double dym_u =
@@ -295,28 +295,28 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
             dvdz = (1.0 - adv_blend) * cz + adv_blend * uz;
           } else if (adv == 4) {
             if (i >= 3 && i + 3 < n0) {
-              dvdx = weno5_derivative(
+              dvdx = weno5Derivative(
                   v(k, j, i - 3), v(k, j, i - 2), v(k, j, i - 1), v_here,
                   v(k, j, i + 1), v(k, j, i + 2), v(k, j, i + 3), u_at_v, hx);
             } else {
               dvdx = minmod(v_here - v_im, v_ip - v_here) / hx;
             }
             if (j >= 3 && j + 3 < n1) {
-              dvdy = weno5_derivative(
+              dvdy = weno5Derivative(
                   v(k, j - 3, i), v(k, j - 2, i), v(k, j - 1, i), v_here,
                   v(k, j + 1, i), v(k, j + 2, i), v(k, j + 3, i), v_here, hy);
             } else {
               dvdy = minmod(v_here - v_jm, v_jp - v_here) / hy;
             }
             if (!g.z_wall && n2 >= 5) {
-              dvdz = weno5_derivative(
+              dvdz = weno5Derivative(
                   v((k + n2 - 3) % n2, j, i), v((k + n2 - 2) % n2, j, i),
                   v((k + n2 - 1) % n2, j, i), v_here, v((k + 1) % n2, j, i),
                   v((k + 2) % n2, j, i), v((k + 3) % n2, j, i), w_at_v, hz);
             }
           }
-          dvdx /= g.dmap_x((i + 0.5) * hx);
-          dvdy /= g.dmap_x(j * hy);
+          dvdx /= g.dmapX((i + 0.5) * hx);
+          dvdy /= g.dmapX(j * hy);
           const double dxm_v =
               (i == 0) ? g.xf(1) - g.xf(0) : g.xc(i) - g.xc(i - 1);
           const double dxp_v =
@@ -377,28 +377,28 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
           dwdz = (1.0 - adv_blend) * cz + adv_blend * uz;
         } else if (adv == 4) {
           if (i >= 3 && i + 3 < n0) {
-            dwdx = weno5_derivative(w(k, j, i - 3), w(k, j, i - 2),
-                                    w(k, j, i - 1), w_here, w(k, j, i + 1),
-                                    w(k, j, i + 2), w(k, j, i + 3), u_at_w, hx);
+            dwdx = weno5Derivative(w(k, j, i - 3), w(k, j, i - 2),
+                                   w(k, j, i - 1), w_here, w(k, j, i + 1),
+                                   w(k, j, i + 2), w(k, j, i + 3), u_at_w, hx);
           } else {
             dwdx = minmod(w_here - w_im, w_ip - w_here) / hx;
           }
           if (j >= 3 && j + 3 < n1) {
-            dwdy = weno5_derivative(w(k, j - 3, i), w(k, j - 2, i),
-                                    w(k, j - 1, i), w_here, w(k, j + 1, i),
-                                    w(k, j + 2, i), w(k, j + 3, i), v_at_w, hy);
+            dwdy = weno5Derivative(w(k, j - 3, i), w(k, j - 2, i),
+                                   w(k, j - 1, i), w_here, w(k, j + 1, i),
+                                   w(k, j + 2, i), w(k, j + 3, i), v_at_w, hy);
           } else {
             dwdy = minmod(w_here - w_jm, w_jp - w_here) / hy;
           }
           if (!g.z_wall && n2 >= 5) {
-            dwdz = weno5_derivative(
+            dwdz = weno5Derivative(
                 w((k + n2 - 3) % n2, j, i), w((k + n2 - 2) % n2, j, i),
                 w((k + n2 - 1) % n2, j, i), w_here, w((k + 1) % n2, j, i),
                 w((k + 2) % n2, j, i), w((k + 3) % n2, j, i), w_here, hz);
           }
         }
-        dwdx /= g.dmap_x((i + 0.5) * hx);
-        dwdy /= g.dmap_x((j + 0.5) * hy);
+        dwdx /= g.dmapX((i + 0.5) * hx);
+        dwdy /= g.dmapX((j + 0.5) * hy);
         const double dxm_w =
             (i == 0) ? g.xf(1) - g.xf(0) : g.xc(i) - g.xc(i - 1);
         const double dxp_w =
@@ -425,18 +425,18 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
 // Applied to the velocity components after a time step; it damps the
 // grid-scale content that a high-order reconstruction can alias.
 template <class ExecSpace>
-void filter_velocity(const projection::ScalarView<ExecSpace>& u,
-                     const projection::ScalarView<ExecSpace>& v,
-                     const projection::ScalarView<ExecSpace>& w,
-                     projection::ScalarView<ExecSpace>& u_out,
-                     projection::ScalarView<ExecSpace>& v_out,
-                     projection::ScalarView<ExecSpace>& w_out,
-                     const Geometry& g, double alpha) {
+void filterVelocity(const projection::ScalarView<ExecSpace>& u,
+                    const projection::ScalarView<ExecSpace>& v,
+                    const projection::ScalarView<ExecSpace>& w,
+                    projection::ScalarView<ExecSpace>& u_out,
+                    projection::ScalarView<ExecSpace>& v_out,
+                    projection::ScalarView<ExecSpace>& w_out, const Geometry& g,
+                    double alpha) {
   const int n0 = g.n0;
   const int n1 = g.n1;
   const int n2 = g.n2;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "cavity_filter", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         auto at = [&](const projection::ScalarView<ExecSpace>& q, int kk,
@@ -583,12 +583,12 @@ class ClusteredPoisson2D {
 };
 
 template <class ExecSpace>
-void project_clustered(projection::ScalarView<ExecSpace>& u,
-                       projection::ScalarView<ExecSpace>& v,
-                       projection::ScalarView<ExecSpace>& w,
-                       projection::ScalarView<ExecSpace>& phi,
-                       projection::ScalarView<ExecSpace>& scratch,
-                       const Geometry& g) {
+void projectClustered(projection::ScalarView<ExecSpace>& u,
+                      projection::ScalarView<ExecSpace>& v,
+                      projection::ScalarView<ExecSpace>& w,
+                      projection::ScalarView<ExecSpace>& phi,
+                      projection::ScalarView<ExecSpace>& scratch,
+                      const Geometry& g) {
   divergence<ExecSpace>(u, v, w, scratch, g);
   auto hdiv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), scratch);
   auto hphi = Kokkos::create_mirror_view(phi);
@@ -613,7 +613,7 @@ void project_clustered(projection::ScalarView<ExecSpace>& u,
   Kokkos::deep_copy(phi, hphi);
 
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{g.n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{g.n2, n1, n0}});
   Kokkos::parallel_for(
       "cavity_clustered_project", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         if (i > 0) {
@@ -654,7 +654,7 @@ poisson::Result project(projection::ScalarView<ExecSpace>& u,
   const int n1 = g.n1;
   const int n2 = g.n2;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   const double dt = 1.0;
   Kokkos::parallel_for(
       "cavity_projection_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
@@ -689,32 +689,32 @@ poisson::Result project(projection::ScalarView<ExecSpace>& u,
 }
 
 template <class ExecSpace, class Project>
-void advance_ssprk3(projection::ScalarView<ExecSpace>& u,
-                    projection::ScalarView<ExecSpace>& v,
-                    projection::ScalarView<ExecSpace>& w,
-                    projection::ScalarView<ExecSpace>& u1,
-                    projection::ScalarView<ExecSpace>& v1,
-                    projection::ScalarView<ExecSpace>& w1,
-                    projection::ScalarView<ExecSpace>& u2,
-                    projection::ScalarView<ExecSpace>& v2,
-                    projection::ScalarView<ExecSpace>& w2,
-                    projection::ScalarView<ExecSpace>& ku,
-                    projection::ScalarView<ExecSpace>& kv,
-                    projection::ScalarView<ExecSpace>& kw, const Geometry& g,
-                    double nu, double dt, Project& project) {
-  momentum_rhs<ExecSpace>(u, v, w, ku, kv, kw, g, nu);
+void advanceSsprk3(projection::ScalarView<ExecSpace>& u,
+                   projection::ScalarView<ExecSpace>& v,
+                   projection::ScalarView<ExecSpace>& w,
+                   projection::ScalarView<ExecSpace>& u1,
+                   projection::ScalarView<ExecSpace>& v1,
+                   projection::ScalarView<ExecSpace>& w1,
+                   projection::ScalarView<ExecSpace>& u2,
+                   projection::ScalarView<ExecSpace>& v2,
+                   projection::ScalarView<ExecSpace>& w2,
+                   projection::ScalarView<ExecSpace>& ku,
+                   projection::ScalarView<ExecSpace>& kv,
+                   projection::ScalarView<ExecSpace>& kw, const Geometry& g,
+                   double nu, double dt, Project& project) {
+  momentumRhs<ExecSpace>(u, v, w, ku, kv, kw, g, nu);
   incompressible::combine<ExecSpace>(u, 1.0, ku, dt, ku, 0.0, u1);
   incompressible::combine<ExecSpace>(v, 1.0, kv, dt, ku, 0.0, v1);
   incompressible::combine<ExecSpace>(w, 1.0, kw, dt, ku, 0.0, w1);
   project(u1, v1, w1);
 
-  momentum_rhs<ExecSpace>(u1, v1, w1, ku, kv, kw, g, nu);
+  momentumRhs<ExecSpace>(u1, v1, w1, ku, kv, kw, g, nu);
   incompressible::combine<ExecSpace>(u, 0.75, u1, 0.25, ku, 0.25 * dt, u2);
   incompressible::combine<ExecSpace>(v, 0.75, v1, 0.25, kv, 0.25 * dt, v2);
   incompressible::combine<ExecSpace>(w, 0.75, w1, 0.25, kw, 0.25 * dt, w2);
   project(u2, v2, w2);
 
-  momentum_rhs<ExecSpace>(u2, v2, w2, ku, kv, kw, g, nu);
+  momentumRhs<ExecSpace>(u2, v2, w2, ku, kv, kw, g, nu);
   incompressible::combine<ExecSpace>(u, 1.0 / 3.0, u2, 2.0 / 3.0, ku,
                                      (2.0 / 3.0) * dt, u);
   incompressible::combine<ExecSpace>(v, 1.0 / 3.0, v2, 2.0 / 3.0, kv,

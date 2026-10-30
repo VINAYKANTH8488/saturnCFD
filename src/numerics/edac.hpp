@@ -38,7 +38,7 @@ void laplacian(const projection::ScalarView<ExecSpace>& p,
   const double hy2 = h[1] * h[1];
   const double hz2 = h[2] * h[2];
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "edac_laplacian", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int im = (i == 0) ? n0 - 1 : i - 1;
@@ -60,7 +60,7 @@ void subtract(projection::ScalarView<ExecSpace>& a,
   const int n1 = static_cast<int>(a.extent(1));
   const int n2 = static_cast<int>(a.extent(0));
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "edac_subtract", policy,
       KOKKOS_LAMBDA(int k, int j, int i) { a(k, j, i) -= b(k, j, i); });
@@ -69,35 +69,35 @@ void subtract(projection::ScalarView<ExecSpace>& a,
 // Velocity RHS: advection + diffusion from the shared momentum operator, then
 // subtract grad(p) evaluated at the faces.
 template <class ExecSpace>
-void velocity_rhs(const projection::ScalarView<ExecSpace>& u,
-                  const projection::ScalarView<ExecSpace>& v,
-                  const projection::ScalarView<ExecSpace>& w,
-                  const projection::ScalarView<ExecSpace>& p,
-                  projection::ScalarView<ExecSpace>& du,
-                  projection::ScalarView<ExecSpace>& dv,
-                  projection::ScalarView<ExecSpace>& dw,
-                  projection::ScalarView<ExecSpace>& gx,
-                  projection::ScalarView<ExecSpace>& gy,
-                  projection::ScalarView<ExecSpace>& gz,
-                  const std::array<double, 3>& h, double nu) {
-  incompressible::momentum_rhs<ExecSpace>(u, v, w, du, dv, dw, h, nu);
-  projection::gradient_x<ExecSpace>(p, gx, h[0]);
-  projection::gradient_y<ExecSpace>(p, gy, h[1]);
-  projection::gradient_z<ExecSpace>(p, gz, h[2]);
+void velocityRhs(const projection::ScalarView<ExecSpace>& u,
+                 const projection::ScalarView<ExecSpace>& v,
+                 const projection::ScalarView<ExecSpace>& w,
+                 const projection::ScalarView<ExecSpace>& p,
+                 projection::ScalarView<ExecSpace>& du,
+                 projection::ScalarView<ExecSpace>& dv,
+                 projection::ScalarView<ExecSpace>& dw,
+                 projection::ScalarView<ExecSpace>& gx,
+                 projection::ScalarView<ExecSpace>& gy,
+                 projection::ScalarView<ExecSpace>& gz,
+                 const std::array<double, 3>& h, double nu) {
+  incompressible::momentumRhs<ExecSpace>(u, v, w, du, dv, dw, h, nu);
+  projection::gradientX<ExecSpace>(p, gx, h[0]);
+  projection::gradientY<ExecSpace>(p, gy, h[1]);
+  projection::gradientZ<ExecSpace>(p, gz, h[2]);
   subtract<ExecSpace>(du, gx);
   subtract<ExecSpace>(dv, gy);
   subtract<ExecSpace>(dw, gz);
 }
 
 template <class ExecSpace>
-void pressure_rhs(const projection::ScalarView<ExecSpace>& p,
-                  const projection::ScalarView<ExecSpace>& u,
-                  const projection::ScalarView<ExecSpace>& v,
-                  const projection::ScalarView<ExecSpace>& w,
-                  projection::ScalarView<ExecSpace>& dp,
-                  projection::ScalarView<ExecSpace>& div,
-                  projection::ScalarView<ExecSpace>& lap,
-                  const std::array<double, 3>& h, const Parameters& params) {
+void pressureRhs(const projection::ScalarView<ExecSpace>& p,
+                 const projection::ScalarView<ExecSpace>& u,
+                 const projection::ScalarView<ExecSpace>& v,
+                 const projection::ScalarView<ExecSpace>& w,
+                 projection::ScalarView<ExecSpace>& dp,
+                 projection::ScalarView<ExecSpace>& div,
+                 projection::ScalarView<ExecSpace>& lap,
+                 const std::array<double, 3>& h, const Parameters& params) {
   projection::divergence<ExecSpace>(u, v, w, div, h);
   laplacian<ExecSpace>(p, lap, h);
   const int n0 = static_cast<int>(p.extent(2));
@@ -105,7 +105,7 @@ void pressure_rhs(const projection::ScalarView<ExecSpace>& p,
   const int n2 = static_cast<int>(p.extent(0));
   const double c2 = params.c * params.c;
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "edac_pressure_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         dp(k, j, i) = -c2 * div(k, j, i) + params.nu_p * lap(k, j, i);
@@ -114,34 +114,34 @@ void pressure_rhs(const projection::ScalarView<ExecSpace>& p,
 
 // SSP-RK3 for (u,v,w,p).
 template <class ExecSpace>
-void advance_ssprk3(projection::ScalarView<ExecSpace>& u,
-                    projection::ScalarView<ExecSpace>& v,
-                    projection::ScalarView<ExecSpace>& w,
-                    projection::ScalarView<ExecSpace>& p,
-                    projection::ScalarView<ExecSpace>& u1,
-                    projection::ScalarView<ExecSpace>& v1,
-                    projection::ScalarView<ExecSpace>& w1,
-                    projection::ScalarView<ExecSpace>& p1,
-                    projection::ScalarView<ExecSpace>& u2,
-                    projection::ScalarView<ExecSpace>& v2,
-                    projection::ScalarView<ExecSpace>& w2,
-                    projection::ScalarView<ExecSpace>& p2,
-                    projection::ScalarView<ExecSpace>& ku,
-                    projection::ScalarView<ExecSpace>& kv,
-                    projection::ScalarView<ExecSpace>& kw,
-                    projection::ScalarView<ExecSpace>& kp,
-                    projection::ScalarView<ExecSpace>& gx,
-                    projection::ScalarView<ExecSpace>& gy,
-                    projection::ScalarView<ExecSpace>& gz,
-                    projection::ScalarView<ExecSpace>& div,
-                    projection::ScalarView<ExecSpace>& lap,
-                    const std::array<double, 3>& h, const Parameters& params,
-                    double dt) {
+void advanceSsprk3(projection::ScalarView<ExecSpace>& u,
+                   projection::ScalarView<ExecSpace>& v,
+                   projection::ScalarView<ExecSpace>& w,
+                   projection::ScalarView<ExecSpace>& p,
+                   projection::ScalarView<ExecSpace>& u1,
+                   projection::ScalarView<ExecSpace>& v1,
+                   projection::ScalarView<ExecSpace>& w1,
+                   projection::ScalarView<ExecSpace>& p1,
+                   projection::ScalarView<ExecSpace>& u2,
+                   projection::ScalarView<ExecSpace>& v2,
+                   projection::ScalarView<ExecSpace>& w2,
+                   projection::ScalarView<ExecSpace>& p2,
+                   projection::ScalarView<ExecSpace>& ku,
+                   projection::ScalarView<ExecSpace>& kv,
+                   projection::ScalarView<ExecSpace>& kw,
+                   projection::ScalarView<ExecSpace>& kp,
+                   projection::ScalarView<ExecSpace>& gx,
+                   projection::ScalarView<ExecSpace>& gy,
+                   projection::ScalarView<ExecSpace>& gz,
+                   projection::ScalarView<ExecSpace>& div,
+                   projection::ScalarView<ExecSpace>& lap,
+                   const std::array<double, 3>& h, const Parameters& params,
+                   double dt) {
   auto rhs = [&](auto& su, auto& sv, auto& sw, auto& sp, auto& du, auto& dv,
                  auto& dw, auto& dp) {
-    velocity_rhs<ExecSpace>(su, sv, sw, sp, du, dv, dw, gx, gy, gz, h,
-                            params.nu);
-    pressure_rhs<ExecSpace>(sp, su, sv, sw, dp, div, lap, h, params);
+    velocityRhs<ExecSpace>(su, sv, sw, sp, du, dv, dw, gx, gy, gz, h,
+                           params.nu);
+    pressureRhs<ExecSpace>(sp, su, sv, sw, dp, div, lap, h, params);
   };
 
   rhs(u, v, w, p, ku, kv, kw, kp);

@@ -89,7 +89,7 @@ void usage(const char* argv0) {
       argv0);
 }
 
-double parse_double(const std::string& flag, const std::string& value) {
+double parseDouble(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
@@ -104,7 +104,7 @@ double parse_double(const std::string& flag, const std::string& value) {
   }
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -119,8 +119,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -136,52 +136,52 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--n") {
-      p.n_list = {parse_int(a, require_value(i, argc, argv, a))};
+      p.n_list = {parseInt(a, requireValue(i, argc, argv, a))};
     } else if (a == "--n-list") {
       p.n_list.clear();
       while (i + 1 < argc && argv[i + 1][0] != '-') {
-        p.n_list.push_back(parse_int(a, argv[++i]));
+        p.n_list.push_back(parseInt(a, argv[++i]));
       }
       if (p.n_list.empty()) {
         std::fprintf(stderr, "--n-list needs at least one value\n");
         std::exit(2);
       }
     } else if (a == "--nz") {
-      p.nz = parse_int(a, require_value(i, argc, argv, a));
+      p.nz = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--re") {
-      p.re = parse_double(a, require_value(i, argc, argv, a));
+      p.re = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--u-lid") {
-      p.u_lid = parse_double(a, require_value(i, argc, argv, a));
+      p.u_lid = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--tend") {
-      p.tend = parse_double(a, require_value(i, argc, argv, a));
+      p.tend = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--cfl") {
-      p.cfl = parse_double(a, require_value(i, argc, argv, a));
+      p.cfl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--poisson-tol") {
-      p.poisson_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.poisson_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--rms-tol") {
-      p.rms_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.rms_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--div-tol") {
-      p.div_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.div_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--steady-tol") {
-      p.steady_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.steady_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--steady-check") {
-      p.steady_check = parse_int(a, require_value(i, argc, argv, a));
+      p.steady_check = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--steady-window") {
-      p.steady_window = parse_int(a, require_value(i, argc, argv, a));
+      p.steady_window = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--advection") {
-      p.advection = require_value(i, argc, argv, a);
+      p.advection = requireValue(i, argc, argv, a);
     } else if (a == "--blend") {
-      p.blend = parse_double(a, require_value(i, argc, argv, a));
+      p.blend = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--profile") {
-      p.profile = require_value(i, argc, argv, a);
+      p.profile = requireValue(i, argc, argv, a);
     } else if (a == "--filter") {
-      p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
+      p.filter_alpha = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--filter-every") {
-      p.filter_every = parse_int(a, require_value(i, argc, argv, a));
+      p.filter_every = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--stretch") {
-      p.stretch = parse_double(a, require_value(i, argc, argv, a));
+      p.stretch = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--z-wall") {
       p.z_wall = true;
     } else if (a == "--check") {
@@ -256,7 +256,7 @@ constexpr double kGhia10000V[kGhiaCount] = {
     -0.36737, -0.30719, 0.00831,  0.27224,  0.28003,  0.35070,
     0.41487,  0.43124,  0.43733,  0.43983,  0.00000};
 
-bool ghia_tables(double re, const double*& u, const double*& v) {
+bool ghiaTables(double re, const double*& u, const double*& v) {
   if (re == 100.0) {
     u = kGhiaU;
     v = kGhiaV;
@@ -285,7 +285,7 @@ bool ghia_tables(double re, const double*& u, const double*& v) {
   return false;
 }
 
-int advection_id(const std::string& name) {
+int advectionId(const std::string& name) {
   if (name == "central") {
     return 0;
   }
@@ -318,9 +318,9 @@ struct CaseResult {
   bool steady = false;
 };
 
-double interpolate_coords(const std::vector<double>& values,
-                          const std::vector<double>& coords, double wall_lo,
-                          double wall_hi, double x) {
+double interpolateCoords(const std::vector<double>& values,
+                         const std::vector<double>& coords, double wall_lo,
+                         double wall_hi, double x) {
   const int n = static_cast<int>(values.size());
   if (x <= coords[0]) {
     const double t = (x - 0.0) / coords[0];
@@ -340,7 +340,7 @@ double interpolate_coords(const std::vector<double>& values,
 }
 
 template <class ExecSpace>
-CaseResult run_case(int n, const Params& params) {
+CaseResult runCase(int n, const Params& params) {
   using view_type = saturn::projection::ScalarView<ExecSpace>;
 
   saturn::cavity::Geometry g;
@@ -357,7 +357,7 @@ CaseResult run_case(int n, const Params& params) {
   g.u_lid = params.u_lid;
   g.z_wall = params.z_wall;
   g.beta = params.stretch;
-  g.adv = advection_id(params.advection);
+  g.adv = advectionId(params.advection);
   g.adv_blend = params.blend;
   const double nu = params.u_lid / params.re;
 
@@ -399,18 +399,18 @@ CaseResult run_case(int n, const Params& params) {
   poptions.tolerance = params.poisson_tol;
   poptions.max_cycles = 100;
 
-  auto do_project = [&](view_type& pu, view_type& pv, view_type& pw) {
+  auto doProject = [&](view_type& pu, view_type& pv, view_type& pw) {
     if (params.stretch > 0.0) {
-      saturn::cavity::project_clustered<ExecSpace>(pu, pv, pw, phi, scratch, g);
+      saturn::cavity::projectClustered<ExecSpace>(pu, pv, pw, phi, scratch, g);
     } else {
       saturn::cavity::project<ExecSpace>(pu, pv, pw, phi, scratch, g, solver,
                                          poptions);
     }
   };
 
-  do_project(u, v, w);
+  doProject(u, v, w);
 
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
+  const auto policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{0, 0, 0}}, saturn::Int3{{g.n2, g.n1, g.n0}});
   double hmin = std::min({g.hx, g.hy, g.hz});
   if (params.stretch > 0.0) {
@@ -427,7 +427,7 @@ CaseResult run_case(int n, const Params& params) {
   double steady_residual = 0.0;
   bool steady = false;
   while (time < params.tend - 1.0e-14) {
-    double max_speed = 0.0;
+    double maxSpeed = 0.0;
     double non_finite = 0.0;
     Kokkos::parallel_reduce(
         "cavity_max_speed", policy,
@@ -441,15 +441,15 @@ CaseResult run_case(int n, const Params& params) {
           }
           acc = speed > acc ? speed : acc;
         },
-        Kokkos::Max<double>{max_speed}, Kokkos::Sum<double>{non_finite});
-    non_finite = saturn::mpi_sum(non_finite);
+        Kokkos::Max<double>{maxSpeed}, Kokkos::Sum<double>{non_finite});
+    non_finite = saturn::mpiSum(non_finite);
     if (non_finite > 0.0) {
       valid = false;
       break;
     }
-    double dt = params.cfl * hmin / std::max(max_speed, 1.0e-12);
+    double dt = params.cfl * hmin / std::max(maxSpeed, 1.0e-12);
     dt = std::min(dt, 0.2 * hmin * hmin / nu);
-    if (max_speed > 1.0e6 || dt < 1.0e-10 * hmin) {
+    if (maxSpeed > 1.0e6 || dt < 1.0e-10 * hmin) {
       valid = false;
       break;
     }
@@ -459,14 +459,14 @@ CaseResult run_case(int n, const Params& params) {
     last_dt = dt;
     if (params.filter_alpha > 0.0 &&
         steps % std::max(1, params.filter_every) == 0) {
-      saturn::cavity::filter_velocity<ExecSpace>(u, v, w, u1, v1, w1, g,
-                                                 params.filter_alpha);
+      saturn::cavity::filterVelocity<ExecSpace>(u, v, w, u1, v1, w1, g,
+                                                params.filter_alpha);
       Kokkos::deep_copy(u, u1);
       Kokkos::deep_copy(v, v1);
       Kokkos::deep_copy(w, w1);
     }
-    saturn::cavity::advance_ssprk3<ExecSpace>(
-        u, v, w, u1, v1, w1, u2, v2, w2, ku, kv, kw, g, nu, dt, do_project);
+    saturn::cavity::advanceSsprk3<ExecSpace>(u, v, w, u1, v1, w1, u2, v2, w2,
+                                             ku, kv, kw, g, nu, dt, doProject);
     time += dt;
     ++steps;
     if (params.steady_tol > 0.0 && steps % params.steady_check == 0) {
@@ -486,8 +486,8 @@ CaseResult run_case(int n, const Params& params) {
             acc = d > acc ? d : acc;
           },
           Kokkos::Max<double>{dv});
-      du = saturn::mpi_max(du);
-      dv = saturn::mpi_max(dv);
+      du = saturn::mpiMax(du);
+      dv = saturn::mpiMax(dv);
       const double residual = std::max(du, dv);
       steady_residual = residual;
       if (residual < params.steady_tol) {
@@ -505,7 +505,7 @@ CaseResult run_case(int n, const Params& params) {
     }
   }
   Kokkos::fence();
-  const double seconds = saturn::mpi_max(timer.seconds());
+  const double seconds = saturn::mpiMax(timer.seconds());
 
   CaseResult result;
   result.n = n;
@@ -536,7 +536,7 @@ CaseResult run_case(int n, const Params& params) {
         div = d > div ? d : div;
       },
       Kokkos::Max<double>{max_div});
-  result.divergence = saturn::mpi_max(max_div);
+  result.divergence = saturn::mpiMax(max_div);
   result.steady = steady;
   if (!steady) {
     steady_time = time;
@@ -562,7 +562,7 @@ CaseResult run_case(int n, const Params& params) {
     v_center[i] = hv(k_center, j_center, i);
   }
 
-  if (!params.profile.empty() && saturn::mpi_rank() == 0) {
+  if (!params.profile.empty() && saturn::mpiRank() == 0) {
     std::ofstream out(params.profile);
     out << "# kind station value\n";
     for (int j = 0; j < n; ++j) {
@@ -577,13 +577,13 @@ CaseResult run_case(int n, const Params& params) {
   double sum_v = 0.0;
   const double* ref_u = nullptr;
   const double* ref_v = nullptr;
-  const bool has_ghia = ghia_tables(params.re, ref_u, ref_v);
+  const bool has_ghia = ghiaTables(params.re, ref_u, ref_v);
   if (has_ghia) {
     for (int q = 0; q < kGhiaCount; ++q) {
       const double uq =
-          interpolate_coords(u_center, y_coords, 0.0, params.u_lid, kGhiaY[q]);
+          interpolateCoords(u_center, y_coords, 0.0, params.u_lid, kGhiaY[q]);
       const double vq =
-          interpolate_coords(v_center, x_coords, 0.0, 0.0, kGhiaX[q]);
+          interpolateCoords(v_center, x_coords, 0.0, 0.0, kGhiaX[q]);
       const double du = uq - ref_u[q];
       const double dv = vq - ref_v[q];
       sum_u += du * du;
@@ -597,7 +597,7 @@ CaseResult run_case(int n, const Params& params) {
 
 template <class ExecSpace>
 int run(const Params& params) {
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
   if (root) {
     std::printf("\n%s %s lid-driven cavity Re=%.0f\n", saturn::kProjectName,
                 saturn::kVersion, params.re);
@@ -613,7 +613,7 @@ int run(const Params& params) {
 
   int status = 0;
   for (const int n : params.n_list) {
-    const CaseResult result = run_case<ExecSpace>(n, params);
+    const CaseResult result = runCase<ExecSpace>(n, params);
     if (root) {
       std::printf("%6d %8d %12.4e %14.4e %14.4e %14.4e %10.3f\n", result.n,
                   result.steps, result.dt, result.rms_u, result.rms_v,
@@ -634,7 +634,7 @@ int run(const Params& params) {
       }
       const double* ref_u = nullptr;
       const double* ref_v = nullptr;
-      const bool has_ghia = ghia_tables(params.re, ref_u, ref_v);
+      const bool has_ghia = ghiaTables(params.re, ref_u, ref_v);
       (void)ref_u;
       (void)ref_v;
       if (has_ghia &&
@@ -666,7 +666,7 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
         return run<space_type>(params);

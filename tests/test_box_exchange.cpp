@@ -37,8 +37,8 @@ int main(int argc, char** argv) {
     const int ng = 4;
     const bool periodic[3] = {true, true, true};
     const auto decomposition = saturn::Decomposition::create(
-        saturn::Box::from_extents(n, n, n), periodic);
-    const auto grid = saturn::UniformGrid::from_cells_local(
+        saturn::Box::fromExtents(n, n, n), periodic);
+    const auto grid = saturn::UniformGrid::fromCellsLocal(
         n, n, n, 1.0, 1.0, 1.0, ng, decomposition.local);
     (void)grid;
 
@@ -89,8 +89,8 @@ int main(int argc, char** argv) {
       }
     }
 
-    const int errors = static_cast<int>(saturn::mpi_sum(local_errors));
-    const double global_error = saturn::mpi_max(max_error);
+    const int errors = static_cast<int>(saturn::mpiSum(local_errors));
+    const double global_error = saturn::mpiMax(max_error);
     if (decomposition.rank == 0) {
       std::printf("box exchange: ranks=%d ng=%d errors=%d max_error=%.3e\n",
                   decomposition.size, ng, errors, global_error);

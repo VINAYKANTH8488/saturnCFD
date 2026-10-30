@@ -13,7 +13,7 @@ namespace {
 
 using saturn::BoundaryType;
 
-void fill_interior(saturn::PatchField<Kokkos::DefaultExecutionSpace>& q) {
+void fillInterior(saturn::PatchField<Kokkos::DefaultExecutionSpace>& q) {
   const saturn::Box box = q.box();
   auto host = Kokkos::create_mirror_view(q.data());
   for (int k = box.lo[2]; k <= box.hi[2]; ++k) {
@@ -40,15 +40,15 @@ int main(int argc, char** argv) {
   int status = 0;
   {
     using exec_space = Kokkos::DefaultExecutionSpace;
-    const saturn::Box box = saturn::Box::from_extents(8, 8, 8);
+    const saturn::Box box = saturn::Box::fromExtents(8, 8, 8);
     saturn::PatchField<exec_space> q(box, 5, 4, "q");
-    fill_interior(q);
+    fillInterior(q);
 
     BoundaryType bc[3][2];
     bc[0][0] = bc[0][1] = BoundaryType::Periodic;
     bc[1][0] = bc[1][1] = BoundaryType::Transmissive;
     bc[2][0] = bc[2][1] = BoundaryType::SlipWall;
-    saturn::apply_boundary_conditions(q, bc);
+    saturn::applyBoundaryConditions(q, bc);
 
     auto host =
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), q.data());

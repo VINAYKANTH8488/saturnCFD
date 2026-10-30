@@ -75,7 +75,7 @@ struct CaseResult {
 };
 
 KOKKOS_INLINE_FUNCTION
-double exact_scalar(double x, double y, double z, double t, double nu) {
+double exactScalar(double x, double y, double z, double t, double nu) {
   const double phase = kKx * x + kKy * y + kKz * z - kOmega * t;
   return 1.0 + 0.5 * Kokkos::exp(-nu * kK2 * t) * Kokkos::sin(phase);
 }
@@ -99,7 +99,7 @@ void usage(const char* argv0) {
             << "  --help                 show this help\n";
 }
 
-double parse_double(const std::string& flag, const std::string& value) {
+double parseDouble(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
@@ -114,7 +114,7 @@ double parse_double(const std::string& flag, const std::string& value) {
   }
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -129,8 +129,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -146,28 +146,28 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--n") {
-      p.n_list = {parse_int(a, require_value(i, argc, argv, a))};
+      p.n_list = {parseInt(a, requireValue(i, argc, argv, a))};
     } else if (a == "--n-list") {
       p.n_list.clear();
       while (i + 1 < argc && argv[i + 1][0] != '-') {
-        p.n_list.push_back(parse_int(a, argv[++i]));
+        p.n_list.push_back(parseInt(a, argv[++i]));
       }
       if (p.n_list.empty()) {
         std::fprintf(stderr, "--n-list needs at least one value\n");
         std::exit(2);
       }
     } else if (a == "--nu") {
-      p.nu = parse_double(a, require_value(i, argc, argv, a));
+      p.nu = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--tend") {
-      p.tend = parse_double(a, require_value(i, argc, argv, a));
+      p.tend = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--cfl") {
-      p.cfl = parse_double(a, require_value(i, argc, argv, a));
+      p.cfl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--json") {
-      p.json = require_value(i, argc, argv, a);
+      p.json = requireValue(i, argc, argv, a);
     } else if (a == "--output") {
-      p.output = require_value(i, argc, argv, a);
+      p.output = requireValue(i, argc, argv, a);
     } else if (a == "--overlap") {
       p.overlap = true;
     } else if (a == "--verbose") {
@@ -196,7 +196,7 @@ Params parse(int argc, char** argv) {
 }
 
 template <class ExecSpace>
-CaseResult run_case(int n, const Params& p) {
+CaseResult runCase(int n, const Params& p) {
   using field_type = saturn::PatchField<ExecSpace>;
 
   const int ng = 1;
@@ -204,10 +204,10 @@ CaseResult run_case(int n, const Params& p) {
   const double tend = p.tend;
   const bool periodic[3] = {true, true, true};
   const auto decomposition = saturn::Decomposition::create(
-      saturn::Box::from_extents(n, n, n), periodic);
-  const auto grid = saturn::UniformGrid::from_cells_local(
+      saturn::Box::fromExtents(n, n, n), periodic);
+  const auto grid = saturn::UniformGrid::fromCellsLocal(
       n, n, n, 2.0 * kPi, 2.0 * kPi, 2.0 * kPi, ng, decomposition.local);
-  const saturn::Box box = grid.local_box();
+  const saturn::Box box = grid.localBox();
 
   field_type q0(box, 1, ng, "q0");
   field_type q1(box, 1, ng, "q1");
@@ -224,7 +224,7 @@ CaseResult run_case(int n, const Params& p) {
         const double y = (j + 0.5) * grid.h[1];
         const double z = (k + 0.5) * grid.h[2];
         hq(0, k - box.lo[2] + ng, j - box.lo[1] + ng, i - box.lo[0] + ng) =
-            exact_scalar(x, y, z, 0.0, p.nu);
+            exactScalar(x, y, z, 0.0, p.nu);
       }
     }
   }
@@ -239,8 +239,8 @@ CaseResult run_case(int n, const Params& p) {
   const int steps = std::max(1, static_cast<int>(std::ceil(p.tend / dt)));
   dt = p.tend / steps;
 
-  const double cell_volume = grid.h[0] * grid.h[1] * grid.h[2];
-  const auto full_policy = saturn::make_mdrange3<ExecSpace>(
+  const double cellVolume = grid.h[0] * grid.h[1] * grid.h[2];
+  const auto full_policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   const saturn::Box interior_box = box.shrink(1);
@@ -253,35 +253,35 @@ CaseResult run_case(int n, const Params& p) {
           acc += f(0, i, j, k);
         },
         sum);
-    return sum * cell_volume;
+    return sum * cellVolume;
   };
 
-  const double mass0 = saturn::mpi_sum(mass(q0));
+  const double mass0 = saturn::mpiSum(mass(q0));
   Kokkos::Timer timer;
 
-  auto compute_rhs = [&](field_type& q) {
+  auto computeRhs = [&](field_type& q) {
     if (p.overlap) {
       exchange.begin(q);
-      saturn::scalar_advection_diffusion_rhs(q, rhs, velocity, p.nu, grid.h,
-                                             interior_box);
+      saturn::scalarAdvectionDiffusionRhs(q, rhs, velocity, p.nu, grid.h,
+                                          interior_box);
       exchange.end(q);
-      saturn::scalar_advection_diffusion_rhs_shell(q, rhs, velocity, p.nu,
-                                                   grid.h, box);
+      saturn::scalarAdvectionDiffusionRhsShell(q, rhs, velocity, p.nu, grid.h,
+                                               box);
     } else {
       exchange.exchange(q);
-      saturn::scalar_advection_diffusion_rhs(q, rhs, velocity, p.nu, grid.h);
+      saturn::scalarAdvectionDiffusionRhs(q, rhs, velocity, p.nu, grid.h);
     }
   };
 
   for (int step = 0; step < steps; ++step) {
-    compute_rhs(q0);
+    computeRhs(q0);
 
     Kokkos::parallel_for(
         "rk3_stage1", full_policy, KOKKOS_LAMBDA(int k, int j, int i) {
           q1(0, i, j, k) = q0(0, i, j, k) + dt * rhs(0, i, j, k);
         });
 
-    compute_rhs(q1);
+    computeRhs(q1);
 
     Kokkos::parallel_for(
         "rk3_stage2", full_policy, KOKKOS_LAMBDA(int k, int j, int i) {
@@ -289,7 +289,7 @@ CaseResult run_case(int n, const Params& p) {
                            0.25 * (q1(0, i, j, k) + dt * rhs(0, i, j, k));
         });
 
-    compute_rhs(q2);
+    computeRhs(q2);
 
     Kokkos::parallel_for(
         "rk3_stage3", full_policy, KOKKOS_LAMBDA(int k, int j, int i) {
@@ -303,14 +303,14 @@ CaseResult run_case(int n, const Params& p) {
 
   exchange.exchange(q0);
   ExecSpace().fence();
-  const double seconds = saturn::mpi_max(timer.seconds());
-  const double mass1 = saturn::mpi_sum(mass(q0));
+  const double seconds = saturn::mpiMax(timer.seconds());
+  const double mass1 = saturn::mpiSum(mass(q0));
 
   if (!p.output.empty()) {
     const std::array<double, 3> origin{{0.0, 0.0, 0.0}};
     const bool ok =
-        saturn::write_vti(p.output, q0, origin, grid.h, grid.global, tend);
-    if (!ok && saturn::mpi_rank() == 0) {
+        saturn::writeVti(p.output, q0, origin, grid.h, grid.global, tend);
+    if (!ok && saturn::mpiRank() == 0) {
       std::fprintf(stderr, "VTK output failed for base '%s'\n",
                    p.output.c_str());
     }
@@ -323,11 +323,11 @@ CaseResult run_case(int n, const Params& p) {
         const double x = (i + 0.5) * (2.0 * kPi / static_cast<double>(n));
         const double y = (j + 0.5) * (2.0 * kPi / static_cast<double>(n));
         const double z = (k + 0.5) * (2.0 * kPi / static_cast<double>(n));
-        const double e = q0(0, i, j, k) - exact_scalar(x, y, z, tend, nu);
+        const double e = q0(0, i, j, k) - exactScalar(x, y, z, tend, nu);
         acc += e * e;
       },
       l2);
-  l2 = std::sqrt(saturn::mpi_sum(l2) / (static_cast<double>(n) * n * n));
+  l2 = std::sqrt(saturn::mpiSum(l2) / (static_cast<double>(n) * n * n));
 
   double linf = 0.0;
   Kokkos::parallel_reduce(
@@ -336,12 +336,12 @@ CaseResult run_case(int n, const Params& p) {
         const double x = (i + 0.5) * (2.0 * kPi / static_cast<double>(n));
         const double y = (j + 0.5) * (2.0 * kPi / static_cast<double>(n));
         const double z = (k + 0.5) * (2.0 * kPi / static_cast<double>(n));
-        const double e = q0(0, i, j, k) - exact_scalar(x, y, z, tend, nu);
+        const double e = q0(0, i, j, k) - exactScalar(x, y, z, tend, nu);
         const double a = Kokkos::abs(e);
         acc = (a > acc) ? a : acc;
       },
       Kokkos::Max<double>{linf});
-  linf = saturn::mpi_max(linf);
+  linf = saturn::mpiMax(linf);
 
   CaseResult result;
   result.n = n;
@@ -356,11 +356,11 @@ CaseResult run_case(int n, const Params& p) {
 }
 
 template <class ExecSpace>
-int run_sweep(const Params& p) {
+int runSweep(const Params& p) {
   std::vector<CaseResult> results;
   double previous_error = 0.0;
   double previous_h = 0.0;
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
 
   if (root) {
     std::cout << "\n"
@@ -379,7 +379,7 @@ int run_sweep(const Params& p) {
   }
 
   for (int n : p.n_list) {
-    CaseResult r = run_case<ExecSpace>(n, p);
+    CaseResult r = runCase<ExecSpace>(n, p);
     if (previous_error > 0.0 && previous_h > 0.0) {
       r.order = std::log(previous_error / r.l2) / std::log(previous_h / r.h);
     }
@@ -439,7 +439,7 @@ int run_sweep(const Params& p) {
         ok = false;
       }
     }
-    ok = saturn::mpi_all(ok);
+    ok = saturn::mpiAll(ok);
     if (!ok) {
       if (root) {
         std::fprintf(stderr,
@@ -467,10 +467,10 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
-        return run_sweep<space_type>(params);
+        return runSweep<space_type>(params);
       });
   Kokkos::finalize();
 

@@ -24,7 +24,7 @@ constexpr RiemannSolver kAllSolvers[] = {
 
 int g_failures = 0;
 
-const char* solver_name(RiemannSolver solver) {
+const char* solverName(RiemannSolver solver) {
   switch (solver) {
     case RiemannSolver::Llf:
       return "llf";
@@ -33,7 +33,7 @@ const char* solver_name(RiemannSolver solver) {
     case RiemannSolver::HllcLowMach:
       return "hllc_lm";
     case RiemannSolver::AusmPlusUp:
-      return "ausm_plus_up";
+      return "ausmPlusUp";
   }
   return "unknown";
 }
@@ -42,15 +42,15 @@ bool finite(double value) {
   return value == value && std::fabs(value) < 1.0e300;
 }
 
-double flux_scale(const Flux& value) {
+double fluxScale(const Flux& value) {
   return std::max(
       1.0, std::max(std::fabs(value.rho),
                     std::max(std::fabs(value.mom_n), std::fabs(value.energy))));
 }
 
-void check_flux(const char* what, const char* solver, const Flux& actual,
-                const Flux& expected, double tolerance) {
-  const double scale = std::max(flux_scale(expected), flux_scale(actual));
+void checkFlux(const char* what, const char* solver, const Flux& actual,
+               const Flux& expected, double tolerance) {
+  const double scale = std::max(fluxScale(expected), fluxScale(actual));
   const double error = std::max(
       std::fabs(actual.rho - expected.rho),
       std::max(std::fabs(actual.mom_n - expected.mom_n),
@@ -68,8 +68,8 @@ void check_flux(const char* what, const char* solver, const Flux& actual,
   }
 }
 
-void check_value(const char* what, const char* solver, double actual,
-                 double expected, double tolerance) {
+void checkValue(const char* what, const char* solver, double actual,
+                double expected, double tolerance) {
   const double scale = std::max(1.0, std::fabs(expected));
   if (!(std::fabs(actual - expected) <= tolerance * scale)) {
     std::printf("FAIL %s [%s]: actual %.17g expected %.17g\n", what, solver,
@@ -89,7 +89,7 @@ double distance(const Flux& left, const Flux& right) {
          std::fabs(left.energy - right.energy);
 }
 
-void test_uniform_consistency() {
+void testUniformConsistency() {
   const PrimitiveState states[] = {
       {1.0, 0.2, 0.1, -0.3, 1.0},
       {0.7, -0.4, 0.2, 0.0, 0.5},
@@ -97,15 +97,15 @@ void test_uniform_consistency() {
       {0.2, 1.3, -0.2, 0.4, 0.1},
   };
   for (const auto& state : states) {
-    const Flux expected = saturn::riemann::physical_flux(state, kGamma);
+    const Flux expected = saturn::riemann::physicalFlux(state, kGamma);
     for (const auto solver : kAllSolvers) {
-      check_flux("uniform consistency", solver_name(solver),
-                 flux(solver, state, state, kGamma), expected, 1.0e-12);
+      checkFlux("uniform consistency", solverName(solver),
+                flux(solver, state, state, kGamma), expected, 1.0e-12);
     }
   }
 }
 
-void test_stationary_contact() {
+void testStationaryContact() {
   const PrimitiveState left{1.0, 0.0, 0.0, 0.0, 1.0};
   const PrimitiveState right{3.0, 0.0, 0.0, 0.0, 1.0};
   const Flux expected{0.0, 1.0, 0.0, 0.0, 0.0};
@@ -113,12 +113,12 @@ void test_stationary_contact() {
     if (solver == RiemannSolver::Llf) {
       continue;  // LLF diffuses a stationary contact by construction.
     }
-    check_flux("stationary contact", solver_name(solver),
-               flux(solver, left, right, kGamma), expected, 1.0e-12);
+    checkFlux("stationary contact", solverName(solver),
+              flux(solver, left, right, kGamma), expected, 1.0e-12);
   }
 }
 
-void test_moving_contact() {
+void testMovingContact() {
   const PrimitiveState left{1.0, 0.5, 0.0, 0.0, 1.0};
   const PrimitiveState right{3.0, 0.5, 0.0, 0.0, 1.0};
   // Upwind density is 1. Energy per volume on the left:
@@ -129,12 +129,12 @@ void test_moving_contact() {
     if (solver == RiemannSolver::Llf) {
       continue;  // LLF adds diffusion even for a moving contact.
     }
-    check_flux("moving contact", solver_name(solver),
-               flux(solver, left, right, kGamma), expected, 1.0e-12);
+    checkFlux("moving contact", solverName(solver),
+              flux(solver, left, right, kGamma), expected, 1.0e-12);
   }
 }
 
-void test_symmetry() {
+void testSymmetry() {
   const PrimitiveState left{1.0, 0.3, 0.2, -0.1, 0.9};
   const PrimitiveState right{0.4, -0.2, 0.5, 0.3, 0.2};
   for (const auto solver : kAllSolvers) {
@@ -142,8 +142,8 @@ void test_symmetry() {
     const Flux reflected = flux(solver, mirror(right), mirror(left), kGamma);
     const Flux expected{-value.rho, value.mom_n, -value.mom_t1, -value.mom_t2,
                         -value.energy};
-    check_flux("mirror symmetry", solver_name(solver), reflected, expected,
-               1.0e-12);
+    checkFlux("mirror symmetry", solverName(solver), reflected, expected,
+              1.0e-12);
   }
 
   // The low-Mach blend must also be mirror-symmetric.
@@ -155,25 +155,25 @@ void test_symmetry() {
                               mirror(slow_left), kGamma);
   const Flux expected{-value.rho, value.mom_n, -value.mom_t1, -value.mom_t2,
                       -value.energy};
-  check_flux("low-Mach mirror symmetry", "hllc_lm", reflected, expected,
-             1.0e-12);
+  checkFlux("low-Mach mirror symmetry", "hllc_lm", reflected, expected,
+            1.0e-12);
 }
 
-void test_sod_fluxes() {
+void testSodFluxes() {
   const PrimitiveState left{1.0, 0.0, 0.0, 0.0, 1.0};
   const PrimitiveState right{0.125, 0.0, 0.0, 0.0, 0.1};
   for (const auto solver : kAllSolvers) {
     const Flux value = flux(solver, left, right, kGamma);
     if (!(finite(value.rho) && finite(value.mom_n) && finite(value.mom_t1) &&
           finite(value.mom_t2) && finite(value.energy))) {
-      std::printf("FAIL Sod flux [%s]: non-finite flux\n", solver_name(solver));
+      std::printf("FAIL Sod flux [%s]: non-finite flux\n", solverName(solver));
       ++g_failures;
     }
     if (!(value.rho > 0.0 && value.mom_n > 0.0)) {
       std::printf(
           "FAIL Sod flux [%s]: expected rightward mass/momentum "
           "flux, got rho=%.6g mom=%.6g\n",
-          solver_name(solver), value.rho, value.mom_n);
+          solverName(solver), value.rho, value.mom_n);
       ++g_failures;
     }
   }
@@ -181,24 +181,24 @@ void test_sod_fluxes() {
   // The pressure-jump sensor must leave HLLC-LM identical to HLLC on a shock.
   const Flux hllc = flux(RiemannSolver::Hllc, left, right, kGamma);
   const Flux low_mach = flux(RiemannSolver::HllcLowMach, left, right, kGamma);
-  check_flux("shock sensor", "hllc_lm", low_mach, hllc, 1.0e-14);
+  checkFlux("shock sensor", "hllc_lm", low_mach, hllc, 1.0e-14);
 
   // AUSM+-up at a strong pressure jump uses a larger freestream Mach floor.
-  const Flux ausm = saturn::riemann::ausm_plus_up(left, right, kGamma, 1.0);
+  const Flux ausm = saturn::riemann::ausmPlusUp(left, right, kGamma, 1.0);
   if (!(finite(ausm.rho) && finite(ausm.mom_n) && finite(ausm.energy))) {
-    std::printf("FAIL Sod flux [ausm_plus_up] with Mach floor 1\n");
+    std::printf("FAIL Sod flux [ausmPlusUp] with Mach floor 1\n");
     ++g_failures;
   }
 }
 
-void test_low_mach_dissipation() {
+void testLowMachDissipation() {
   // Low-Mach pressure perturbation: HLLC-LM should be closer to the central
   // (non-dissipative) flux than plain HLLC.
   const PrimitiveState left{1.0, 1.0e-2, 0.0, 0.0, 1.0};
   const PrimitiveState right{0.8, 1.0e-2, 0.0, 0.0, 1.0001};
-  const Flux central = saturn::riemann::average_flux(
-      saturn::riemann::physical_flux(left, kGamma),
-      saturn::riemann::physical_flux(right, kGamma));
+  const Flux central = saturn::riemann::averageFlux(
+      saturn::riemann::physicalFlux(left, kGamma),
+      saturn::riemann::physicalFlux(right, kGamma));
   const Flux hllc = flux(RiemannSolver::Hllc, left, right, kGamma);
   const Flux low_mach = flux(RiemannSolver::HllcLowMach, left, right, kGamma);
   const double hllc_error = distance(hllc, central);
@@ -214,14 +214,13 @@ void test_low_mach_dissipation() {
 
   // AUSM+-up in the same regime must stay finite and produce a small mass
   // flux instead of an O(1) artifact.
-  const Flux ausm = saturn::riemann::ausm_plus_up(left, right, kGamma, 0.01);
-  check_value("AUSM+-up low-Mach mass flux", "ausm_plus_up", ausm.rho, 0.0,
-              0.05);
-  check_value("AUSM+-up low-Mach pressure flux", "ausm_plus_up", ausm.mom_n,
-              1.0, 0.05);
+  const Flux ausm = saturn::riemann::ausmPlusUp(left, right, kGamma, 0.01);
+  checkValue("AUSM+-up low-Mach mass flux", "ausmPlusUp", ausm.rho, 0.0, 0.05);
+  checkValue("AUSM+-up low-Mach pressure flux", "ausmPlusUp", ausm.mom_n, 1.0,
+             0.05);
 }
 
-void test_device_kernel() {
+void testDeviceKernel() {
   constexpr int kSolverCount = 4;
   Kokkos::View<double*> values("riemann_values", 10);
   Kokkos::View<double*> output("riemann_output", 5 * kSolverCount);
@@ -265,7 +264,7 @@ void test_device_kernel() {
     const Flux actual{host_output(5 * index + 0), host_output(5 * index + 1),
                       host_output(5 * index + 2), host_output(5 * index + 3),
                       host_output(5 * index + 4)};
-    check_flux("device flux", solver_name(solver), actual, expected, 1.0e-14);
+    checkFlux("device flux", solverName(solver), actual, expected, 1.0e-14);
   }
 }
 
@@ -274,13 +273,13 @@ void test_device_kernel() {
 int main(int argc, char** argv) {
   Kokkos::initialize(argc, argv);
   {
-    test_uniform_consistency();
-    test_stationary_contact();
-    test_moving_contact();
-    test_symmetry();
-    test_sod_fluxes();
-    test_low_mach_dissipation();
-    test_device_kernel();
+    testUniformConsistency();
+    testStationaryContact();
+    testMovingContact();
+    testSymmetry();
+    testSodFluxes();
+    testLowMachDissipation();
+    testDeviceKernel();
 
     if (g_failures == 0) {
       std::printf("saturnCFD Riemann tests passed\n");

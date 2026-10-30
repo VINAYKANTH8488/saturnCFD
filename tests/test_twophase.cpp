@@ -30,11 +30,11 @@ int main() {
   std::vector<double> kappa(static_cast<std::size_t>(n) * n, 1.0 / radius);
   std::vector<double> fx;
   std::vector<double> fy;
-  solver.csf_faces(kappa, sigma, fx, fy);
-  solver.project_force(fx, fy, 1.0e-3);
+  solver.csfFaces(kappa, sigma, fx, fy);
+  solver.projectForce(fx, fy, 1.0e-3);
 
-  const double speed = solver.max_speed();
-  const double div = solver.max_divergence();
+  const double speed = solver.maxSpeed();
+  const double div = solver.maxDivergence();
   const auto& p = solver.p();
   const double p_inside = p[static_cast<std::size_t>(n / 2) * n + n / 2];
   const double p_outside = p[0];
@@ -70,10 +70,10 @@ int main() {
     }
     std::vector<double> fx2;
     std::vector<double> fy2;
-    bubble.csf_faces(kappa, sigma, fx2, fy2);
-    bubble.project_force_variable(fx2, fy2, 1.0e-3, 1000.0, 1.0);
-    const double speed2 = bubble.max_speed();
-    const double div2 = bubble.max_divergence();
+    bubble.csfFaces(kappa, sigma, fx2, fy2);
+    bubble.projectForceVariable(fx2, fy2, 1.0e-3, 1000.0, 1.0);
+    const double speed2 = bubble.maxSpeed();
+    const double div2 = bubble.maxDivergence();
     const auto& p2 = bubble.p();
     const double jump2 =
         p2[static_cast<std::size_t>(n / 2) * n + n / 2] - p2[0];
@@ -101,7 +101,7 @@ int main() {
     for (int s = 0; s < 5; ++s) {
       bubble.step(1.0e-3, sigma, kappa, 1.0, 1.0, 0.0, 0.0, 0.0);
     }
-    const double speed3 = bubble.max_speed();
+    const double speed3 = bubble.maxSpeed();
     const double mass_drift3 = std::abs(c3.mass() - mass3) / mass3;
     std::printf("full-step static: |u|max=%.3e mass_drift=%.3e\n", speed3,
                 mass_drift3);

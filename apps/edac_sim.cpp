@@ -74,7 +74,7 @@ void usage(const char* argv0) {
       argv0);
 }
 
-double parse_double(const std::string& flag, const std::string& value) {
+double parseDouble(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
@@ -89,7 +89,7 @@ double parse_double(const std::string& flag, const std::string& value) {
   }
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -104,8 +104,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -121,28 +121,28 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--n") {
-      p.n_list = {parse_int(a, require_value(i, argc, argv, a))};
+      p.n_list = {parseInt(a, requireValue(i, argc, argv, a))};
     } else if (a == "--n-list") {
       p.n_list.clear();
       while (i + 1 < argc && argv[i + 1][0] != '-') {
-        p.n_list.push_back(parse_int(a, argv[++i]));
+        p.n_list.push_back(parseInt(a, argv[++i]));
       }
       if (p.n_list.empty()) {
         std::fprintf(stderr, "--n-list needs at least one value\n");
         std::exit(2);
       }
     } else if (a == "--nz") {
-      p.nz = parse_int(a, require_value(i, argc, argv, a));
+      p.nz = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--nu") {
-      p.nu = parse_double(a, require_value(i, argc, argv, a));
+      p.nu = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--mc") {
-      p.mc = parse_double(a, require_value(i, argc, argv, a));
+      p.mc = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--tau") {
-      p.tau_factor = parse_double(a, require_value(i, argc, argv, a));
+      p.tau_factor = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--tend") {
-      p.tend = parse_double(a, require_value(i, argc, argv, a));
+      p.tend = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--cfl") {
-      p.cfl = parse_double(a, require_value(i, argc, argv, a));
+      p.cfl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--zero-p") {
       p.p0_exact = false;
     } else if (a == "--check") {
@@ -150,7 +150,7 @@ Params parse(int argc, char** argv) {
     } else if (a == "--verbose") {
       p.verbose = true;
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a.rfind("--kokkos-", 0) == 0) {
       // Handled by Kokkos::initialize().
     } else {
@@ -171,7 +171,7 @@ struct CaseResult {
 };
 
 template <class ExecSpace>
-CaseResult run_case(int n, const Params& params) {
+CaseResult runCase(int n, const Params& params) {
   using view_type = saturn::projection::ScalarView<ExecSpace>;
 
   const double lx = 2.0 * kPi;
@@ -210,8 +210,8 @@ CaseResult run_case(int n, const Params& params) {
   view_type div("div", nz, n, n);
   view_type lap("lap", nz, n, n);
 
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
-      saturn::Int3{{0, 0, 0}}, saturn::Int3{{nz, n, n}});
+  const auto policy = saturn::makeMdrange3<ExecSpace>(saturn::Int3{{0, 0, 0}},
+                                                      saturn::Int3{{nz, n, n}});
   Kokkos::parallel_for(
       "edac_initial", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const double xf = i * hx;
@@ -235,7 +235,7 @@ CaseResult run_case(int n, const Params& params) {
   int steps = 0;
   double last_dt = 0.0;
   while (time < params.tend - 1.0e-14) {
-    double max_speed = 0.0;
+    double maxSpeed = 0.0;
     Kokkos::parallel_reduce(
         "edac_max_speed", policy,
         KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
@@ -244,8 +244,8 @@ CaseResult run_case(int n, const Params& params) {
                            w(k, j, i) * w(k, j, i));
           acc = speed > acc ? speed : acc;
         },
-        Kokkos::Max<double>{max_speed});
-    double dt = params.cfl * hmin / std::max(max_speed + c, 1.0e-12);
+        Kokkos::Max<double>{maxSpeed});
+    double dt = params.cfl * hmin / std::max(maxSpeed + c, 1.0e-12);
     if (params.nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / params.nu);
     }
@@ -257,14 +257,14 @@ CaseResult run_case(int n, const Params& params) {
     }
     last_dt = dt;
 
-    saturn::edac::advance_ssprk3<ExecSpace>(u, v, w, p, u1, v1, w1, p1, u2, v2,
-                                            w2, p2, ku, kv, kw, kp, gx, gy, gz,
-                                            div, lap, h, ep, dt);
+    saturn::edac::advanceSsprk3<ExecSpace>(u, v, w, p, u1, v1, w1, p1, u2, v2,
+                                           w2, p2, ku, kv, kw, kp, gx, gy, gz,
+                                           div, lap, h, ep, dt);
     time += dt;
     ++steps;
   }
   Kokkos::fence();
-  const double seconds = saturn::mpi_max(timer.seconds());
+  const double seconds = saturn::mpiMax(timer.seconds());
 
   double sum_error = 0.0;
   double sum_div = 0.0;
@@ -301,15 +301,15 @@ CaseResult run_case(int n, const Params& params) {
   result.n = n;
   result.steps = steps;
   result.dt = last_dt;
-  result.error = std::sqrt(saturn::mpi_sum(sum_error) / (3.0 * cells));
-  result.divergence = saturn::mpi_sum(std::sqrt(sum_div / cells));
+  result.error = std::sqrt(saturn::mpiSum(sum_error) / (3.0 * cells));
+  result.divergence = saturn::mpiSum(std::sqrt(sum_div / cells));
   result.seconds = seconds;
   return result;
 }
 
 template <class ExecSpace>
 int run(const Params& params) {
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
   if (root) {
     std::printf("\n%s %s EDAC TGV\n", saturn::kProjectName, saturn::kVersion);
     std::printf("Kokkos: %s (concurrency %d)\n", ExecSpace::name(),
@@ -323,7 +323,7 @@ int run(const Params& params) {
 
   int status = 0;
   for (const int n : params.n_list) {
-    const CaseResult result = run_case<ExecSpace>(n, params);
+    const CaseResult result = runCase<ExecSpace>(n, params);
     if (root) {
       std::printf("%6d %8d %12.4e %14.4e %14.4e %10.3f\n", result.n,
                   result.steps, result.dt, result.error, result.divergence,
@@ -357,7 +357,7 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
         return run<space_type>(params);

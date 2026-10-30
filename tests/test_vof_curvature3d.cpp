@@ -51,7 +51,7 @@ int main() {
       const double exact =
           (hxx * (1.0 + gy2) + hyy * (1.0 + gx2) - 2.0 * hx * hy * hxy) /
           std::pow(1.0 + gx2 + gy2, 1.5);
-      const auto curvature = saturn::vof::curvature_z(grid, i, j);
+      const auto curvature = saturn::vof::curvatureZ(grid, i, j);
       if (!curvature.valid) {
         continue;
       }

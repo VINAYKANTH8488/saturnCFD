@@ -13,7 +13,7 @@
 
 namespace {
 
-bool bounds_ok(const std::vector<double>& c, double& cmin, double& cmax) {
+bool boundsOk(const std::vector<double>& c, double& cmin, double& cmax) {
   cmin = 1.0;
   cmax = 0.0;
   for (double value : c) {
@@ -23,7 +23,7 @@ bool bounds_ok(const std::vector<double>& c, double& cmin, double& cmax) {
   return cmin >= -1.0e-10 && cmax <= 1.0 + 1.0e-10;
 }
 
-void fill_column(saturn::twophase::DamBreak2D& solver) {
+void fillColumn(saturn::twophase::DamBreak2D& solver) {
   const int n = solver.nx();
   for (int j = 0; j < n; ++j) {
     for (int i = 0; i < n; ++i) {
@@ -33,10 +33,10 @@ void fill_column(saturn::twophase::DamBreak2D& solver) {
   }
 }
 
-bool check_case(const char* label, double sigma, std::vector<double>* final_c) {
+bool checkCase(const char* label, double sigma, std::vector<double>* final_c) {
   const int n = 64;
   saturn::twophase::DamBreak2D solver(n, n);
-  fill_column(solver);
+  fillColumn(solver);
   const double mass0 = solver.mass();
   const double dt = 1.0e-3;
   for (int s = 0; s < 50; ++s) {
@@ -44,9 +44,9 @@ bool check_case(const char* label, double sigma, std::vector<double>* final_c) {
   }
   double cmin = 0.0;
   double cmax = 0.0;
-  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const bool bounded = boundsOk(solver.c(), cmin, cmax);
   const double drift = std::abs(solver.mass() - mass0) / mass0;
-  const double speed = solver.max_speed();
+  const double speed = solver.maxSpeed();
   std::printf("%s: |u|max=%.3e mass_drift=%.3e range=[%.3e,%.3e]\n", label,
               speed, drift, cmin, cmax);
   if (final_c != nullptr) {
@@ -57,7 +57,7 @@ bool check_case(const char* label, double sigma, std::vector<double>* final_c) {
 
 // Two layers at rest must stay at rest: gravity is balanced exactly by the
 // wall-bounded variable-coefficient pressure solve.
-bool check_hydrostatic() {
+bool checkHydrostatic() {
   const int n = 64;
   saturn::twophase::DamBreak2D solver(n, n);
   for (int j = 0; j < n; ++j) {
@@ -70,14 +70,14 @@ bool check_hydrostatic() {
     solver.step(1.0e-3, 1000.0, 1.0, 1.0e-3, -9.81);
   }
   const double drift = std::abs(solver.mass() - mass0) / mass0;
-  const double speed = solver.max_speed();
+  const double speed = solver.maxSpeed();
   std::printf("hydrostatic: |u|max=%.3e mass_drift=%.3e\n", speed, drift);
   return speed < 1.0e-10 && drift < 1.0e-8;
 }
 
 // A wall-bounded static drop with surface tension: curvature error leaves a
 // small residual current, but it must stay bounded and mass must be conserved.
-bool check_static_drop(const char* label, double mu_l, double mu_g) {
+bool checkStaticDrop(const char* label, double mu_l, double mu_g) {
   const int n = 64;
   saturn::twophase::DamBreak2D solver(n, n);
   for (int j = 0; j < n; ++j) {
@@ -95,9 +95,9 @@ bool check_static_drop(const char* label, double mu_l, double mu_g) {
   }
   double cmin = 0.0;
   double cmax = 0.0;
-  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const bool bounded = boundsOk(solver.c(), cmin, cmax);
   const double drift = std::abs(solver.mass() - mass0) / mass0;
-  const double speed = solver.max_speed();
+  const double speed = solver.maxSpeed();
   double pressure_in = 0.0;
   double pressure_out = 0.0;
   int inside = 0;
@@ -130,7 +130,7 @@ bool check_static_drop(const char* label, double mu_l, double mu_g) {
 // viscous liquid must rise while mass stays conserved and the field bounded.
 // Parameters follow the Hysing et al. case-1 setup; this is a stability and
 // qualitative check, not yet a quantitative benchmark comparison.
-bool check_rising_bubble() {
+bool checkRisingBubble() {
   const int nx = 64;
   const int ny = 128;
   const double h = 1.0 / nx;
@@ -164,9 +164,9 @@ bool check_rising_bubble() {
   const double y1 = centroid();
   double cmin = 0.0;
   double cmax = 0.0;
-  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const bool bounded = boundsOk(solver.c(), cmin, cmax);
   const double drift = std::abs(solver.mass() - mass0) / mass0;
-  const double speed = solver.max_speed();
+  const double speed = solver.maxSpeed();
   std::printf("rising bubble: rise=%.4f |u|max=%.3e mass_drift=%.3e\n", y1 - y0,
               speed, drift);
   return y1 - y0 > 0.01 && speed < 1.0 && drift < 1.0e-8 && bounded &&
@@ -177,7 +177,7 @@ bool check_rising_bubble() {
 // the reference positions at the published dimensionless times
 // T = t sqrt(2g/a) within 15%. The experiment has a finite gate-release time,
 // so an inviscid simulation is expected to be a little early.
-bool check_martin_moyce() {
+bool checkMartinMoyce() {
   const int nx = 128;
   const int ny = 64;
   const double lx = 0.8;
@@ -219,14 +219,14 @@ bool check_martin_moyce() {
   }
   double cmin = 0.0;
   double cmax = 0.0;
-  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const bool bounded = boundsOk(solver.c(), cmin, cmax);
   const double drift = std::abs(solver.mass() - mass0) / mass0;
   std::printf(
       "Martin-Moyce: T=%.2f/%.2f/%.2f (ref %.2f/%.2f/%.2f) "
       "drift=%.2e\n",
       arrival[0], arrival[1], arrival[2], reference[0], reference[1],
       reference[2], drift);
-  bool ok = bounded && drift < 1.0e-8 && std::isfinite(solver.max_speed());
+  bool ok = bounded && drift < 1.0e-8 && std::isfinite(solver.maxSpeed());
   for (int q = 0; q < 3; ++q) {
     if (arrival[q] < 0.0 || std::abs(arrival[q] / reference[q] - 1.0) > 0.15) {
       ok = false;
@@ -238,7 +238,7 @@ bool check_martin_moyce() {
 // Rayleigh-Taylor linear growth at Atwood 1/3: the centre-column vertical
 // velocity should grow as exp(sigma t) with sigma = sqrt(A g k) to within the
 // accuracy of the face-staggered conservative momentum flux at n=64.
-bool check_rti() {
+bool checkRti() {
   const int n = 64;
   const double h = 1.0 / n;
   const double amplitude = 1.0e-3;
@@ -268,7 +268,7 @@ bool check_rti() {
   }
   double cmin = 0.0;
   double cmax = 0.0;
-  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const bool bounded = boundsOk(solver.c(), cmin, cmax);
   const double drift = std::abs(solver.mass() - mass0) / mass0;
   const double measured = std::log(std::abs(v_late / v_early)) / 0.2;
   const double theory = std::sqrt(atwood * 9.81 * k);
@@ -276,7 +276,7 @@ bool check_rti() {
               drift);
   const bool growth_ok = std::abs(measured / theory - 1.0) < 0.15;
   return growth_ok && drift < 1.0e-8 && bounded &&
-         std::isfinite(solver.max_speed());
+         std::isfinite(solver.maxSpeed());
 }
 
 }  // namespace
@@ -284,20 +284,20 @@ bool check_rti() {
 int main() {
   std::vector<double> plain;
   std::vector<double> csf;
-  bool ok = check_case("dam break", 0.0, &plain);
-  ok = check_case("dam break + CSF", 0.072, &csf) && ok;
+  bool ok = checkCase("dam break", 0.0, &plain);
+  ok = checkCase("dam break + CSF", 0.072, &csf) && ok;
   double difference = 0.0;
   for (std::size_t q = 0; q < plain.size(); ++q) {
     difference = std::max(difference, std::abs(plain[q] - csf[q]));
   }
   std::printf("CSF/plain interface difference: %.3e\n", difference);
   ok = difference > 1.0e-8 && ok;
-  ok = check_hydrostatic() && ok;
-  ok = check_static_drop("static drop", 1.0e-3, 1.0e-3) && ok;
-  ok = check_static_drop("static drop mu 10:1", 1.0e-3, 1.0e-2) && ok;
-  ok = check_rising_bubble() && ok;
-  ok = check_martin_moyce() && ok;
-  ok = check_rti() && ok;
+  ok = checkHydrostatic() && ok;
+  ok = checkStaticDrop("static drop", 1.0e-3, 1.0e-3) && ok;
+  ok = checkStaticDrop("static drop mu 10:1", 1.0e-3, 1.0e-2) && ok;
+  ok = checkRisingBubble() && ok;
+  ok = checkMartinMoyce() && ok;
+  ok = checkRti() && ok;
   std::printf("dam break test %s\n", ok ? "passed" : "failed");
   return ok ? 0 : 1;
 }

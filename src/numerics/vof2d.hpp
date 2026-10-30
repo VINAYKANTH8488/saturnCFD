@@ -25,7 +25,7 @@ struct Point {
   double y;
 };
 
-inline double polygon_area(const std::vector<Point>& polygon) {
+inline double polygonArea(const std::vector<Point>& polygon) {
   double area = 0.0;
   const int n = static_cast<int>(polygon.size());
   for (int i = 0; i < n; ++i) {
@@ -37,8 +37,8 @@ inline double polygon_area(const std::vector<Point>& polygon) {
 }
 
 // Clip a convex polygon by the half-plane sign*(p.x - c) <= 0 along one axis.
-inline std::vector<Point> clip_axis(const std::vector<Point>& polygon, int axis,
-                                    double value, double sign) {
+inline std::vector<Point> clipAxis(const std::vector<Point>& polygon, int axis,
+                                   double value, double sign) {
   std::vector<Point> output;
   if (polygon.empty()) {
     return output;
@@ -64,8 +64,8 @@ inline std::vector<Point> clip_axis(const std::vector<Point>& polygon, int axis,
   return output;
 }
 
-inline std::vector<Point> clip_half_plane(const std::vector<Point>& polygon,
-                                          double nx, double ny, double alpha) {
+inline std::vector<Point> clipHalfPlane(const std::vector<Point>& polygon,
+                                        double nx, double ny, double alpha) {
   std::vector<Point> output;
   if (polygon.empty()) {
     return output;
@@ -93,7 +93,7 @@ inline std::vector<Point> clip_half_plane(const std::vector<Point>& polygon,
   return output;
 }
 
-inline std::vector<Point> unit_square() {
+inline std::vector<Point> unitSquare() {
   return {Point{0.0, 0.0}, Point{1.0, 0.0}, Point{1.0, 1.0}, Point{0.0, 1.0}};
 }
 
@@ -116,11 +116,11 @@ inline Reconstruction reconstruct(double c, double nx, double ny) {
   result.ny = ny / norm;
   double lo = -0.5 * (std::abs(result.nx) + std::abs(result.ny));
   double hi = 0.5 * (std::abs(result.nx) + std::abs(result.ny));
-  const auto square = unit_square();
+  const auto square = unitSquare();
   for (int iter = 0; iter < 50; ++iter) {
     const double mid = 0.5 * (lo + hi);
     const double area =
-        polygon_area(clip_half_plane(square, result.nx, result.ny, mid));
+        polygonArea(clipHalfPlane(square, result.nx, result.ny, mid));
     if (area < c) {
       lo = mid;
     } else {
@@ -131,8 +131,8 @@ inline Reconstruction reconstruct(double c, double nx, double ny) {
   return result;
 }
 
-inline std::vector<Point> fluid_polygon(const Reconstruction& r) {
-  return clip_half_plane(unit_square(), r.nx, r.ny, r.alpha);
+inline std::vector<Point> fluidPolygon(const Reconstruction& r) {
+  return clipHalfPlane(unitSquare(), r.nx, r.ny, r.alpha);
 }
 
 class Grid2D {
@@ -174,7 +174,7 @@ class Grid2D {
 
   // One directional sweep. `velocity` is face-centered in the sweep direction
   // (nx*ny for x, nx*ny for y); periodic indexing.
-  void sweep_x(const std::vector<double>& u, double dt) {
+  void sweepX(const std::vector<double>& u, double dt) {
     const auto rec = reconstructions();
     std::vector<double> flux(static_cast<std::size_t>(nx_) * ny_, 0.0);
     for (int i = 0; i < nx_; ++i) {
@@ -188,10 +188,10 @@ class Grid2D {
         const double width = std::min(std::abs(vel) * dt / hx_, 1.0);
         const double x0 = vel > 0.0 ? 1.0 - width : 0.0;
         const double x1 = vel > 0.0 ? 1.0 : width;
-        std::vector<Point> piece = fluid_polygon(r);
-        piece = clip_axis(piece, 0, x0, -1.0);
-        piece = clip_axis(piece, 0, x1, 1.0);
-        const double area = polygon_area(piece);
+        std::vector<Point> piece = fluidPolygon(r);
+        piece = clipAxis(piece, 0, x0, -1.0);
+        piece = clipAxis(piece, 0, x1, 1.0);
+        const double area = polygonArea(piece);
         flux[static_cast<std::size_t>(i) * ny_ + j] =
             (vel > 0.0 ? 1.0 : -1.0) * area * hx_ * hy_;
       }
@@ -206,7 +206,7 @@ class Grid2D {
     }
   }
 
-  void sweep_y(const std::vector<double>& v, double dt) {
+  void sweepY(const std::vector<double>& v, double dt) {
     const auto rec = reconstructions();
     std::vector<double> flux(static_cast<std::size_t>(nx_) * ny_, 0.0);
     for (int i = 0; i < nx_; ++i) {
@@ -220,10 +220,10 @@ class Grid2D {
         const double width = std::min(std::abs(vel) * dt / hy_, 1.0);
         const double y0 = vel > 0.0 ? 1.0 - width : 0.0;
         const double y1 = vel > 0.0 ? 1.0 : width;
-        std::vector<Point> piece = fluid_polygon(r);
-        piece = clip_axis(piece, 1, y0, -1.0);
-        piece = clip_axis(piece, 1, y1, 1.0);
-        const double area = polygon_area(piece);
+        std::vector<Point> piece = fluidPolygon(r);
+        piece = clipAxis(piece, 1, y0, -1.0);
+        piece = clipAxis(piece, 1, y1, 1.0);
+        const double area = polygonArea(piece);
         flux[static_cast<std::size_t>(i) * ny_ + j] =
             (vel > 0.0 ? 1.0 : -1.0) * area * hx_ * hy_;
       }
@@ -241,9 +241,9 @@ class Grid2D {
   // Strang-split advection over dt.
   void advance(const std::vector<double>& u, const std::vector<double>& v,
                double dt) {
-    sweep_x(u, 0.5 * dt);
-    sweep_y(v, dt);
-    sweep_x(u, 0.5 * dt);
+    sweepX(u, 0.5 * dt);
+    sweepY(v, dt);
+    sweepX(u, 0.5 * dt);
   }
 
   double mass() const {

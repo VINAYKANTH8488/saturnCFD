@@ -58,7 +58,7 @@ void usage(const char* argv0) {
                "through.\n";
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -73,8 +73,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -90,21 +90,21 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--nx") {
-      p.nx = parse_int(a, require_value(i, argc, argv, a));
+      p.nx = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--ny") {
-      p.ny = parse_int(a, require_value(i, argc, argv, a));
+      p.ny = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--nz") {
-      p.nz = parse_int(a, require_value(i, argc, argv, a));
+      p.nz = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--iters") {
-      p.iters = parse_int(a, require_value(i, argc, argv, a));
+      p.iters = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--warmup") {
-      p.warmup = parse_int(a, require_value(i, argc, argv, a));
+      p.warmup = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--tile") {
-      p.tile = parse_int(a, require_value(i, argc, argv, a));
+      p.tile = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--json") {
-      p.json = require_value(i, argc, argv, a);
+      p.json = requireValue(i, argc, argv, a);
     } else if (a == "--verify") {
       p.verify = true;
     } else if (a == "--verbose") {
@@ -129,7 +129,7 @@ Params parse(int argc, char** argv) {
 }
 
 template <class ExecSpace>
-int run_impl(const Params& p) {
+int runImpl(const Params& p) {
   using view_type = Kokkos::View<double***, Kokkos::LayoutRight,
                                  typename ExecSpace::memory_space>;
   using policy_type = Kokkos::MDRangePolicy<ExecSpace, Kokkos::Rank<3>>;
@@ -293,10 +293,10 @@ int main(int argc, char** argv) {
   const Params params = parse(argc, argv);
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
-        return run_impl<space_type>(params);
+        return runImpl<space_type>(params);
       });
   Kokkos::finalize();
   return status;

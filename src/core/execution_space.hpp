@@ -8,7 +8,7 @@
 
 namespace saturn {
 
-inline int unavailable_backend(const std::string& name) {
+inline int unavailableBackend(const std::string& name) {
   std::fprintf(stderr, "backend '%s' is not enabled in this Kokkos build\n",
                name.c_str());
   return 2;
@@ -19,14 +19,14 @@ inline int unavailable_backend(const std::string& name) {
 // The callable is invoked as f(Kokkos::SomeExecutionSpace{}), so a generic
 // lambda can recover the type with decltype and instantiate a template:
 //
-//   saturn::dispatch_execution_space(space, SATURN_DEFAULT_SPACE, [&](auto tag)
+//   saturn::dispatchExecutionSpace(space, SATURN_DEFAULT_SPACE, [&](auto tag)
 //   {
 //     using space_type = decltype(tag);
-//     return run_impl<space_type>(params);
+//     return runImpl<space_type>(params);
 //   });
 template <class F>
-int dispatch_execution_space(const std::string& requested,
-                             const char* default_space, F&& f) {
+int dispatchExecutionSpace(const std::string& requested,
+                           const char* default_space, F&& f) {
   std::string space = requested;
   if (space == "default") {
     space = default_space;
@@ -39,35 +39,35 @@ int dispatch_execution_space(const std::string& requested,
 #ifdef KOKKOS_ENABLE_SERIAL
     return std::forward<F>(f)(Kokkos::Serial{});
 #else
-    return unavailable_backend(space);
+    return unavailableBackend(space);
 #endif
   }
   if (space == "openmp") {
 #ifdef KOKKOS_ENABLE_OPENMP
     return std::forward<F>(f)(Kokkos::OpenMP{});
 #else
-    return unavailable_backend(space);
+    return unavailableBackend(space);
 #endif
   }
   if (space == "cuda") {
 #ifdef KOKKOS_ENABLE_CUDA
     return std::forward<F>(f)(Kokkos::Cuda{});
 #else
-    return unavailable_backend(space);
+    return unavailableBackend(space);
 #endif
   }
   if (space == "hip") {
 #ifdef KOKKOS_ENABLE_HIP
     return std::forward<F>(f)(Kokkos::HIP{});
 #else
-    return unavailable_backend(space);
+    return unavailableBackend(space);
 #endif
   }
   if (space == "sycl") {
 #ifdef KOKKOS_ENABLE_SYCL
     return std::forward<F>(f)(Kokkos::SYCL{});
 #else
-    return unavailable_backend(space);
+    return unavailableBackend(space);
 #endif
   }
 

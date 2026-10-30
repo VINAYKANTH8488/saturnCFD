@@ -37,7 +37,7 @@ void divergence(const ScalarView<ExecSpace>& u, const ScalarView<ExecSpace>& v,
   const double hy = h[1];
   const double hz = h[2];
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "projection_divergence", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int ip = (i + 1 == n0) ? 0 : i + 1;
@@ -50,13 +50,13 @@ void divergence(const ScalarView<ExecSpace>& u, const ScalarView<ExecSpace>& v,
 }
 
 template <class ExecSpace>
-void gradient_x(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gx,
-                double hx) {
+void gradientX(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gx,
+               double hx) {
   const int n0 = static_cast<int>(p.extent(2));
   const int n1 = static_cast<int>(p.extent(1));
   const int n2 = static_cast<int>(p.extent(0));
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "projection_grad_x", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int im = (i == 0) ? n0 - 1 : i - 1;
@@ -65,13 +65,13 @@ void gradient_x(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gx,
 }
 
 template <class ExecSpace>
-void gradient_y(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gy,
-                double hy) {
+void gradientY(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gy,
+               double hy) {
   const int n0 = static_cast<int>(p.extent(2));
   const int n1 = static_cast<int>(p.extent(1));
   const int n2 = static_cast<int>(p.extent(0));
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "projection_grad_y", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int jm = (j == 0) ? n1 - 1 : j - 1;
@@ -80,13 +80,13 @@ void gradient_y(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gy,
 }
 
 template <class ExecSpace>
-void gradient_z(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gz,
-                double hz) {
+void gradientZ(const ScalarView<ExecSpace>& p, ScalarView<ExecSpace>& gz,
+               double hz) {
   const int n0 = static_cast<int>(p.extent(2));
   const int n1 = static_cast<int>(p.extent(1));
   const int n2 = static_cast<int>(p.extent(0));
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "projection_grad_z", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         const int km = (k == 0) ? n2 - 1 : k - 1;
@@ -116,7 +116,7 @@ poisson::Result project(ScalarView<ExecSpace>& u, ScalarView<ExecSpace>& v,
   const double hy = h[1];
   const double hz = h[2];
   const auto policy =
-      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
+      makeMdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{n2, n1, n0}});
   Kokkos::parallel_for(
       "projection_rhs", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         scratch(k, j, i) = -scratch(k, j, i) / dt;

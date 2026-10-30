@@ -69,8 +69,8 @@ class DamBreak2D {
 
     std::vector<double> vof_x;
     std::vector<double> vof_y;
-    plic_flux_x(dt, vof_x);
-    plic_flux_y(dt, vof_y);
+    plicFluxX(dt, vof_x);
+    plicFluxY(dt, vof_y);
 
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
@@ -81,7 +81,7 @@ class DamBreak2D {
                      (high - vof_y[index]) / (hx_ * hy_);
       }
     }
-    restore_bounds();
+    restoreBounds();
 
     std::vector<double> rho_new(total, 0.0);
     std::vector<double> mu_cell(total, 0.0);
@@ -238,7 +238,7 @@ class DamBreak2D {
     // CSF acts on faces.
     std::vector<double> csf_x;
     std::vector<double> csf_y;
-    csf_forces(sigma, csf_x, csf_y);
+    csfForces(sigma, csf_x, csf_y);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 1; i < nx_; ++i) {
         const std::size_t index = static_cast<std::size_t>(j) * nx_ + i;
@@ -291,15 +291,15 @@ class DamBreak2D {
   }
 
   // Wall-aware PLIC advection: Strang split x/y with geometric face fluxes.
-  void advect_plic(double dt) {
-    sweep_x_plic(0.5 * dt);
-    sweep_y_plic(dt);
-    sweep_x_plic(0.5 * dt);
-    restore_bounds();
+  void advectPlic(double dt) {
+    sweepXPlic(0.5 * dt);
+    sweepYPlic(dt);
+    sweepXPlic(0.5 * dt);
+    restoreBounds();
   }
 
  private:
-  std::size_t cell_index(int i, int j) const {
+  std::size_t cellIndex(int i, int j) const {
     const int ii = std::min(std::max(i, 0), nx_ - 1);
     const int jj = std::min(std::max(j, 0), ny_ - 1);
     return static_cast<std::size_t>(jj) * nx_ + ii;
@@ -307,8 +307,8 @@ class DamBreak2D {
 
   // Balanced CSF force on faces: sigma * kappa * grad(c), with a smoothed
   // volume fraction and mirror (zero-normal-gradient) ghosts at the walls.
-  void csf_forces(double sigma, std::vector<double>& fx,
-                  std::vector<double>& fy) const {
+  void csfForces(double sigma, std::vector<double>& fx,
+                 std::vector<double>& fy) const {
     const std::size_t total = static_cast<std::size_t>(nx_) * ny_;
     fx.assign(total, 0.0);
     fy.assign(total, 0.0);
@@ -320,37 +320,37 @@ class DamBreak2D {
       std::vector<double> buffer(smoothed);
       for (int j = 0; j < ny_; ++j) {
         for (int i = 0; i < nx_; ++i) {
-          buffer[cell_index(i, j)] = 0.25 * smoothed[cell_index(i - 1, j)] +
-                                     0.5 * smoothed[cell_index(i, j)] +
-                                     0.25 * smoothed[cell_index(i + 1, j)];
+          buffer[cellIndex(i, j)] = 0.25 * smoothed[cellIndex(i - 1, j)] +
+                                    0.5 * smoothed[cellIndex(i, j)] +
+                                    0.25 * smoothed[cellIndex(i + 1, j)];
         }
       }
       std::vector<double> next(buffer);
       for (int j = 0; j < ny_; ++j) {
         for (int i = 0; i < nx_; ++i) {
-          next[cell_index(i, j)] = 0.25 * buffer[cell_index(i, j - 1)] +
-                                   0.5 * buffer[cell_index(i, j)] +
-                                   0.25 * buffer[cell_index(i, j + 1)];
+          next[cellIndex(i, j)] = 0.25 * buffer[cellIndex(i, j - 1)] +
+                                  0.5 * buffer[cellIndex(i, j)] +
+                                  0.25 * buffer[cellIndex(i, j + 1)];
         }
       }
       smoothed = next;
     }
     auto grad = [&](int i, int j, double& gx, double& gy) {
       gx = 0.5 *
-           (smoothed[cell_index(i + 1, j)] - smoothed[cell_index(i - 1, j)]) /
+           (smoothed[cellIndex(i + 1, j)] - smoothed[cellIndex(i - 1, j)]) /
            hx_;
       gy = 0.5 *
-           (smoothed[cell_index(i, j + 1)] - smoothed[cell_index(i, j - 1)]) /
+           (smoothed[cellIndex(i, j + 1)] - smoothed[cellIndex(i, j - 1)]) /
            hy_;
     };
-    auto normal_x = [&](int i, int j) {
+    auto normalX = [&](int i, int j) {
       double gx = 0.0;
       double gy = 0.0;
       grad(i, j, gx, gy);
       const double norm = std::sqrt(gx * gx + gy * gy);
       return norm > 1.0e-10 ? gx / norm : 0.0;
     };
-    auto normal_y = [&](int i, int j) {
+    auto normalY = [&](int i, int j) {
       double gx = 0.0;
       double gy = 0.0;
       grad(i, j, gx, gy);
@@ -360,24 +360,23 @@ class DamBreak2D {
     std::vector<double> kappa(total, 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
-        const double div =
-            0.5 * (normal_x(i + 1, j) - normal_x(i - 1, j)) / hx_ +
-            0.5 * (normal_y(i, j + 1) - normal_y(i, j - 1)) / hy_;
-        kappa[cell_index(i, j)] = -div;
+        const double div = 0.5 * (normalX(i + 1, j) - normalX(i - 1, j)) / hx_ +
+                           0.5 * (normalY(i, j + 1) - normalY(i, j - 1)) / hy_;
+        kappa[cellIndex(i, j)] = -div;
       }
     }
     for (int j = 0; j < ny_; ++j) {
       for (int i = 1; i < nx_; ++i) {
-        const std::size_t index = cell_index(i, j);
-        const std::size_t left = cell_index(i - 1, j);
+        const std::size_t index = cellIndex(i, j);
+        const std::size_t left = cellIndex(i - 1, j);
         const double kx = 0.5 * (kappa[index] + kappa[left]);
         fx[index] = sigma * kx * (c_[index] - c_[left]) / hx_;
       }
     }
     for (int j = 1; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
-        const std::size_t index = cell_index(i, j);
-        const std::size_t low = cell_index(i, j - 1);
+        const std::size_t index = cellIndex(i, j);
+        const std::size_t low = cellIndex(i, j - 1);
         const double ky = 0.5 * (kappa[index] + kappa[low]);
         fy[index] = sigma * ky * (c_[index] - c_[low]) / hy_;
       }
@@ -388,11 +387,11 @@ class DamBreak2D {
   // discretely divergence-free velocity. Clamp and redistribute the resulting
   // mass error over available capacity so the update stays conservative and
   // bounded (the same construction as vof::redistribute, for a raw vector).
-  void restore_bounds(int sweeps = 8) {
-    const double cell_volume = hx_ * hy_;
+  void restoreBounds(int sweeps = 8) {
+    const double cellVolume = hx_ * hy_;
     double target = 0.0;
     for (double value : c_) {
-      target += value * cell_volume;
+      target += value * cellVolume;
     }
     for (int sweep = 0; sweep < sweeps; ++sweep) {
       for (double& value : c_) {
@@ -400,7 +399,7 @@ class DamBreak2D {
       }
       double current = 0.0;
       for (double value : c_) {
-        current += value * cell_volume;
+        current += value * cellVolume;
       }
       const double delta = target - current;
       if (std::abs(delta) <= 1.0e-14 * std::max(1.0, std::abs(target))) {
@@ -413,7 +412,7 @@ class DamBreak2D {
           capacity += (delta > 0.0) ? (1.0 - value) : value;
         }
       }
-      if (capacity * cell_volume < std::abs(delta)) {
+      if (capacity * cellVolume < std::abs(delta)) {
         // Interface cells cannot absorb the correction; fall back to the whole
         // domain.
         capacity = 0.0;
@@ -421,10 +420,10 @@ class DamBreak2D {
           capacity += (delta > 0.0) ? (1.0 - value) : value;
         }
       }
-      if (capacity * cell_volume <= 0.0) {
+      if (capacity * cellVolume <= 0.0) {
         break;
       }
-      const double weight = delta / (capacity * cell_volume);
+      const double weight = delta / (capacity * cellVolume);
       for (double& value : c_) {
         const bool eligible = (delta > 0.0) ? (value > 0.0) : (value < 1.0);
         if (!eligible) {
@@ -444,8 +443,8 @@ class DamBreak2D {
   }
 
   // Geometric PLIC flux of fluid 1 through each x-face (indexed like u_).
-  void plic_flux_x(double dt, std::vector<double>& flux) const {
-    const auto rec = wall_reconstructions();
+  void plicFluxX(double dt, std::vector<double>& flux) const {
+    const auto rec = wallReconstructions();
     flux.assign(c_.size(), 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 1; i < nx_; ++i) {
@@ -459,18 +458,18 @@ class DamBreak2D {
         const double width = std::min(std::abs(vel) * dt / hx_, 1.0);
         const double x0 = vel > 0.0 ? 1.0 - width : 0.0;
         const double x1 = vel > 0.0 ? 1.0 : width;
-        std::vector<vof::Point> poly = vof::fluid_polygon(r);
-        poly = vof::clip_axis(poly, 0, x0, -1.0);
-        poly = vof::clip_axis(poly, 0, x1, 1.0);
+        std::vector<vof::Point> poly = vof::fluidPolygon(r);
+        poly = vof::clipAxis(poly, 0, x0, -1.0);
+        poly = vof::clipAxis(poly, 0, x1, 1.0);
         flux[index] =
-            (vel > 0.0 ? 1.0 : -1.0) * vof::polygon_area(poly) * hx_ * hy_;
+            (vel > 0.0 ? 1.0 : -1.0) * vof::polygonArea(poly) * hx_ * hy_;
       }
     }
   }
 
   // Geometric PLIC flux of fluid 1 through each y-face (indexed like v_).
-  void plic_flux_y(double dt, std::vector<double>& flux) const {
-    const auto rec = wall_reconstructions();
+  void plicFluxY(double dt, std::vector<double>& flux) const {
+    const auto rec = wallReconstructions();
     flux.assign(c_.size(), 0.0);
     for (int j = 1; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
@@ -484,16 +483,16 @@ class DamBreak2D {
         const double width = std::min(std::abs(vel) * dt / hy_, 1.0);
         const double y0 = vel > 0.0 ? 1.0 - width : 0.0;
         const double y1 = vel > 0.0 ? 1.0 : width;
-        std::vector<vof::Point> poly = vof::fluid_polygon(r);
-        poly = vof::clip_axis(poly, 1, y0, -1.0);
-        poly = vof::clip_axis(poly, 1, y1, 1.0);
+        std::vector<vof::Point> poly = vof::fluidPolygon(r);
+        poly = vof::clipAxis(poly, 1, y0, -1.0);
+        poly = vof::clipAxis(poly, 1, y1, 1.0);
         flux[index] =
-            (vel > 0.0 ? 1.0 : -1.0) * vof::polygon_area(poly) * hx_ * hy_;
+            (vel > 0.0 ? 1.0 : -1.0) * vof::polygonArea(poly) * hx_ * hy_;
       }
     }
   }
 
-  std::vector<vof::Reconstruction> wall_reconstructions() const {
+  std::vector<vof::Reconstruction> wallReconstructions() const {
     std::vector<vof::Reconstruction> rec(static_cast<std::size_t>(nx_) * ny_);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
@@ -506,8 +505,8 @@ class DamBreak2D {
     return rec;
   }
 
-  void sweep_x_plic(double dt) {
-    const auto rec = wall_reconstructions();
+  void sweepXPlic(double dt) {
+    const auto rec = wallReconstructions();
     std::vector<double> flux(c_.size(), 0.0);
     for (int j = 0; j < ny_; ++j) {
       for (int i = 1; i < nx_; ++i) {
@@ -521,11 +520,11 @@ class DamBreak2D {
         const double width = std::min(std::abs(vel) * dt / hx_, 1.0);
         const double x0 = vel > 0.0 ? 1.0 - width : 0.0;
         const double x1 = vel > 0.0 ? 1.0 : width;
-        std::vector<vof::Point> poly = vof::fluid_polygon(r);
-        poly = vof::clip_axis(poly, 0, x0, -1.0);
-        poly = vof::clip_axis(poly, 0, x1, 1.0);
+        std::vector<vof::Point> poly = vof::fluidPolygon(r);
+        poly = vof::clipAxis(poly, 0, x0, -1.0);
+        poly = vof::clipAxis(poly, 0, x1, 1.0);
         flux[index] =
-            (vel > 0.0 ? 1.0 : -1.0) * vof::polygon_area(poly) * hx_ * hy_;
+            (vel > 0.0 ? 1.0 : -1.0) * vof::polygonArea(poly) * hx_ * hy_;
       }
     }
     for (int j = 0; j < ny_; ++j) {
@@ -538,8 +537,8 @@ class DamBreak2D {
     }
   }
 
-  void sweep_y_plic(double dt) {
-    const auto rec = wall_reconstructions();
+  void sweepYPlic(double dt) {
+    const auto rec = wallReconstructions();
     std::vector<double> flux(c_.size(), 0.0);
     for (int j = 1; j < ny_; ++j) {
       for (int i = 0; i < nx_; ++i) {
@@ -553,11 +552,11 @@ class DamBreak2D {
         const double width = std::min(std::abs(vel) * dt / hy_, 1.0);
         const double y0 = vel > 0.0 ? 1.0 - width : 0.0;
         const double y1 = vel > 0.0 ? 1.0 : width;
-        std::vector<vof::Point> poly = vof::fluid_polygon(r);
-        poly = vof::clip_axis(poly, 1, y0, -1.0);
-        poly = vof::clip_axis(poly, 1, y1, 1.0);
+        std::vector<vof::Point> poly = vof::fluidPolygon(r);
+        poly = vof::clipAxis(poly, 1, y0, -1.0);
+        poly = vof::clipAxis(poly, 1, y1, 1.0);
         flux[index] =
-            (vel > 0.0 ? 1.0 : -1.0) * vof::polygon_area(poly) * hx_ * hy_;
+            (vel > 0.0 ? 1.0 : -1.0) * vof::polygonArea(poly) * hx_ * hy_;
       }
     }
     for (int i = 0; i < nx_; ++i) {
@@ -571,7 +570,7 @@ class DamBreak2D {
   }
 
  public:
-  double max_speed() const {
+  double maxSpeed() const {
     double result = 0.0;
     for (double x : u_) {
       result = std::max(result, std::abs(x));

@@ -35,13 +35,13 @@ class BoxExchange {
                               decomposition_.periodic[2];
 #ifndef SATURN_ENABLE_MPI
     if (all_periodic) {
-      q.fill_periodic();
+      q.fillPeriodic();
     }
     (void)q;
 #else
     if (decomposition_.size == 1) {
       if (all_periodic) {
-        q.fill_periodic();
+        q.fillPeriodic();
       }
       return;
     }
@@ -106,8 +106,8 @@ class BoxExchange {
           block.extent[1] = extent[1];
           block.extent[2] = extent[2];
           block.count = nvar_ * extent[0] * extent[1] * extent[2];
-          block.send_tag = tag_for(ox, oy, oz);
-          block.recv_tag = tag_for(-ox, -oy, -oz);
+          block.send_tag = tagFor(ox, oy, oz);
+          block.recv_tag = tagFor(-ox, -oy, -oz);
           block.send.resize(static_cast<std::size_t>(block.count));
           block.recv.resize(static_cast<std::size_t>(block.count));
           if (neighbor == decomposition_.rank) {
@@ -142,7 +142,7 @@ class BoxExchange {
   }
 
  private:
-  static int tag_for(int ox, int oy, int oz) {
+  static int tagFor(int ox, int oy, int oz) {
     return 100 + (ox + 1) * 9 + (oy + 1) * 3 + (oz + 1);
   }
 

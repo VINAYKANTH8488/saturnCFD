@@ -6,7 +6,7 @@
 
 namespace saturn {
 
-inline int mpi_rank() {
+inline int mpiRank() {
 #ifdef SATURN_ENABLE_MPI
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -16,7 +16,7 @@ inline int mpi_rank() {
 #endif
 }
 
-inline int mpi_size() {
+inline int mpiSize() {
 #ifdef SATURN_ENABLE_MPI
   int size = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -26,7 +26,7 @@ inline int mpi_size() {
 #endif
 }
 
-inline double mpi_sum(double value) {
+inline double mpiSum(double value) {
 #ifdef SATURN_ENABLE_MPI
   double result = 0.0;
   MPI_Allreduce(&value, &result, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -36,7 +36,7 @@ inline double mpi_sum(double value) {
 #endif
 }
 
-inline double mpi_max(double value) {
+inline double mpiMax(double value) {
 #ifdef SATURN_ENABLE_MPI
   double result = 0.0;
   MPI_Allreduce(&value, &result, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -46,7 +46,7 @@ inline double mpi_max(double value) {
 #endif
 }
 
-inline bool mpi_all(bool value) {
+inline bool mpiAll(bool value) {
 #ifdef SATURN_ENABLE_MPI
   int local = value ? 1 : 0;
   int result = 0;

@@ -159,8 +159,8 @@ struct ExactRiemann {
 // Small conservative-state helpers.
 // ---------------------------------------------------------------------------
 
-ConservativeState add_scaled(const ConservativeState& base,
-                             const ConservativeState& increment, double scale) {
+ConservativeState addScaled(const ConservativeState& base,
+                            const ConservativeState& increment, double scale) {
   return ConservativeState{base.rho + scale * increment.rho,
                            base.mom_n + scale * increment.mom_n,
                            base.mom_t1 + scale * increment.mom_t1,
@@ -168,8 +168,8 @@ ConservativeState add_scaled(const ConservativeState& base,
                            base.energy + scale * increment.energy};
 }
 
-ConservativeState linear_combination(double a, const ConservativeState& x,
-                                     double b, const ConservativeState& y) {
+ConservativeState linearCombination(double a, const ConservativeState& x,
+                                    double b, const ConservativeState& y) {
   return ConservativeState{a * x.rho + b * y.rho, a * x.mom_n + b * y.mom_n,
                            a * x.mom_t1 + b * y.mom_t1,
                            a * x.mom_t2 + b * y.mom_t2,
@@ -195,7 +195,7 @@ class Euler1D {
     for (int i = 0; i < n_; ++i) {
       const double x = (static_cast<double>(i) + 0.5) * dx_;
       const PrimitiveState state = reference.sample(x, 0.0);
-      cells_[i] = saturn::riemann::to_conservative(state, gamma_);
+      cells_[i] = saturn::riemann::toConservative(state, gamma_);
     }
   }
 
@@ -205,49 +205,48 @@ class Euler1D {
     double last_dt = 0.0;
     int step = 0;
     while (time < t_end - 1.0e-14) {
-      double max_speed = 0.0;
+      double maxSpeed = 0.0;
       for (const auto& cell : cells_) {
-        const PrimitiveState state =
-            saturn::riemann::to_primitive(cell, gamma_);
+        const PrimitiveState state = saturn::riemann::toPrimitive(cell, gamma_);
         if (!(state.rho > 0.0) || !(state.p > 0.0)) {
           std::fprintf(stderr, "non-positive state at step %d\n", step);
           return false;
         }
         const double c = std::sqrt(gamma_ * state.p / state.rho);
-        max_speed = std::max(max_speed, std::fabs(state.u) + c);
+        maxSpeed = std::max(maxSpeed, std::fabs(state.u) + c);
       }
-      if (!(max_speed > 0.0)) {
+      if (!(maxSpeed > 0.0)) {
         break;
       }
-      double dt = cfl * dx_ / max_speed;
+      double dt = cfl * dx_ / maxSpeed;
       if (time + dt > t_end) {
         dt = t_end - time;
       }
       last_dt = dt;
 
       std::vector<ConservativeState> stage(n_);
-      std::vector<ConservativeState> stage_rhs(n_);
+      std::vector<ConservativeState> stageRhs(n_);
       std::vector<ConservativeState> next(n_);
 
-      if (!compute_rhs(cells_, stage_rhs)) {
+      if (!computeRhs(cells_, stageRhs)) {
         return false;
       }
       for (int i = 0; i < n_; ++i) {
-        stage[i] = add_scaled(cells_[i], stage_rhs[i], dt);
+        stage[i] = addScaled(cells_[i], stageRhs[i], dt);
       }
-      if (!compute_rhs(stage, stage_rhs)) {
+      if (!computeRhs(stage, stageRhs)) {
         return false;
       }
       for (int i = 0; i < n_; ++i) {
-        next[i] = linear_combination(0.75, cells_[i], 0.25,
-                                     add_scaled(stage[i], stage_rhs[i], dt));
+        next[i] = linearCombination(0.75, cells_[i], 0.25,
+                                    addScaled(stage[i], stageRhs[i], dt));
       }
-      if (!compute_rhs(next, stage_rhs)) {
+      if (!computeRhs(next, stageRhs)) {
         return false;
       }
       for (int i = 0; i < n_; ++i) {
-        cells_[i] = linear_combination(1.0 / 3.0, cells_[i], 2.0 / 3.0,
-                                       add_scaled(next[i], stage_rhs[i], dt));
+        cells_[i] = linearCombination(1.0 / 3.0, cells_[i], 2.0 / 3.0,
+                                      addScaled(next[i], stageRhs[i], dt));
       }
 
       time += dt;
@@ -262,14 +261,14 @@ class Euler1D {
   double dx() const { return dx_; }
 
  private:
-  bool compute_rhs(const std::vector<ConservativeState>& state,
-                   std::vector<ConservativeState>& rhs) {
+  bool computeRhs(const std::vector<ConservativeState>& state,
+                  std::vector<ConservativeState>& rhs) {
     constexpr int kGhost = 3;
     const int extended_size = n_ + 2 * kGhost;
     std::vector<PrimitiveState> extended(extended_size);
 
     for (int i = 0; i < n_; ++i) {
-      extended[kGhost + i] = saturn::riemann::to_primitive(state[i], gamma_);
+      extended[kGhost + i] = saturn::riemann::toPrimitive(state[i], gamma_);
     }
     for (int g = 0; g < kGhost; ++g) {
       extended[kGhost - 1 - g] = extended[kGhost];
@@ -295,27 +294,27 @@ class Euler1D {
       }
 
       PrimitiveState left{
-          saturn::recon::reconstruct_left(scheme_, rho[0], rho[1], rho[2],
-                                          rho[3], rho[4], rho[5]),
-          saturn::recon::reconstruct_left(scheme_, u[0], u[1], u[2], u[3], u[4],
-                                          u[5]),
-          saturn::recon::reconstruct_left(scheme_, v[0], v[1], v[2], v[3], v[4],
-                                          v[5]),
-          saturn::recon::reconstruct_left(scheme_, w[0], w[1], w[2], w[3], w[4],
-                                          w[5]),
-          saturn::recon::reconstruct_left(scheme_, p[0], p[1], p[2], p[3], p[4],
-                                          p[5])};
+          saturn::recon::reconstructLeft(scheme_, rho[0], rho[1], rho[2],
+                                         rho[3], rho[4], rho[5]),
+          saturn::recon::reconstructLeft(scheme_, u[0], u[1], u[2], u[3], u[4],
+                                         u[5]),
+          saturn::recon::reconstructLeft(scheme_, v[0], v[1], v[2], v[3], v[4],
+                                         v[5]),
+          saturn::recon::reconstructLeft(scheme_, w[0], w[1], w[2], w[3], w[4],
+                                         w[5]),
+          saturn::recon::reconstructLeft(scheme_, p[0], p[1], p[2], p[3], p[4],
+                                         p[5])};
       PrimitiveState right{
-          saturn::recon::reconstruct_right(scheme_, rho[0], rho[1], rho[2],
-                                           rho[3], rho[4], rho[5]),
-          saturn::recon::reconstruct_right(scheme_, u[0], u[1], u[2], u[3],
-                                           u[4], u[5]),
-          saturn::recon::reconstruct_right(scheme_, v[0], v[1], v[2], v[3],
-                                           v[4], v[5]),
-          saturn::recon::reconstruct_right(scheme_, w[0], w[1], w[2], w[3],
-                                           w[4], w[5]),
-          saturn::recon::reconstruct_right(scheme_, p[0], p[1], p[2], p[3],
-                                           p[4], p[5])};
+          saturn::recon::reconstructRight(scheme_, rho[0], rho[1], rho[2],
+                                          rho[3], rho[4], rho[5]),
+          saturn::recon::reconstructRight(scheme_, u[0], u[1], u[2], u[3], u[4],
+                                          u[5]),
+          saturn::recon::reconstructRight(scheme_, v[0], v[1], v[2], v[3], v[4],
+                                          v[5]),
+          saturn::recon::reconstructRight(scheme_, w[0], w[1], w[2], w[3], w[4],
+                                          w[5]),
+          saturn::recon::reconstructRight(scheme_, p[0], p[1], p[2], p[3], p[4],
+                                          p[5])};
 
       // First-order fallback if a high-order reconstruction leaves the
       // physical state space.
@@ -345,7 +344,7 @@ class Euler1D {
   std::vector<ConservativeState> cells_;
 };
 
-Reconstruction parse_scheme(const std::string& name) {
+Reconstruction parseScheme(const std::string& name) {
   if (name == "central4") {
     return Reconstruction::Central4;
   }
@@ -358,7 +357,7 @@ Reconstruction parse_scheme(const std::string& name) {
   return Reconstruction::Weno5Z;
 }
 
-const char* scheme_name(Reconstruction scheme) {
+const char* schemeName(Reconstruction scheme) {
   switch (scheme) {
     case Reconstruction::Central2:
       return "central2";
@@ -374,7 +373,7 @@ const char* scheme_name(Reconstruction scheme) {
   return "weno5z";
 }
 
-RiemannSolver parse_solver(const std::string& name) {
+RiemannSolver parseSolver(const std::string& name) {
   if (name == "llf") {
     return RiemannSolver::Llf;
   }
@@ -387,7 +386,7 @@ RiemannSolver parse_solver(const std::string& name) {
   return RiemannSolver::Hllc;
 }
 
-const char* solver_name(RiemannSolver solver) {
+const char* solverName(RiemannSolver solver) {
   switch (solver) {
     case RiemannSolver::Llf:
       return "llf";
@@ -435,12 +434,12 @@ int main(int argc, char** argv) {
     } else if (argument == "--scheme") {
       const char* value = next();
       if (value) {
-        scheme = parse_scheme(value);
+        scheme = parseScheme(value);
       }
     } else if (argument == "--solver") {
       const char* value = next();
       if (value) {
-        solver = parse_solver(value);
+        solver = parseSolver(value);
       }
     } else if (argument == "--output") {
       const char* value = next();
@@ -494,7 +493,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < n; ++i) {
     const double x = (static_cast<double>(i) + 0.5) * dx;
     const PrimitiveState numerical =
-        saturn::riemann::to_primitive(cells[i], exact.gamma);
+        saturn::riemann::toPrimitive(cells[i], exact.gamma);
     const PrimitiveState reference = exact.sample(x, t_end);
     const double drho = std::fabs(numerical.rho - reference.rho);
     const double du = std::fabs(numerical.u - reference.u);
@@ -513,8 +512,8 @@ int main(int argc, char** argv) {
     std::fclose(file);
   }
 
-  std::printf("scheme: %s, solver: %s, n: %d, t: %.3f\n", scheme_name(scheme),
-              solver_name(solver), n, t_end);
+  std::printf("scheme: %s, solver: %s, n: %d, t: %.3f\n", schemeName(scheme),
+              solverName(solver), n, t_end);
   std::printf("exact: p*=%.8f u*=%.8f rho*L=%.8f rho*R=%.8f\n", exact.p_star,
               exact.u_star, exact.rho_star_left, exact.rho_star_right);
   std::printf("L1: rho %.6e, u %.6e, p %.6e; Linf rho %.6e\n", l1_rho, l1_u,
@@ -523,7 +522,7 @@ int main(int argc, char** argv) {
   // Plateau checks, well inside the star regions and away from the waves.
   const auto sample_value = [&](double x) {
     const int index = std::min(n - 1, std::max(0, static_cast<int>(x / dx)));
-    return saturn::riemann::to_primitive(cells[index], exact.gamma).rho;
+    return saturn::riemann::toPrimitive(cells[index], exact.gamma).rho;
   };
   const double left_plateau = sample_value(0.60);
   const double right_plateau = sample_value(0.75);

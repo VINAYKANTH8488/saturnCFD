@@ -19,8 +19,8 @@ double sphere(double x, double y, double z, double x0, double y0, double z0,
              : 0.0;
 }
 
-void fill_sphere(saturn::vof::Grid3D& g, double x0, double y0, double z0,
-                 double r) {
+void fillSphere(saturn::vof::Grid3D& g, double x0, double y0, double z0,
+                double r) {
   for (int i = 0; i < g.nx(); ++i) {
     for (int j = 0; j < g.ny(); ++j) {
       for (int k = 0; k < g.nz(); ++k) {
@@ -31,7 +31,7 @@ void fill_sphere(saturn::vof::Grid3D& g, double x0, double y0, double z0,
   }
 }
 
-double l1_error(const saturn::vof::Grid3D& a, const saturn::vof::Grid3D& b) {
+double l1Error(const saturn::vof::Grid3D& a, const saturn::vof::Grid3D& b) {
   double sum = 0.0;
   for (int i = 0; i < a.nx(); ++i) {
     for (int j = 0; j < a.ny(); ++j) {
@@ -43,7 +43,7 @@ double l1_error(const saturn::vof::Grid3D& a, const saturn::vof::Grid3D& b) {
   return sum / static_cast<double>(a.nx()) / a.ny() / a.nz();
 }
 
-int check_bounds(const saturn::vof::Grid3D& g) {
+int checkBounds(const saturn::vof::Grid3D& g) {
   for (double c : g.data()) {
     if (c < -1.0e-7 || c > 1.0 + 1.0e-7) {
       return 1;
@@ -57,11 +57,11 @@ int check_bounds(const saturn::vof::Grid3D& g) {
 int main() {
   int status = 0;
   {
-    const auto cube = saturn::vof::unit_cube();
-    const double full = saturn::vof::polyhedron_volume(cube);
+    const auto cube = saturn::vof::unitCube();
+    const double full = saturn::vof::polyhedronVolume(cube);
     const auto half =
-        saturn::vof::clip_half_plane(cube, saturn::vof::Vec3{1, 0, 0}, 0.5);
-    const double clipped = saturn::vof::polyhedron_volume(half);
+        saturn::vof::clipHalfPlane(cube, saturn::vof::Vec3{1, 0, 0}, 0.5);
+    const double clipped = saturn::vof::polyhedronVolume(half);
     std::printf("clip: full=%.6f half=%.6f\n", full, clipped);
     if (std::abs(full - 1.0) > 1e-12 || std::abs(clipped - 0.5) > 1e-12) {
       status = 1;
@@ -92,11 +92,11 @@ int main() {
       const double xs = i - shift;
       exact(i, 0, 0) = (xs >= 0.0 && xs < n / 2.0) ? 1.0 : 0.0;
     }
-    const double error = l1_error(grid, exact);
+    const double error = l1Error(grid, exact);
     const double drift = std::abs(grid.mass() - mass0) / mass0;
     std::printf("step 1D: L1=%.3e mass_drift=%.3e bounds=%s\n", error, drift,
-                check_bounds(grid) == 0 ? "ok" : "bad");
-    if (error > 5.0e-3 || drift > 1.0e-12 || check_bounds(grid) != 0) {
+                checkBounds(grid) == 0 ? "ok" : "bad");
+    if (error > 5.0e-3 || drift > 1.0e-12 || checkBounds(grid) != 0) {
       status = 1;
     }
   }
@@ -104,7 +104,7 @@ int main() {
   {
     const int n = 16;
     saturn::vof::Grid3D grid(n, n, n);
-    fill_sphere(grid, 0.4, 0.5, 0.5, 0.15);
+    fillSphere(grid, 0.4, 0.5, 0.5, 0.15);
     const double mass0 = grid.mass();
     const double speed = 0.2;
     const double tend = 0.2;
@@ -118,12 +118,12 @@ int main() {
       grid.advance(u, v, w, std::min(dt, tend - s * dt));
     }
     saturn::vof::Grid3D exact(n, n, n);
-    fill_sphere(exact, 0.4 + speed * tend, 0.5, 0.5, 0.15);
-    const double error = l1_error(grid, exact);
+    fillSphere(exact, 0.4 + speed * tend, 0.5, 0.5, 0.15);
+    const double error = l1Error(grid, exact);
     const double drift = std::abs(grid.mass() - mass0) / mass0;
     std::printf("translation: L1=%.3e mass_drift=%.3e bounds=%s\n", error,
-                drift, check_bounds(grid) == 0 ? "ok" : "bad");
-    if (error > 2.0e-2 || drift > 1.0e-10 || check_bounds(grid) != 0) {
+                drift, checkBounds(grid) == 0 ? "ok" : "bad");
+    if (error > 2.0e-2 || drift > 1.0e-10 || checkBounds(grid) != 0) {
       status = 1;
     }
   }
@@ -131,7 +131,7 @@ int main() {
   {
     const int n = 16;
     saturn::vof::Grid3D grid(n, n, n);
-    fill_sphere(grid, 0.5, 0.7, 0.5, 0.15);
+    fillSphere(grid, 0.5, 0.7, 0.5, 0.15);
     const double mass0 = grid.mass();
     saturn::vof::Grid3D initial = grid;
     const double omega = 1.0;
@@ -152,7 +152,7 @@ int main() {
     for (int s = 0; s < steps; ++s) {
       grid.advance(u, v, w, std::min(dt, period - s * dt));
     }
-    const double error = l1_error(grid, initial);
+    const double error = l1Error(grid, initial);
     const double drift = std::abs(grid.mass() - mass0) / mass0;
     double cmin = 0.0;
     double cmax = 1.0;
@@ -162,7 +162,7 @@ int main() {
     }
     std::printf("rotation: L1=%.3e mass_drift=%.3e range=[%.3e,%.3e]\n", error,
                 drift, cmin, cmax);
-    if (error > 5.0e-2 || drift > 1.0e-10 || check_bounds(grid) != 0) {
+    if (error > 5.0e-2 || drift > 1.0e-10 || checkBounds(grid) != 0) {
       status = 1;
     }
   }

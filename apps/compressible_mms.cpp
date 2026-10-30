@@ -130,7 +130,7 @@ void usage(const char* argv0) {
       << "  --help                 show this help\n";
 }
 
-double parse_double(const std::string& flag, const std::string& value) {
+double parseDouble(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
@@ -145,7 +145,7 @@ double parse_double(const std::string& flag, const std::string& value) {
   }
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -160,8 +160,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -178,43 +178,43 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--case") {
-      p.case_name = require_value(i, argc, argv, a);
+      p.case_name = requireValue(i, argc, argv, a);
     } else if (a == "--n") {
-      p.n_list = {parse_int(a, require_value(i, argc, argv, a))};
+      p.n_list = {parseInt(a, requireValue(i, argc, argv, a))};
     } else if (a == "--n-list") {
       p.n_list.clear();
       while (i + 1 < argc && argv[i + 1][0] != '-') {
-        p.n_list.push_back(parse_int(a, argv[++i]));
+        p.n_list.push_back(parseInt(a, argv[++i]));
       }
       if (p.n_list.empty()) {
         std::fprintf(stderr, "--n-list needs at least one value\n");
         std::exit(2);
       }
     } else if (a == "--tend") {
-      p.tend = parse_double(a, require_value(i, argc, argv, a));
+      p.tend = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--cfl") {
-      p.cfl = parse_double(a, require_value(i, argc, argv, a));
+      p.cfl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--mu") {
-      p.mu = parse_double(a, require_value(i, argc, argv, a));
+      p.mu = parseDouble(a, requireValue(i, argc, argv, a));
       mu_set = true;
     } else if (a == "--prandtl") {
-      p.prandtl = parse_double(a, require_value(i, argc, argv, a));
+      p.prandtl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--scheme") {
-      p.scheme = require_value(i, argc, argv, a);
+      p.scheme = requireValue(i, argc, argv, a);
     } else if (a == "--solver") {
-      p.solver = require_value(i, argc, argv, a);
+      p.solver = requireValue(i, argc, argv, a);
     } else if (a == "--time") {
-      p.time = require_value(i, argc, argv, a);
+      p.time = requireValue(i, argc, argv, a);
     } else if (a == "--no-sink") {
       p.sink = false;
     } else if (a == "--min-order") {
-      p.min_order = parse_double(a, require_value(i, argc, argv, a));
+      p.min_order = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--energy-tol") {
-      p.energy_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.energy_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--json") {
-      p.json = require_value(i, argc, argv, a);
+      p.json = requireValue(i, argc, argv, a);
     } else if (a == "--verbose") {
       p.verbose = true;
     } else if (a == "--check") {
@@ -255,7 +255,7 @@ Params parse(int argc, char** argv) {
   return p;
 }
 
-saturn::Reconstruction parse_scheme(const std::string& name) {
+saturn::Reconstruction parseScheme(const std::string& name) {
   if (name == "central4") {
     return saturn::Reconstruction::Central4;
   }
@@ -268,7 +268,7 @@ saturn::Reconstruction parse_scheme(const std::string& name) {
   return saturn::Reconstruction::Weno5Z;
 }
 
-const char* scheme_name(saturn::Reconstruction scheme) {
+const char* schemeName(saturn::Reconstruction scheme) {
   switch (scheme) {
     case saturn::Reconstruction::Central2:
       return "central2";
@@ -284,7 +284,7 @@ const char* scheme_name(saturn::Reconstruction scheme) {
   return "central4";
 }
 
-saturn::RiemannSolver parse_solver(const std::string& name) {
+saturn::RiemannSolver parseSolver(const std::string& name) {
   if (name == "llf") {
     return saturn::RiemannSolver::Llf;
   }
@@ -297,7 +297,7 @@ saturn::RiemannSolver parse_solver(const std::string& name) {
   return saturn::RiemannSolver::Hllc;
 }
 
-const char* solver_name(saturn::RiemannSolver solver) {
+const char* solverName(saturn::RiemannSolver solver) {
   switch (solver) {
     case saturn::RiemannSolver::Llf:
       return "llf";
@@ -312,14 +312,14 @@ const char* solver_name(saturn::RiemannSolver solver) {
 }
 
 template <class ExecSpace>
-void copy_field(const saturn::PatchField<ExecSpace>& source,
-                saturn::PatchField<ExecSpace>& destination) {
+void copyField(const saturn::PatchField<ExecSpace>& source,
+               saturn::PatchField<ExecSpace>& destination) {
   const saturn::Box box = source.box();
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
+  const auto policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "copy_field", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+      "copyField", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < 5; ++v) {
           destination(v, i, j, k) = source(v, i, j, k);
         }
@@ -328,15 +328,15 @@ void copy_field(const saturn::PatchField<ExecSpace>& source,
 
 // destination = a * x + b * y
 template <class ExecSpace>
-void combine_fields(saturn::PatchField<ExecSpace>& destination, double a,
-                    const saturn::PatchField<ExecSpace>& x, double b,
-                    const saturn::PatchField<ExecSpace>& y) {
+void combineFields(saturn::PatchField<ExecSpace>& destination, double a,
+                   const saturn::PatchField<ExecSpace>& x, double b,
+                   const saturn::PatchField<ExecSpace>& y) {
   const saturn::Box box = destination.box();
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
+  const auto policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "combine_fields", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+      "combineFields", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < 5; ++v) {
           destination(v, i, j, k) = a * x(v, i, j, k) + b * y(v, i, j, k);
         }
@@ -345,14 +345,14 @@ void combine_fields(saturn::PatchField<ExecSpace>& destination, double a,
 
 // destination += scale * x
 template <class ExecSpace>
-void add_scaled_field(saturn::PatchField<ExecSpace>& destination, double scale,
-                      const saturn::PatchField<ExecSpace>& x) {
+void addScaledField(saturn::PatchField<ExecSpace>& destination, double scale,
+                    const saturn::PatchField<ExecSpace>& x) {
   const saturn::Box box = destination.box();
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
+  const auto policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
   Kokkos::parallel_for(
-      "add_scaled_field", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+      "addScaledField", policy, KOKKOS_LAMBDA(int k, int j, int i) {
         for (int v = 0; v < 5; ++v) {
           destination(v, i, j, k) += scale * x(v, i, j, k);
         }
@@ -360,17 +360,17 @@ void add_scaled_field(saturn::PatchField<ExecSpace>& destination, double scale,
 }
 
 template <class ExecSpace>
-CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
+CaseResult runCase(int n, const Params& params, const ExactSolution& exact) {
   using field_type = saturn::PatchField<ExecSpace>;
   using workspace_type = saturn::compressible::CompressibleWorkspace<ExecSpace>;
 
   constexpr int kGhost = 4;
   const bool periodic[3] = {true, true, true};
   const auto decomposition = saturn::Decomposition::create(
-      saturn::Box::from_extents(n, n, n), periodic);
-  const auto grid = saturn::UniformGrid::from_cells_local(
+      saturn::Box::fromExtents(n, n, n), periodic);
+  const auto grid = saturn::UniformGrid::fromCellsLocal(
       n, n, n, 1.0, 1.0, 1.0, kGhost, decomposition.local);
-  const saturn::Box box = grid.local_box();
+  const saturn::Box box = grid.localBox();
 
   saturn::compressible::GasProperties gas;
   gas.gamma = params.gamma;
@@ -378,8 +378,8 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   gas.mu = params.mu;
   gas.prandtl = params.prandtl;
 
-  const saturn::Reconstruction scheme = parse_scheme(params.scheme);
-  const saturn::RiemannSolver solver = parse_solver(params.solver);
+  const saturn::Reconstruction scheme = parseScheme(params.scheme);
+  const saturn::RiemannSolver solver = parseSolver(params.solver);
 
   field_type q(box, 5, kGhost, "q");
   field_type stage(box, 5, kGhost, "stage");
@@ -400,7 +400,7 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
         const double z = (k + 0.5) * grid.h[2];
         const saturn::PrimitiveState state = exact.state(x, y, z, 0.0);
         const saturn::ConservativeState conservative =
-            saturn::riemann::to_conservative(state, gas.gamma);
+            saturn::riemann::toConservative(state, gas.gamma);
         const int ip = i - box.lo[0] + kGhost;
         const int jp = j - box.lo[1] + kGhost;
         const int kp = k - box.lo[2] + kGhost;
@@ -414,15 +414,15 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   }
   Kokkos::deep_copy(q.data(), host_q);
 
-  const auto compute_rhs = [&](field_type& state, field_type& out) {
+  const auto computeRhs = [&](field_type& state, field_type& out) {
     exchange.exchange(state);
-    saturn::compressible::compressible_rhs(state, workspace, out, grid, gas,
-                                           scheme, solver, params.sink);
+    saturn::compressible::compressibleRhs(state, workspace, out, grid, gas,
+                                          scheme, solver, params.sink);
   };
 
   const double hmin = std::min({grid.h[0], grid.h[1], grid.h[2]});
-  const double cell_volume = grid.h[0] * grid.h[1] * grid.h[2];
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
+  const double cellVolume = grid.h[0] * grid.h[1] * grid.h[2];
+  const auto policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
 
@@ -437,8 +437,8 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
         e += q(4, i, j, k);
       },
       Kokkos::Sum<double>{initial_mass}, Kokkos::Sum<double>{initial_energy});
-  initial_mass = saturn::mpi_sum(initial_mass) * cell_volume;
-  initial_energy = saturn::mpi_sum(initial_energy) * cell_volume;
+  initial_mass = saturn::mpiSum(initial_mass) * cellVolume;
+  initial_energy = saturn::mpiSum(initial_energy) * cellVolume;
 
   Kokkos::Timer timer;
   double time = 0.0;
@@ -446,10 +446,9 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   double last_dt = 0.0;
 
   while (time < params.tend - 1.0e-14) {
-    const double max_speed = saturn::compressible::max_wave_speed(q, gas);
-    const double max_nu =
-        saturn::compressible::max_kinematic_diffusivity(q, gas);
-    double dt = params.cfl * hmin / std::max(max_speed, 1.0e-300);
+    const double maxSpeed = saturn::compressible::maxWaveSpeed(q, gas);
+    const double max_nu = saturn::compressible::maxKinematicDiffusivity(q, gas);
+    double dt = params.cfl * hmin / std::max(maxSpeed, 1.0e-300);
     if (max_nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / max_nu);
     }
@@ -459,29 +458,29 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
     last_dt = dt;
 
     if (params.time == "rk4") {
-      compute_rhs(q, rhs);
-      copy_field(rhs, k1);
-      combine_fields(stage, 1.0, q, 0.5 * dt, k1);
-      compute_rhs(stage, rhs);
-      copy_field(rhs, k2);
-      combine_fields(stage, 1.0, q, 0.5 * dt, k2);
-      compute_rhs(stage, rhs);
-      copy_field(rhs, k3);
-      combine_fields(stage, 1.0, q, dt, k3);
-      compute_rhs(stage, rhs);
-      add_scaled_field(q, dt / 6.0, k1);
-      add_scaled_field(q, dt / 3.0, k2);
-      add_scaled_field(q, dt / 3.0, k3);
-      add_scaled_field(q, dt / 6.0, rhs);
+      computeRhs(q, rhs);
+      copyField(rhs, k1);
+      combineFields(stage, 1.0, q, 0.5 * dt, k1);
+      computeRhs(stage, rhs);
+      copyField(rhs, k2);
+      combineFields(stage, 1.0, q, 0.5 * dt, k2);
+      computeRhs(stage, rhs);
+      copyField(rhs, k3);
+      combineFields(stage, 1.0, q, dt, k3);
+      computeRhs(stage, rhs);
+      addScaledField(q, dt / 6.0, k1);
+      addScaledField(q, dt / 3.0, k2);
+      addScaledField(q, dt / 3.0, k3);
+      addScaledField(q, dt / 6.0, rhs);
     } else {
-      compute_rhs(q, rhs);
-      combine_fields(stage, 1.0, q, dt, rhs);
-      compute_rhs(stage, rhs);
-      combine_fields(next, 0.75, q, 0.25, stage);
-      add_scaled_field(next, 0.25 * dt, rhs);
-      compute_rhs(next, rhs);
-      combine_fields(q, 1.0 / 3.0, q, 2.0 / 3.0, next);
-      add_scaled_field(q, (2.0 / 3.0) * dt, rhs);
+      computeRhs(q, rhs);
+      combineFields(stage, 1.0, q, dt, rhs);
+      computeRhs(stage, rhs);
+      combineFields(next, 0.75, q, 0.25, stage);
+      addScaledField(next, 0.25 * dt, rhs);
+      computeRhs(next, rhs);
+      combineFields(q, 1.0 / 3.0, q, 2.0 / 3.0, next);
+      addScaledField(q, (2.0 / 3.0) * dt, rhs);
     }
 
     time += dt;
@@ -490,7 +489,7 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   Kokkos::fence();
   exchange.exchange(q);
 
-  const double seconds = saturn::mpi_max(timer.seconds());
+  const double seconds = saturn::mpiMax(timer.seconds());
 
   // Diagnostics use a host mirror: this is robust across backends and keeps
   // the error norm independent of device-lambda/reduction quirks.
@@ -530,9 +529,9 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
   }
 
   const double cells = static_cast<double>(n) * n * n;
-  const double l2_rho = std::sqrt(saturn::mpi_sum(sum_rho) / cells);
-  const double l2_u = std::sqrt(saturn::mpi_sum(sum_u) / cells);
-  const double l2_p = std::sqrt(saturn::mpi_sum(sum_p) / cells);
+  const double l2_rho = std::sqrt(saturn::mpiSum(sum_rho) / cells);
+  const double l2_u = std::sqrt(saturn::mpiSum(sum_u) / cells);
+  const double l2_p = std::sqrt(saturn::mpiSum(sum_p) / cells);
 
   double final_mass = 0.0;
   double final_energy = 0.0;
@@ -543,8 +542,8 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
         e += q(4, i, j, k);
       },
       Kokkos::Sum<double>{final_mass}, Kokkos::Sum<double>{final_energy});
-  final_mass = saturn::mpi_sum(final_mass) * cell_volume;
-  final_energy = saturn::mpi_sum(final_energy) * cell_volume;
+  final_mass = saturn::mpiSum(final_mass) * cellVolume;
+  final_energy = saturn::mpiSum(final_energy) * cellVolume;
 
   CaseResult result;
   result.n = n;
@@ -563,18 +562,18 @@ CaseResult run_case(int n, const Params& params, const ExactSolution& exact) {
 }
 
 template <class ExecSpace>
-int run_sweep(const Params& params, const ExactSolution& exact) {
+int runSweep(const Params& params, const ExactSolution& exact) {
   std::vector<CaseResult> results;
   double previous_error = 0.0;
   double previous_h = 0.0;
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
 
   if (root) {
     std::cout << "\n"
               << saturn::kProjectName << " " << saturn::kVersion
               << " compressible " << params.case_name << " MMS\n"
-              << "scheme: " << scheme_name(parse_scheme(params.scheme))
-              << ", solver: " << solver_name(parse_solver(params.solver))
+              << "scheme: " << schemeName(parseScheme(params.scheme))
+              << ", solver: " << solverName(parseSolver(params.solver))
               << ", time: " << params.time << ", mu: " << params.mu << "\n"
               << "Kokkos: " << ExecSpace::name() << " (concurrency "
               << ExecSpace{}.concurrency() << ")\n";
@@ -590,7 +589,7 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
   }
 
   for (const int n : params.n_list) {
-    CaseResult result = run_case<ExecSpace>(n, params, exact);
+    CaseResult result = runCase<ExecSpace>(n, params, exact);
     const double error =
         params.case_name == "shear" ? result.l2_u : result.l2_rho;
     if (previous_error > 0.0 && previous_h > 0.0) {
@@ -672,7 +671,7 @@ int run_sweep(const Params& params, const ExactSolution& exact) {
       }
     }
 
-    const bool ok = saturn::mpi_all(order_ok && conservation_ok);
+    const bool ok = saturn::mpiAll(order_ok && conservation_ok);
     if (!ok) {
       if (root) {
         if (!order_ok) {
@@ -718,10 +717,10 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
-        return run_sweep<space_type>(params, exact);
+        return runSweep<space_type>(params, exact);
       });
   Kokkos::finalize();
 

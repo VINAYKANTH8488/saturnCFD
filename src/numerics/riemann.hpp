@@ -53,8 +53,8 @@ bool valid(const PrimitiveState& state) {
 
 // Maximum-entropy wave speed estimate used by the local Lax-Friedrichs flux.
 KOKKOS_INLINE_FUNCTION
-double max_signal_speed(const PrimitiveState& left, const PrimitiveState& right,
-                        double gamma) {
+double maxSignalSpeed(const PrimitiveState& left, const PrimitiveState& right,
+                      double gamma) {
   const double c_left = Kokkos::sqrt(gamma * left.p / left.rho);
   const double c_right = Kokkos::sqrt(gamma * right.p / right.rho);
   const double a_left = Kokkos::fabs(left.u) + c_left;
@@ -63,7 +63,7 @@ double max_signal_speed(const PrimitiveState& left, const PrimitiveState& right,
 }
 
 KOKKOS_INLINE_FUNCTION
-ConservativeState to_conservative(const PrimitiveState& state, double gamma) {
+ConservativeState toConservative(const PrimitiveState& state, double gamma) {
   const double kinetic =
       0.5 * state.rho *
       (state.u * state.u + state.v * state.v + state.w * state.w);
@@ -73,7 +73,7 @@ ConservativeState to_conservative(const PrimitiveState& state, double gamma) {
 }
 
 KOKKOS_INLINE_FUNCTION
-PrimitiveState to_primitive(const ConservativeState& state, double gamma) {
+PrimitiveState toPrimitive(const ConservativeState& state, double gamma) {
   const double rho = state.rho;
   const double inv_rho = rho > 0.0 ? 1.0 / rho : 0.0;
   const double u = state.mom_n * inv_rho;
@@ -89,7 +89,7 @@ PrimitiveState to_primitive(const ConservativeState& state, double gamma) {
 }
 
 KOKKOS_INLINE_FUNCTION
-Flux physical_flux(const PrimitiveState& state, double gamma) {
+Flux physicalFlux(const PrimitiveState& state, double gamma) {
   const double energy =
       state.p / (gamma - 1.0) +
       0.5 * state.rho *
@@ -100,7 +100,7 @@ Flux physical_flux(const PrimitiveState& state, double gamma) {
 }
 
 KOKKOS_INLINE_FUNCTION
-Flux average_flux(const Flux& left, const Flux& right) {
+Flux averageFlux(const Flux& left, const Flux& right) {
   return Flux{0.5 * (left.rho + right.rho), 0.5 * (left.mom_n + right.mom_n),
               0.5 * (left.mom_t1 + right.mom_t1),
               0.5 * (left.mom_t2 + right.mom_t2),
@@ -111,15 +111,15 @@ Flux average_flux(const Flux& left, const Flux& right) {
 KOKKOS_INLINE_FUNCTION
 Flux llf(const PrimitiveState& left, const PrimitiveState& right,
          double gamma) {
-  const Flux flux_left = physical_flux(left, gamma);
-  const Flux flux_right = physical_flux(right, gamma);
+  const Flux flux_left = physicalFlux(left, gamma);
+  const Flux flux_right = physicalFlux(right, gamma);
   if (!valid(left) || !valid(right)) {
-    return average_flux(flux_left, flux_right);
+    return averageFlux(flux_left, flux_right);
   }
 
-  const ConservativeState u_left = to_conservative(left, gamma);
-  const ConservativeState u_right = to_conservative(right, gamma);
-  const double alpha = max_signal_speed(left, right, gamma);
+  const ConservativeState u_left = toConservative(left, gamma);
+  const ConservativeState u_right = toConservative(right, gamma);
+  const double alpha = maxSignalSpeed(left, right, gamma);
   return Flux{0.5 * (flux_left.rho + flux_right.rho) -
                   0.5 * alpha * (u_right.rho - u_left.rho),
               0.5 * (flux_left.mom_n + flux_right.mom_n) -
@@ -134,15 +134,15 @@ Flux llf(const PrimitiveState& left, const PrimitiveState& right,
 
 // HLLC with Roe-averaged wave-speed bounds.
 KOKKOS_INLINE_FUNCTION
-Flux hllc_impl(const PrimitiveState& left, const PrimitiveState& right,
-               double gamma) {
-  const Flux flux_left = physical_flux(left, gamma);
-  const Flux flux_right = physical_flux(right, gamma);
+Flux hllcImpl(const PrimitiveState& left, const PrimitiveState& right,
+              double gamma) {
+  const Flux flux_left = physicalFlux(left, gamma);
+  const Flux flux_right = physicalFlux(right, gamma);
   if (!valid(left) || !valid(right)) {
-    return average_flux(flux_left, flux_right);
+    return averageFlux(flux_left, flux_right);
   }
-  const ConservativeState u_left = to_conservative(left, gamma);
-  const ConservativeState u_right = to_conservative(right, gamma);
+  const ConservativeState u_left = toConservative(left, gamma);
+  const ConservativeState u_right = toConservative(right, gamma);
 
   const double c_left = Kokkos::sqrt(gamma * left.p / left.rho);
   const double c_right = Kokkos::sqrt(gamma * right.p / right.rho);
@@ -247,7 +247,7 @@ Flux hllc_impl(const PrimitiveState& left, const PrimitiveState& right,
 KOKKOS_INLINE_FUNCTION
 Flux hllc(const PrimitiveState& left, const PrimitiveState& right,
           double gamma) {
-  return hllc_impl(left, right, gamma);
+  return hllcImpl(left, right, gamma);
 }
 
 // HLLC with a low-Mach correction in the spirit of Fleischmann et al.: the
@@ -262,8 +262,8 @@ Flux hllc(const PrimitiveState& left, const PrimitiveState& right,
 // keeps full HLLC upwinding across shocks and strong expansions, where the
 // central component would be unsafe. Ma_limit = 0.1 is the recommended value.
 KOKKOS_INLINE_FUNCTION
-Flux hllc_low_mach(const PrimitiveState& left, const PrimitiveState& right,
-                   double gamma, double mach_limit = 0.1) {
+Flux hllcLowMach(const PrimitiveState& left, const PrimitiveState& right,
+                 double gamma, double mach_limit = 0.1) {
   if (!valid(left) || !valid(right) || !(mach_limit > 0.0)) {
     return llf(left, right, gamma);
   }
@@ -278,7 +278,7 @@ Flux hllc_low_mach(const PrimitiveState& left, const PrimitiveState& right,
   }
   const double phi = Kokkos::sin(0.5 * 3.14159265358979323846 * ratio);
   if (phi >= 1.0) {
-    return hllc_impl(left, right, gamma);
+    return hllcImpl(left, right, gamma);
   }
 
   const double p_avg = 0.5 * (left.p + right.p);
@@ -286,12 +286,12 @@ Flux hllc_low_mach(const PrimitiveState& left, const PrimitiveState& right,
   const double pressure_jump = Kokkos::fabs(right.p - left.p);
   const double velocity_jump = Kokkos::fabs(right.u - left.u);
   if (pressure_jump > 0.1 * p_avg || velocity_jump > 0.1 * c_avg) {
-    return hllc_impl(left, right, gamma);
+    return hllcImpl(left, right, gamma);
   }
 
-  const Flux hllc_flux = hllc_impl(left, right, gamma);
+  const Flux hllc_flux = hllcImpl(left, right, gamma);
   const Flux central_flux =
-      average_flux(physical_flux(left, gamma), physical_flux(right, gamma));
+      averageFlux(physicalFlux(left, gamma), physicalFlux(right, gamma));
   return Flux{phi * hllc_flux.rho + (1.0 - phi) * central_flux.rho,
               phi * hllc_flux.mom_n + (1.0 - phi) * central_flux.mom_n,
               phi * hllc_flux.mom_t1 + (1.0 - phi) * central_flux.mom_t1,
@@ -301,51 +301,51 @@ Flux hllc_low_mach(const PrimitiveState& left, const PrimitiveState& right,
 
 // AUSM+ splitting polynomials.
 KOKKOS_INLINE_FUNCTION
-double mach_plus_1(double mach) { return 0.5 * (mach + Kokkos::fabs(mach)); }
+double machPlus1(double mach) { return 0.5 * (mach + Kokkos::fabs(mach)); }
 
 KOKKOS_INLINE_FUNCTION
-double mach_minus_1(double mach) { return 0.5 * (mach - Kokkos::fabs(mach)); }
+double machMinus1(double mach) { return 0.5 * (mach - Kokkos::fabs(mach)); }
 
 KOKKOS_INLINE_FUNCTION
-double mach_plus_2(double mach) {
+double machPlus2(double mach) {
   if (Kokkos::fabs(mach) >= 1.0) {
-    return mach_plus_1(mach);
+    return machPlus1(mach);
   }
   return 0.25 * (mach + 1.0) * (mach + 1.0);
 }
 
 KOKKOS_INLINE_FUNCTION
-double mach_minus_2(double mach) {
+double machMinus2(double mach) {
   if (Kokkos::fabs(mach) >= 1.0) {
-    return mach_minus_1(mach);
+    return machMinus1(mach);
   }
   return -0.25 * (mach - 1.0) * (mach - 1.0);
 }
 
 KOKKOS_INLINE_FUNCTION
-double pressure_plus_5(double mach, double alpha) {
+double pressurePlus5(double mach, double alpha) {
   if (Kokkos::fabs(mach) >= 1.0) {
-    return mach_plus_1(mach) / mach;
+    return machPlus1(mach) / mach;
   }
-  return mach_plus_2(mach) *
-         ((2.0 - mach) - 16.0 * alpha * mach * mach_minus_2(mach));
+  return machPlus2(mach) *
+         ((2.0 - mach) - 16.0 * alpha * mach * machMinus2(mach));
 }
 
 KOKKOS_INLINE_FUNCTION
-double pressure_minus_5(double mach, double alpha) {
+double pressureMinus5(double mach, double alpha) {
   if (Kokkos::fabs(mach) >= 1.0) {
-    return mach_minus_1(mach) / mach;
+    return machMinus1(mach) / mach;
   }
-  return mach_minus_2(mach) *
-         ((-2.0 - mach) + 16.0 * alpha * mach * mach_plus_2(mach));
+  return machMinus2(mach) *
+         ((-2.0 - mach) + 16.0 * alpha * mach * machPlus2(mach));
 }
 
 // AUSM+-up (Liou 2006) with the standard split Mach polynomials and the
 // all-speed pressure/mass diffusion terms. `mach_cutoff` is the free-stream
 // Mach number used to floor the low-Mach scaling function f_a.
 KOKKOS_INLINE_FUNCTION
-Flux ausm_plus_up(const PrimitiveState& left, const PrimitiveState& right,
-                  double gamma, double mach_cutoff = 0.1) {
+Flux ausmPlusUp(const PrimitiveState& left, const PrimitiveState& right,
+                double gamma, double mach_cutoff = 0.1) {
   if (!valid(left) || !valid(right)) {
     return llf(left, right, gamma);
   }
@@ -374,8 +374,8 @@ Flux ausm_plus_up(const PrimitiveState& left, const PrimitiveState& right,
   }
 
   const double alpha = (3.0 / 16.0) * (-4.0 + 5.0 * f_a * f_a);
-  const double p_plus_left = pressure_plus_5(mach_left, alpha);
-  const double p_minus_right = pressure_minus_5(mach_right, alpha);
+  const double p_plus_left = pressurePlus5(mach_left, alpha);
+  const double p_minus_right = pressureMinus5(mach_right, alpha);
 
   const double rho_face = 0.5 * (left.rho + right.rho);
   double pressure_diffusion = -0.75 * p_plus_left * p_minus_right *
@@ -390,7 +390,7 @@ Flux ausm_plus_up(const PrimitiveState& left, const PrimitiveState& right,
   }
 
   const double mach_face =
-      mach_plus_2(mach_left) + mach_minus_2(mach_right) + mass_diffusion;
+      machPlus2(mach_left) + machMinus2(mach_right) + mass_diffusion;
   const double mass_flux =
       a_face * mach_face * (mach_face > 0.0 ? left.rho : right.rho);
   const double pressure_face =
@@ -416,9 +416,9 @@ Flux flux(RiemannSolver solver, const PrimitiveState& left,
     case RiemannSolver::Hllc:
       return hllc(left, right, gamma);
     case RiemannSolver::HllcLowMach:
-      return hllc_low_mach(left, right, gamma);
+      return hllcLowMach(left, right, gamma);
     case RiemannSolver::AusmPlusUp:
-      return ausm_plus_up(left, right, gamma);
+      return ausmPlusUp(left, right, gamma);
   }
   return llf(left, right, gamma);
 }

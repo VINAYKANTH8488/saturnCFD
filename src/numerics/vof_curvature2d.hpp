@@ -21,7 +21,7 @@ struct Curvature2D {
   bool valid = false;
 };
 
-inline double column_height(const Grid2D& g, int i) {
+inline double columnHeight(const Grid2D& g, int i) {
   double sum = 0.0;
   for (int j = 0; j < g.ny(); ++j) {
     sum += g(i, j) * g.hy();
@@ -29,7 +29,7 @@ inline double column_height(const Grid2D& g, int i) {
   return sum;
 }
 
-inline double row_height(const Grid2D& g, int j) {
+inline double rowHeight(const Grid2D& g, int j) {
   double sum = 0.0;
   for (int i = 0; i < g.nx(); ++i) {
     sum += g(i, j) * g.hx();
@@ -38,7 +38,7 @@ inline double row_height(const Grid2D& g, int j) {
 }
 
 // Curvature of a y = f(x) interface at column i.
-inline Curvature2D curvature_y(const Grid2D& g, int i, int stencil = 2) {
+inline Curvature2D curvatureY(const Grid2D& g, int i, int stencil = 2) {
   Curvature2D result;
   if (i - stencil < 0 || i + stencil >= g.nx()) {
     return result;
@@ -48,18 +48,18 @@ inline Curvature2D curvature_y(const Grid2D& g, int i, int stencil = 2) {
   double first = 0.0;
   double second = 0.0;
   if (s == 1) {
-    const double hm = column_height(g, i - 1);
-    const double h0 = column_height(g, i);
-    const double hp = column_height(g, i + 1);
+    const double hm = columnHeight(g, i - 1);
+    const double h0 = columnHeight(g, i);
+    const double hp = columnHeight(g, i + 1);
     first = (hp - hm) / (2.0 * hx);
     second = (hp - 2.0 * h0 + hm) / (hx * hx);
   } else {
     // 5-point first and second derivatives.
-    const double hm2 = column_height(g, i - 2);
-    const double hm1 = column_height(g, i - 1);
-    const double h0 = column_height(g, i);
-    const double hp1 = column_height(g, i + 1);
-    const double hp2 = column_height(g, i + 2);
+    const double hm2 = columnHeight(g, i - 2);
+    const double hm1 = columnHeight(g, i - 1);
+    const double h0 = columnHeight(g, i);
+    const double hp1 = columnHeight(g, i + 1);
+    const double hp2 = columnHeight(g, i + 2);
     first = (hm2 - 8.0 * hm1 + 8.0 * hp1 - hp2) / (12.0 * hx);
     second =
         (-hp2 + 16.0 * hp1 - 30.0 * h0 + 16.0 * hm1 - hm2) / (12.0 * hx * hx);
@@ -70,8 +70,8 @@ inline Curvature2D curvature_y(const Grid2D& g, int i, int stencil = 2) {
   return result;
 }
 
-// Curvature of an x = f(y) interface at row j (transpose of curvature_y).
-inline Curvature2D curvature_x(const Grid2D& g, int j, int stencil = 2) {
+// Curvature of an x = f(y) interface at row j (transpose of curvatureY).
+inline Curvature2D curvatureX(const Grid2D& g, int j, int stencil = 2) {
   Curvature2D result;
   if (j - stencil < 0 || j + stencil >= g.ny()) {
     return result;
@@ -81,17 +81,17 @@ inline Curvature2D curvature_x(const Grid2D& g, int j, int stencil = 2) {
   double first = 0.0;
   double second = 0.0;
   if (s == 1) {
-    const double hm = row_height(g, j - 1);
-    const double h0 = row_height(g, j);
-    const double hp = row_height(g, j + 1);
+    const double hm = rowHeight(g, j - 1);
+    const double h0 = rowHeight(g, j);
+    const double hp = rowHeight(g, j + 1);
     first = (hp - hm) / (2.0 * hy);
     second = (hp - 2.0 * h0 + hm) / (hy * hy);
   } else {
-    const double hm2 = row_height(g, j - 2);
-    const double hm1 = row_height(g, j - 1);
-    const double h0 = row_height(g, j);
-    const double hp1 = row_height(g, j + 1);
-    const double hp2 = row_height(g, j + 2);
+    const double hm2 = rowHeight(g, j - 2);
+    const double hm1 = rowHeight(g, j - 1);
+    const double h0 = rowHeight(g, j);
+    const double hp1 = rowHeight(g, j + 1);
+    const double hp2 = rowHeight(g, j + 2);
     first = (hm2 - 8.0 * hm1 + 8.0 * hp1 - hp2) / (12.0 * hy);
     second =
         (-hp2 + 16.0 * hp1 - 30.0 * h0 + 16.0 * hm1 - hm2) / (12.0 * hy * hy);

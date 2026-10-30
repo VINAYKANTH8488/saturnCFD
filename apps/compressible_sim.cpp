@@ -115,7 +115,7 @@ void usage(const char* argv0) {
       << "  --help               show this help\n";
 }
 
-double parse_double(const std::string& flag, const std::string& value) {
+double parseDouble(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const double result = std::stod(value, &pos);
@@ -130,7 +130,7 @@ double parse_double(const std::string& flag, const std::string& value) {
   }
 }
 
-int parse_int(const std::string& flag, const std::string& value) {
+int parseInt(const std::string& flag, const std::string& value) {
   try {
     std::size_t pos = 0;
     const int result = std::stoi(value, &pos);
@@ -145,8 +145,8 @@ int parse_int(const std::string& flag, const std::string& value) {
   }
 }
 
-std::string require_value(int& i, int argc, char** argv,
-                          const std::string& flag) {
+std::string requireValue(int& i, int argc, char** argv,
+                         const std::string& flag) {
   if (i + 1 >= argc) {
     std::fprintf(stderr, "missing value for %s\n", flag.c_str());
     std::exit(2);
@@ -154,7 +154,7 @@ std::string require_value(int& i, int argc, char** argv,
   return argv[++i];
 }
 
-void configure_case(Params& p, bool mu_set, bool scheme_set) {
+void configureCase(Params& p, bool mu_set, bool scheme_set) {
   if (p.case_name == "tgv") {
     p.lx = p.ly = p.lz = 2.0 * kPi;
     p.nx = p.ny = p.nz = 32;
@@ -223,58 +223,58 @@ Params parse(int argc, char** argv) {
       usage(argv[0]);
       std::exit(0);
     } else if (a == "--case") {
-      p.case_name = require_value(i, argc, argv, a);
+      p.case_name = requireValue(i, argc, argv, a);
     } else if (a == "--n") {
-      p.nx = p.ny = p.nz = parse_int(a, require_value(i, argc, argv, a));
+      p.nx = p.ny = p.nz = parseInt(a, requireValue(i, argc, argv, a));
       n_set = true;
     } else if (a == "--nx") {
-      p.nx = parse_int(a, require_value(i, argc, argv, a));
+      p.nx = parseInt(a, requireValue(i, argc, argv, a));
       nx_set = true;
     } else if (a == "--ny") {
-      p.ny = parse_int(a, require_value(i, argc, argv, a));
+      p.ny = parseInt(a, requireValue(i, argc, argv, a));
       ny_set = true;
     } else if (a == "--nz") {
-      p.nz = parse_int(a, require_value(i, argc, argv, a));
+      p.nz = parseInt(a, requireValue(i, argc, argv, a));
       nz_set = true;
     } else if (a == "--tend") {
-      p.tend = parse_double(a, require_value(i, argc, argv, a));
+      p.tend = parseDouble(a, requireValue(i, argc, argv, a));
       tend_set = true;
     } else if (a == "--cfl") {
-      p.cfl = parse_double(a, require_value(i, argc, argv, a));
+      p.cfl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--gamma") {
-      p.gamma = parse_double(a, require_value(i, argc, argv, a));
+      p.gamma = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--mu") {
-      p.mu = parse_double(a, require_value(i, argc, argv, a));
+      p.mu = parseDouble(a, requireValue(i, argc, argv, a));
       mu_set = true;
     } else if (a == "--prandtl") {
-      p.prandtl = parse_double(a, require_value(i, argc, argv, a));
+      p.prandtl = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--mach") {
-      p.mach = parse_double(a, require_value(i, argc, argv, a));
+      p.mach = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--scheme") {
-      p.scheme = require_value(i, argc, argv, a);
+      p.scheme = requireValue(i, argc, argv, a);
       scheme_set = true;
     } else if (a == "--solver") {
-      p.solver = require_value(i, argc, argv, a);
+      p.solver = requireValue(i, argc, argv, a);
     } else if (a == "--time") {
-      p.time = require_value(i, argc, argv, a);
+      p.time = requireValue(i, argc, argv, a);
     } else if (a == "--output") {
-      p.output = require_value(i, argc, argv, a);
+      p.output = requireValue(i, argc, argv, a);
     } else if (a == "--plot-every") {
-      p.plot_every = parse_int(a, require_value(i, argc, argv, a));
+      p.plot_every = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--checkpoint") {
-      p.checkpoint = require_value(i, argc, argv, a);
+      p.checkpoint = requireValue(i, argc, argv, a);
     } else if (a == "--checkpoint-every") {
-      p.checkpoint_every = parse_int(a, require_value(i, argc, argv, a));
+      p.checkpoint_every = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--history") {
-      p.history = require_value(i, argc, argv, a);
+      p.history = requireValue(i, argc, argv, a);
     } else if (a == "--diag-every") {
-      p.diag_every = parse_int(a, require_value(i, argc, argv, a));
+      p.diag_every = parseInt(a, requireValue(i, argc, argv, a));
     } else if (a == "--energy-tol") {
-      p.energy_tol = parse_double(a, require_value(i, argc, argv, a));
+      p.energy_tol = parseDouble(a, requireValue(i, argc, argv, a));
     } else if (a == "--restart") {
-      p.restart = require_value(i, argc, argv, a);
+      p.restart = requireValue(i, argc, argv, a);
     } else if (a == "--space") {
-      p.space = require_value(i, argc, argv, a);
+      p.space = requireValue(i, argc, argv, a);
     } else if (a == "--verbose") {
       p.verbose = true;
     } else if (a == "--check") {
@@ -299,7 +299,7 @@ Params parse(int argc, char** argv) {
   const int user_ny = p.ny;
   const int user_nz = p.nz;
   const double user_tend = p.tend;
-  configure_case(p, mu_set, scheme_set);
+  configureCase(p, mu_set, scheme_set);
   if (n_set) {
     p.nx = p.ny = p.nz = user_nx;
   } else {
@@ -332,7 +332,7 @@ Params parse(int argc, char** argv) {
   return p;
 }
 
-saturn::Reconstruction parse_scheme(const std::string& name) {
+saturn::Reconstruction parseScheme(const std::string& name) {
   if (name == "central4") {
     return saturn::Reconstruction::Central4;
   }
@@ -345,7 +345,7 @@ saturn::Reconstruction parse_scheme(const std::string& name) {
   return saturn::Reconstruction::Weno5Z;
 }
 
-saturn::RiemannSolver parse_solver(const std::string& name) {
+saturn::RiemannSolver parseSolver(const std::string& name) {
   if (name == "llf") {
     return saturn::RiemannSolver::Llf;
   }
@@ -358,8 +358,8 @@ saturn::RiemannSolver parse_solver(const std::string& name) {
   return saturn::RiemannSolver::Hllc;
 }
 
-saturn::PrimitiveState initial_state(const Params& p, double x, double y,
-                                     double z) {
+saturn::PrimitiveState initialState(const Params& p, double x, double y,
+                                    double z) {
   if (p.case_name == "tgv") {
     const double rho = 1.0;
     const double u = std::sin(x) * std::cos(y) * std::cos(z);
@@ -420,10 +420,10 @@ saturn::PrimitiveState initial_state(const Params& p, double x, double y,
 // state. Ghost cells between ranks are never touched (they already hold
 // neighbor data).
 template <class ExecSpace>
-void apply_double_mach_bc(saturn::PatchField<ExecSpace>& q,
-                          const saturn::Decomposition& decomposition,
-                          const saturn::UniformGrid& grid, double time,
-                          const saturn::compressible::GasProperties& gas) {
+void applyDoubleMachBc(saturn::PatchField<ExecSpace>& q,
+                       const saturn::Decomposition& decomposition,
+                       const saturn::UniformGrid& grid, double time,
+                       const saturn::compressible::GasProperties& gas) {
   const saturn::Box box = q.box();
   const saturn::Box global = decomposition.global;
   const int ng = q.ng();
@@ -433,14 +433,14 @@ void apply_double_mach_bc(saturn::PatchField<ExecSpace>& q,
                                               -4.125, 0.0, 116.5};
   const saturn::PrimitiveState pre_primitive{1.4, 0.0, 0.0, 0.0, 1.0};
   const saturn::ConservativeState post =
-      saturn::riemann::to_conservative(post_primitive, gas.gamma);
+      saturn::riemann::toConservative(post_primitive, gas.gamma);
   const saturn::ConservativeState pre =
-      saturn::riemann::to_conservative(pre_primitive, gas.gamma);
+      saturn::riemann::toConservative(pre_primitive, gas.gamma);
 
   const int np0 = box.length(0) + 2 * ng;
   const int np1 = box.length(1) + 2 * ng;
   const int np2 = box.length(2) + 2 * ng;
-  const auto policy = saturn::make_mdrange3<ExecSpace>(
+  const auto policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{0, 0, 0}}, saturn::Int3{{np2, np1, np0}});
 
   Kokkos::parallel_for(
@@ -496,16 +496,16 @@ int run(const Params& params) {
                         params.bc[d][1] == saturn::BoundaryType::Periodic;
     all_periodic = all_periodic && periodic_flags[d];
   }
-  const int mpi_size = saturn::mpi_size();
+  const int mpiSize = saturn::mpiSize();
 
   constexpr int kGhost = 4;
   const auto decomposition = saturn::Decomposition::create(
-      saturn::Box::from_extents(params.nx, params.ny, params.nz),
+      saturn::Box::fromExtents(params.nx, params.ny, params.nz),
       periodic_flags);
-  const auto grid = saturn::UniformGrid::from_cells_local(
+  const auto grid = saturn::UniformGrid::fromCellsLocal(
       params.nx, params.ny, params.nz, params.lx, params.ly, params.lz, kGhost,
       decomposition.local);
-  const saturn::Box box = grid.local_box();
+  const saturn::Box box = grid.localBox();
 
   saturn::compressible::GasProperties gas;
   gas.gamma = params.gamma;
@@ -513,8 +513,8 @@ int run(const Params& params) {
   gas.mu = params.mu;
   gas.prandtl = params.prandtl;
 
-  const saturn::Reconstruction scheme = parse_scheme(params.scheme);
-  const saturn::RiemannSolver solver = parse_solver(params.solver);
+  const saturn::Reconstruction scheme = parseScheme(params.scheme);
+  const saturn::RiemannSolver solver = parseSolver(params.solver);
 
   field_type q(box, 5, kGhost, "q");
   field_type stage(box, 5, kGhost, "stage");
@@ -530,9 +530,8 @@ int run(const Params& params) {
   int step = 0;
   double time = 0.0;
   if (!params.restart.empty()) {
-    if (!saturn::read_checkpoint(params.restart, q, step, time,
-                                 decomposition)) {
-      if (saturn::mpi_rank() == 0) {
+    if (!saturn::readCheckpoint(params.restart, q, step, time, decomposition)) {
+      if (saturn::mpiRank() == 0) {
         std::fprintf(stderr, "could not restart from %s\n",
                      params.restart.c_str());
       }
@@ -546,9 +545,9 @@ int run(const Params& params) {
           const double x = (i + 0.5) * grid.h[0];
           const double y = (j + 0.5) * grid.h[1];
           const double z = (k + 0.5) * grid.h[2];
-          const saturn::PrimitiveState state = initial_state(params, x, y, z);
+          const saturn::PrimitiveState state = initialState(params, x, y, z);
           const saturn::ConservativeState conservative =
-              saturn::riemann::to_conservative(state, gas.gamma);
+              saturn::riemann::toConservative(state, gas.gamma);
           const int ip = i - box.lo[0] + kGhost;
           const int jp = j - box.lo[1] + kGhost;
           const int kp = k - box.lo[2] + kGhost;
@@ -563,30 +562,30 @@ int run(const Params& params) {
     Kokkos::deep_copy(q.data(), host_q);
   }
 
-  const bool use_box_exchange = mpi_size > 1 && all_periodic;
-  const bool use_global_exchange = mpi_size > 1 && !all_periodic;
-  auto compute_rhs = [&](field_type& state, field_type& out, double rhs_time) {
+  const bool use_box_exchange = mpiSize > 1 && all_periodic;
+  const bool use_global_exchange = mpiSize > 1 && !all_periodic;
+  auto computeRhs = [&](field_type& state, field_type& out, double rhs_time) {
     if (use_box_exchange) {
       exchange.exchange(state);
     } else if (use_global_exchange) {
       global_exchange.exchange(state, params.bc);
     } else {
-      saturn::apply_boundary_conditions(state, params.bc);
+      saturn::applyBoundaryConditions(state, params.bc);
     }
     if (params.case_name == "dm") {
-      apply_double_mach_bc(state, decomposition, grid, rhs_time, gas);
+      applyDoubleMachBc(state, decomposition, grid, rhs_time, gas);
     }
-    saturn::compressible::compressible_rhs(state, workspace, out, grid, gas,
-                                           scheme, solver, false);
+    saturn::compressible::compressibleRhs(state, workspace, out, grid, gas,
+                                          scheme, solver, false);
   };
 
   const double hmin = std::min({grid.h[0], grid.h[1], grid.h[2]});
-  const double cell_volume = grid.h[0] * grid.h[1] * grid.h[2];
-  const auto interior_policy = saturn::make_mdrange3<ExecSpace>(
+  const double cellVolume = grid.h[0] * grid.h[1] * grid.h[2];
+  const auto interior_policy = saturn::makeMdrange3<ExecSpace>(
       saturn::Int3{{box.lo[2], box.lo[1], box.lo[0]}},
       saturn::Int3{{box.hi[2] + 1, box.hi[1] + 1, box.hi[0] + 1}});
 
-  const bool root = saturn::mpi_rank() == 0;
+  const bool root = saturn::mpiRank() == 0;
   std::ofstream history;
   if (!params.history.empty() && root) {
     const std::filesystem::path path(params.history);
@@ -641,11 +640,11 @@ int run(const Params& params) {
         }
       }
     }
-    mass = saturn::mpi_sum(mass) * cell_volume;
-    momentum = saturn::mpi_sum(momentum) * cell_volume;
-    kinetic = saturn::mpi_sum(kinetic) * cell_volume;
-    internal = saturn::mpi_sum(internal) * cell_volume;
-    max_mach = saturn::mpi_max(max_mach);
+    mass = saturn::mpiSum(mass) * cellVolume;
+    momentum = saturn::mpiSum(momentum) * cellVolume;
+    kinetic = saturn::mpiSum(kinetic) * cellVolume;
+    internal = saturn::mpiSum(internal) * cellVolume;
+    max_mach = saturn::mpiMax(max_mach);
     const double total = kinetic + internal;
     if (root) {
       std::printf(
@@ -670,7 +669,7 @@ int run(const Params& params) {
         "primitive_output", interior_policy,
         KOKKOS_LAMBDA(int k, int j, int i) {
           const saturn::PrimitiveState state =
-              saturn::compressible::load_primitive(q, i, j, k, gas);
+              saturn::compressible::loadPrimitive(q, i, j, k, gas);
           primitive(0, i, j, k) = state.rho;
           primitive(1, i, j, k) = state.u;
           primitive(2, i, j, k) = state.v;
@@ -681,16 +680,16 @@ int run(const Params& params) {
     std::snprintf(suffix, sizeof(suffix), "_%06d", snapshot_step);
     const std::array<double, 3> origin{{0.0, 0.0, 0.0}};
     const std::array<double, 3> spacing{{grid.h[0], grid.h[1], grid.h[2]}};
-    saturn::write_vti_fields(base + suffix, primitive,
-                             {"rho", "u", "v", "w", "p"}, origin, spacing,
-                             decomposition.global, time);
+    saturn::writeVtiFields(base + suffix, primitive,
+                           {"rho", "u", "v", "w", "p"}, origin, spacing,
+                           decomposition.global, time);
   };
 
   if (!params.output.empty()) {
     write_snapshot(params.output, step);
   }
   if (params.checkpoint_every > 0 && !params.checkpoint.empty()) {
-    saturn::write_checkpoint(params.checkpoint, q, step, time, decomposition);
+    saturn::writeCheckpoint(params.checkpoint, q, step, time, decomposition);
   }
   int last_diagnostics_step = step;
   auto last_diagnostics = diagnostics(time);
@@ -700,10 +699,9 @@ int run(const Params& params) {
   Kokkos::Timer timer;
   double last_dt = 0.0;
   while (time < params.tend - 1.0e-14) {
-    const double max_speed = saturn::compressible::max_wave_speed(q, gas);
-    const double max_nu =
-        saturn::compressible::max_kinematic_diffusivity(q, gas);
-    double dt = params.cfl * hmin / std::max(max_speed, 1.0e-300);
+    const double maxSpeed = saturn::compressible::maxWaveSpeed(q, gas);
+    const double max_nu = saturn::compressible::maxKinematicDiffusivity(q, gas);
+    double dt = params.cfl * hmin / std::max(maxSpeed, 1.0e-300);
     if (max_nu > 0.0) {
       dt = std::min(dt, 0.2 * hmin * hmin / max_nu);
     }
@@ -713,9 +711,9 @@ int run(const Params& params) {
     last_dt = dt;
 
     if (params.time == "rk4") {
-      saturn::advance_rk4(q, stage, rhs, k1, k2, k3, dt, time, compute_rhs);
+      saturn::advanceRk4(q, stage, rhs, k1, k2, k3, dt, time, computeRhs);
     } else {
-      saturn::advance_ssprk3(q, stage, next, rhs, dt, time, compute_rhs);
+      saturn::advanceSsprk3(q, stage, next, rhs, dt, time, computeRhs);
     }
 
     time += dt;
@@ -736,7 +734,7 @@ int run(const Params& params) {
     }
     if (!params.checkpoint.empty() && params.checkpoint_every > 0 &&
         step % params.checkpoint_every == 0) {
-      saturn::write_checkpoint(params.checkpoint, q, step, time, decomposition);
+      saturn::writeCheckpoint(params.checkpoint, q, step, time, decomposition);
     }
   }
   Kokkos::fence();
@@ -745,13 +743,13 @@ int run(const Params& params) {
     write_snapshot(params.output, step);
   }
   if (!params.checkpoint.empty() && params.checkpoint_every > 0) {
-    saturn::write_checkpoint(params.checkpoint, q, step, time, decomposition);
+    saturn::writeCheckpoint(params.checkpoint, q, step, time, decomposition);
   }
   if (step != last_diagnostics_step) {
     last_diagnostics = diagnostics(time);
   }
   const auto final_diagnostics = last_diagnostics;
-  const double seconds = saturn::mpi_max(timer.seconds());
+  const double seconds = saturn::mpiMax(timer.seconds());
 
   bool valid = true;
   double local_invalid = 0.0;
@@ -759,7 +757,7 @@ int run(const Params& params) {
       "validity", interior_policy,
       KOKKOS_LAMBDA(int k, int j, int i, double& bad) {
         const saturn::PrimitiveState state =
-            saturn::compressible::load_primitive(q, i, j, k, gas);
+            saturn::compressible::loadPrimitive(q, i, j, k, gas);
         const bool ok = state.rho > 0.0 && state.p > 0.0 &&
                         state.rho == state.rho && state.p == state.p &&
                         state.rho < 1.0e200 && state.p < 1.0e200;
@@ -768,7 +766,7 @@ int run(const Params& params) {
         }
       },
       Kokkos::Sum<double>{local_invalid});
-  local_invalid = saturn::mpi_sum(local_invalid);
+  local_invalid = saturn::mpiSum(local_invalid);
   valid = local_invalid == 0.0;
   const double energy_drift =
       initial_total_energy > 0.0
@@ -808,7 +806,7 @@ int main(int argc, char** argv) {
 #endif
 
   Kokkos::initialize(argc, argv);
-  const int status = saturn::dispatch_execution_space(
+  const int status = saturn::dispatchExecutionSpace(
       params.space, SATURN_DEFAULT_SPACE, [&](auto tag) {
         using space_type = decltype(tag);
         return run<space_type>(params);
