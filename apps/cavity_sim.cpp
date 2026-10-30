@@ -48,11 +48,14 @@ struct Params {
   int steady_check = 50;
   int steady_window = 5;
   double blend = 0.25;
+  double filter_alpha = 0.0;
+  int filter_every = 1;
   std::string advection = "central";
   std::string profile;
   std::string space = "default";
   bool check = false;
   bool verbose = false;
+  bool z_wall = false;
 };
 
 void usage(const char* argv0) {
@@ -70,9 +73,13 @@ void usage(const char* argv0) {
       "  --steady-tol VALUE stop when max |du|,|dv| < VALUE (0 = off)\n"
       "  --steady-check N   check interval in steps (default 50)\n"
       "  --steady-window N  consecutive checks below tolerance (default 5)\n"
-      "  --advection NAME   central|upwind|muscl|blend (default central)\n"
+      "  --advection NAME   central|upwind|muscl|blend|weno5 (default "
+      "central)\n"
       "  --blend VALUE      central/upwind blend fraction (default 0.25)\n"
+      "  --filter VALUE     low-pass/dealiasing filter strength (0 = off)\n"
+      "  --filter-every N   apply the filter every N steps (default 1)\n"
       "  --profile FILE     write centreline u(y), v(x) samples\n"
+      "  --z-wall           no-slip z walls instead of periodicity\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
       "  --check            fail on divergence or Ghia RMS error\n"
       "  --verbose          print the Kokkos configuration\n"
@@ -165,8 +172,14 @@ Params parse(int argc, char** argv) {
       p.blend = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--profile") {
       p.profile = require_value(i, argc, argv, a);
+    } else if (a == "--filter") {
+      p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--filter-every") {
+      p.filter_every = parse_int(a, require_value(i, argc, argv, a));
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
+    } else if (a == "--z-wall") {
+      p.z_wall = true;
     } else if (a == "--check") {
       p.check = true;
     } else if (a == "--verbose") {
@@ -281,6 +294,9 @@ int advection_id(const std::string& name) {
   if (name == "blend") {
     return 3;
   }
+  if (name == "weno5") {
+    return 4;
+  }
   std::fprintf(stderr, "unknown advection scheme '%s'\n", name.c_str());
   std::exit(2);
 }
@@ -331,6 +347,7 @@ CaseResult run_case(int n, const Params& params) {
   g.hy = 1.0 / static_cast<double>(n);
   g.hz = 1.0 / static_cast<double>(params.nz);
   g.u_lid = params.u_lid;
+  g.z_wall = params.z_wall;
   g.adv = advection_id(params.advection);
   g.adv_blend = params.blend;
   const double nu = params.u_lid / params.re;
@@ -359,9 +376,12 @@ CaseResult run_case(int n, const Params& params) {
   Kokkos::deep_copy(u_prev, 0.0);
   Kokkos::deep_copy(v_prev, 0.0);
 
+  const saturn::poisson::Boundary bc_z =
+      params.z_wall ? saturn::poisson::Boundary::Neumann
+                    : saturn::poisson::Boundary::Periodic;
   std::array<saturn::poisson::Boundary, 3> bc_low{
       {saturn::poisson::Boundary::Neumann, saturn::poisson::Boundary::Neumann,
-       saturn::poisson::Boundary::Periodic}};
+       bc_z}};
   std::array<saturn::poisson::Boundary, 3> bc_high = bc_low;
   saturn::poisson::GeometricMultigrid<ExecSpace> solver(
       std::array<int, 3>{{g.n0, g.n1, g.n2}},
@@ -420,6 +440,14 @@ CaseResult run_case(int n, const Params& params) {
       dt = params.tend - time;
     }
     last_dt = dt;
+    if (params.filter_alpha > 0.0 &&
+        steps % std::max(1, params.filter_every) == 0) {
+      saturn::cavity::filter_velocity<ExecSpace>(u, v, w, u1, v1, w1, g,
+                                                 params.filter_alpha);
+      Kokkos::deep_copy(u, u1);
+      Kokkos::deep_copy(v, v1);
+      Kokkos::deep_copy(w, w1);
+    }
     saturn::cavity::advance_ssprk3<ExecSpace>(
         u, v, w, u1, v1, w1, u2, v2, w2, ku, kv, kw, g, nu, dt, do_project);
     time += dt;

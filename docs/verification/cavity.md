@@ -105,6 +105,7 @@ ctest --test-dir build/cpu-openmp -R saturn.cavity --output-on-failure
 | `central` | second-order central (previous default) |
 | `upwind` | first-order upwind |
 | `muscl` | second-order minmod-limited MUSCL |
+| `weno5` | upwind-biased WENO5 derivative (sign-dependent stencil) |
 | `blend` | central/upwind blend, fraction set by `--blend` |
 
 Ghia centreline RMS at Re=100, `n=16`, `nz=1`, `t=5`:
@@ -114,6 +115,7 @@ Ghia centreline RMS at Re=100, `n=16`, `nz=1`, `t=5`:
 | central | 3.09e-2 | 1.95e-2 |
 | upwind | 2.60e-2 | 1.70e-2 |
 | **muscl** | **1.67e-2** | **1.28e-2** |
+| **weno5** | 1.31e-2 | 1.66e-2 |
 | blend 0.25 | 2.93e-2 | 1.85e-2 |
 
 > **Table correction.** An earlier revision of this page used shifted Ghia
@@ -132,11 +134,62 @@ At Re=1000 on the P600:
 | **MUSCL** | 32x32x1 | 20 | **3.73e-2** | **6.37e-2** | 1.0e-7 | 79 s |
 | **MUSCL** | 48x48x1 | 20 | **1.74e-2** | **4.69e-2** | 1.0e-7 | 517 s |
 
-MUSCL is the clear winner: at 48² the combined centreline RMS is `0.050`,
-against `0.139` for central at 32². The `v` RMS is `4.69e-2`, below the
-`5e-2` target. The earlier apparent MUSCL `v` failure was the shifted table,
-not the scheme. Uniform refinement plus MUSCL is working; wall clustering is
-not required at Re=1000.
+MUSCL is the clear winner over central: at 48² the combined centreline RMS is
+`0.050`, against `0.139` for central at 32². The `v` RMS is `4.69e-2`, below
+the `5e-2` target. The earlier apparent MUSCL `v` failure was the shifted
+table, not the scheme.
+
+### WENO5
+
+`--advection weno5` uses a sign-dependent upwind-biased WENO5 derivative:
+the stencil is mirrored for negative advective velocity. At Re=1000:
+
+| Scheme | grid | t | RMS u | RMS v | combined | time |
+|---|---|---|---|---|---|---|
+| MUSCL | 32² | 20 | 3.73e-2 | 6.37e-2 | 0.0738 | 79 s |
+| **WENO5** | 32² | 20 | **3.54e-2** | **6.24e-2** | **0.0716** | 70 s |
+| MUSCL | 48² | 20 | **1.74e-2** | 4.69e-2 | 0.0501 | 517 s |
+| **WENO5** | 48² | 20 | 1.84e-2 | **4.41e-2** | **0.0478** | 498 s |
+
+WENO5 is about 4% better in combined RMS at 48²: the `v` profile improves,
+while the `u` profile is marginally worse. The gain is modest because the
+32²/48² grids are still coarse; WENO5 is the higher-order path for finer or
+clustered grids.
+
+A low-pass/dealiasing filter is available (`--filter`, `--filter-every`). It
+is applied before the RK stage so the projection restores divergence. At
+Re=1000, WENO5 + `--filter 0.01` gave `4.52e-2 / 6.99e-2`, worse than no
+filter; the smooth cavity does not need it. It remains an option for
+high-Re/turbulent runs.
+
+### 3D cavity with z walls
+
+`--z-wall` replaces the periodic z direction with no-slip walls and a
+Neumann pressure condition. The 3D cavity runs stably with WENO5; the
+reported RMS is the centre plane against the 2D Ghia data, so it is a
+qualitative comparison (the end walls change the flow):
+
+| grid | t | RMS u | RMS v | `max|div|` | GPU time |
+|---|---|---|---|---|---|---|
+| 24x24x24 | 5 | 1.84e-1 | 2.07e-1 | 5.8e-7 | 17 s |
+| 24x24x48 | 10 | 1.22e-1 | 1.61e-1 | 2.6e-7 | 132 s |
+| 32x32x48 | 10 | 1.17e-1 | 1.41e-1 | 3.5e-7 | 157 s |
+
+Larger span moves the centre plane closer to the 2D solution, as expected.
+A genuine 3D reference (aspect-ratio-resolved cavity) is still needed for
+quantitative 3D validation.
+
+### Clustered grid
+
+Wall clustering is **not yet implemented**. The current Poisson solver is a
+constant-coefficient uniform-grid multigrid; a clustered grid needs:
+- face-coordinate arrays and metric factors in `Geometry`;
+- metric-aware divergence, momentum, and Laplacian;
+- a variable-coefficient/curvilinear Poisson (PCG or MG).
+
+That is the next solver-wide extension. It is not required for Re=1000 at
+48² (the target is met), but it is the right path for Re≥5000 and turbulence.
+The Nektar++/NekRS GLL-clustering analogy is the design guide.
 
 ### Higher-Re limits (MUSCL, n=48, t=10)
 
@@ -155,11 +208,11 @@ the likely requirement at these Reynolds numbers.
 
 | Re | scheme | grid | t | RMS u | RMS v | `max|div|` | time |
 |---|---|---|---|---|---|---|---|
-| 1000 | MUSCL | 32x32x1 | 20 | **3.73e-2** | **6.37e-2** | 1.0e-7 | 79 s |
-| 5000 | MUSCL | 32x32x1 | 10 | 2.58e-1 | 2.83e-1 | 3.5e-8 | 89 s |
+| 1000 | **WENO5** | 32x32x1 | 20 | **3.54e-2** | **6.24e-2** | 1.4e-7 | 75 s |
+| 5000 | **WENO5** | 32x32x1 | 10 | 2.16e-1 | 2.89e-1 | 1.5e-8 | 80 s |
 
 The Re=1000 gate uses `--rms-tol 0.20 --div-tol 2e-7`; the script completes in
-~3 minutes.
+~3 minutes. Both runs use WENO5.
 
 ```bash
 source scripts/env_cuda.sh
@@ -195,7 +248,8 @@ will need the wall-clustered/spectral and dealiasing ideas.
 ### Code extension needed
 
 - a corrected 64² steady-state run;
-- wall-clustered or spectral/hp grids for Re=5000/10000;
-- WENO/limited reconstruction with dealiasing-like stabilization;
-- a 3D cavity with z walls for turbulence;
+- a **clustered/curvilinear grid** with a variable-coefficient Poisson
+  (the current uniform-grid MG cannot do this);
+- WENO5 on the clustered grid plus dealiasing-like filtering for high Re;
+- a quantitative 3D cavity reference (the z-wall runs are qualitative);
 - a faster distributed/GPU Poisson at larger sizes.

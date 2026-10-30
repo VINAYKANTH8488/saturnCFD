@@ -944,6 +944,14 @@ scaling to 8 GPUs.
       was a shifted Ghia v-column bug, now fixed. Re=5000/10000 at 48² are
       stable but under-resolved. A corrected 64² steady-state run and
       wall-clustered/spectral resolution for Re>=5000 are the next extension.
+- [x] WENO5 advection (sign-dependent upwind stencil) and optional low-pass
+      filter: Re=1000 at 48² gives u 1.84e-2, v 4.41e-2 (combined 0.048 vs
+      MUSCL 0.050); the filter is not beneficial on the smooth cavity.
+- [x] 3D cavity with no-slip z walls (`--z-wall`): WENO5 32x32x48, t=10
+      reaches centre-plane RMS 0.117/0.141, |div| 3.5e-7 in 157 s. This is a
+      qualitative 3D run; a true 3D reference is pending.
+- [ ] Clustered/curvilinear grid with a variable-coefficient Poisson; this is
+      the next solver-wide extension for Re>=5000/turbulence.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
       C++ TGV prototype matches projection velocity error at `M_c=0.05` with
       ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).
