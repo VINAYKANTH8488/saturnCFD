@@ -104,7 +104,7 @@ ctest --test-dir build/cpu-openmp -R saturn.cavity --output-on-failure
 |---|---|
 | `central` | second-order central (previous default) |
 | `upwind` | first-order upwind |
-| `muscl` | second-order minmod-limited MUSCL (limited central slope) |
+| `muscl` | second-order minmod-limited MUSCL |
 | `blend` | central/upwind blend, fraction set by `--blend` |
 
 Ghia centreline RMS at Re=100, `n=16`, `nz=1`, `t=5`:
@@ -116,103 +116,86 @@ Ghia centreline RMS at Re=100, `n=16`, `nz=1`, `t=5`:
 | **muscl** | **1.67e-2** | **1.28e-2** |
 | blend 0.25 | 2.93e-2 | 1.85e-2 |
 
-MUSCL reduces the coarse-grid Re=100 error by ~46% (u) and ~34% (v) relative
-to central.
+> **Table correction.** An earlier revision of this page used shifted Ghia
+> `v` columns for Re=1000/5000/10000 (the PetIBM table stores `v100` before
+> `v1000`). That produced spurious `v` RMS values (e.g. MUSCL 1.96e-1,
+> upwind 2.07e-2). The tables are fixed above; all `v` numbers below use the
+> corrected columns. The `u` values were unaffected.
 
 At Re=1000 on the P600:
 
 | Scheme | grid | t | RMS u | RMS v | `max|div|` | time |
 |---|---|---|---|---|---|---|
 | central | 32x32x1 | 40 | 1.00e-1 | 9.67e-2 | 6.2e-8 | 193 s |
-| upwind | 32x32x1 | 40 | 1.43e-1 | 2.07e-2 | 3.1e-7 | 186 s |
-| blend 0.25 | 32x32x1 | 40 | 1.22e-1 | 5.64e-2 | 9.2e-8 | 192 s |
-| **MUSCL** | 32x32x1 | 20 | **3.73e-2** | 1.89e-1 | 1.0e-7 | 85 s |
-| **MUSCL** | 48x48x1 | 20 | **1.74e-2** | 1.96e-1 | 1.0e-7 | 530 s |
+| upwind | 32x32x1 | 40 | 1.43e-1 | 1.88e-1 | 3.1e-7 | 164 s |
+| blend 0.25 | 32x32x1 | 40 | 1.22e-1 | 1.39e-1 | 9.2e-8 | 170 s |
+| **MUSCL** | 32x32x1 | 20 | **3.73e-2** | **6.37e-2** | 1.0e-7 | 79 s |
+| **MUSCL** | 48x48x1 | 20 | **1.74e-2** | **4.69e-2** | 1.0e-7 | 517 s |
 
-The MUSCL `u` profile is dramatically better: **1.74e-2 at 48²**, about 5.7×
-better than central at 32². The `v` profile is worse (1.96e-1). The `v`
-centreline has a thin wall layer; the uniform grid resolves it poorly, and the
-limiter adds dissipation there. The `u` result shows the scheme is working;
-the `v` result is a wall-resolution issue, not a global instability.
-
-### Steady-state and 64² check (Re=1000)
-
-A steady-state criterion was added to the driver: it compares `u` and `v`
-with their values `--steady-check` steps earlier and stops after
-`--steady-window` consecutive checks below `--steady-tol`. At 64², Re=1000,
-MUSCL, `t=30`:
-
-| Grid | RMS u | RMS v | `max|div|` | final residual | steady | time |
-|---|---|---|---|---|---|---|---|
-| 48² | 1.74e-2 | 1.96e-1 | 1.0e-7 | — | — | 530 s |
-| 64² | 1.72e-2 | 2.20e-1 | 3.8e-7 | 7.3e-2 | **no** | 2042 s |
-
-The `u` error is unchanged and excellent; the `v` error is **not reduced** by
-uniform refinement and is still growing at `t=30` (residual `7.3e-2`). This
-confirms that the `v` error is the near-wall boundary layer and the transient,
-not the `u` advection scheme. Uniform refinement alone is not the answer;
-wall clustering (GLL-like) and a longer/steady run are required.
+MUSCL is the clear winner: at 48² the combined centreline RMS is `0.050`,
+against `0.139` for central at 32². The `v` RMS is `4.69e-2`, below the
+`5e-2` target. The earlier apparent MUSCL `v` failure was the shifted table,
+not the scheme. Uniform refinement plus MUSCL is working; wall clustering is
+not required at Re=1000.
 
 ### Higher-Re limits (MUSCL, n=48, t=10)
 
 | Re | RMS u | RMS v | `max|div|` | GPU time |
 |---|---|---|---|---|---|
-| 5000 | 2.60e-1 | 2.63e-1 | 9.5e-8 | 316 s |
-| 10000 | 3.24e-1 | 2.99e-1 | 1.9e-8 | 376 s |
+| 5000 | 2.60e-1 | 2.69e-1 | 9.5e-8 | 285 s |
+| 10000 | 3.24e-1 | 2.95e-1 | 1.9e-8 | 346 s |
 
-Both are **stable** but under-resolved; the 48² uniform grid cannot resolve the
-Re=5000/10000 boundary layers. This is the current stability limit, not a
-validated high-Re accuracy result.
+Both are stable but under-resolved at 48²; these are stability-limit results,
+not validated high-Re accuracy. Wall clustering/spectral resolution is still
+the likely requirement at these Reynolds numbers.
 
 ## GPU higher-Reynolds validation (Quadro P600)
 
-`scripts/verify_cavity_gpu.sh` builds the `cuda-local` preset and runs the
-MUSCL scheme:
+`scripts/verify_cavity_gpu.sh` builds the `cuda-local` preset and runs:
 
-| Re | grid | t | RMS u | RMS v | `max|div|` | GPU time |
+| Re | scheme | grid | t | RMS u | RMS v | `max|div|` | time |
 |---|---|---|---|---|---|---|---|
-| 1000 | 32x32x1 | 20 | **3.73e-2** | 1.89e-1 | 1.0e-7 | 85 s |
-| 5000 | 32x32x1 | 10 | 2.58e-1 | 2.78e-1 | 3.5e-8 | 91 s |
+| 1000 | MUSCL | 32x32x1 | 20 | **3.73e-2** | **6.37e-2** | 1.0e-7 | 79 s |
+| 5000 | MUSCL | 32x32x1 | 10 | 2.58e-1 | 2.83e-1 | 3.5e-8 | 89 s |
 
-The Re=1000 gate uses `--rms-tol 0.20 --div-tol 2e-7`. The Re=5000 run is a
-stability smoke. The script completes in ~3 minutes.
+The Re=1000 gate uses `--rms-tol 0.20 --div-tol 2e-7`; the script completes in
+~3 minutes.
 
 ```bash
 source scripts/env_cuda.sh
 ./scripts/verify_cavity_gpu.sh
 ```
 
+## Steady-state check and 64²
+
+A steady-state criterion is available (`--steady-tol`, `--steady-check`,
+`--steady-window`). At 64², Re=1000, MUSCL, `t=30`, the `u` RMS is
+`1.72e-2` (consistent with 48²), but the run is **not steady**
+(residual `7.3e-2`) after 2042 s. The `v` number from that run predates the
+table correction and is not used. A corrected 64² run to steady state is the
+next check; the corrected 48² result already meets the `v` target.
+
 ## Higher-order method context (Nektar++ / NekRS)
 
-The lid-driven cavity is a standard target for high-order methods. Nektar++
-uses a spectral/hp element formulation: the solution is expanded in a
-polynomial basis of order `p` on Gauss–Lobatto–Legendre (GLL) points, with
-separate advection and diffusion operators and dealiasing/overintegration for
-the nonlinear terms. NekRS is a spectral-element code with a polynomial order
-`N` (typically 7–9), dealiasing and filtering, and overintegration.
+Nektar++ uses a spectral/hp element formulation: polynomial order `p` on
+Gauss–Lobatto–Legendre points, separate advection and diffusion operators,
+dealiasing/overintegration for nonlinear terms. NekRS uses spectral elements
+with order `N` (typically 7–9), dealiasing/filtering, and overintegration.
 
-Two lessons from those codes matter here:
-- **GLL/spectral nodes cluster at walls.** That is what resolves the thin `v`
-  wall layer which the uniform-grid MUSCL run misses.
-- **Nonlinear advection needs dealiasing/overintegration.** Higher-order
-  reconstructions are only robust when the nonlinear products are not
-  aliased; limiters are the finite-volume analogue of that stabilization.
+Two lessons:
+- **GLL/spectral nodes cluster at walls**, which resolves thin boundary
+  layers without uniform refinement.
+- **Nonlinear advection needs dealiasing/overintegration**; limiters are the
+  finite-volume analogue.
 
-Our current scheme is a second-order finite-volume MUSCL; it is not a
-spectral-element method. Its `u` accuracy at 48² is already good, but matching
-the `v` wall layer requires wall-clustered grids (or a spectral/hp path) and
-more careful dealiasing/limiting.
+Our MUSCL is second-order FV, not spectral. It already meets the Re=1000
+centreline target at 48²; Re=5000/10000 and genuinely turbulent 3D states
+will need the wall-clustered/spectral and dealiasing ideas.
 
 ### Code extension needed
 
-- a steady-state convergence criterion is now available, but the Re=1000
-  run at 64²/`t=30` is still not steady;
-- **wall-clustered grids or a mapped/spectral grid** are now the clear
-  priority: uniform 48² -> 64² does not reduce the `v` error;
-- WENO/limited reconstruction with overintegration-like stabilization at
-  high Re;
-- a 3D cavity with z walls for genuinely turbulent states;
-- a distributed/GPU Poisson or faster multigrid path at larger sizes.
-
-The MUSCL scheme is stable to Re=10000 on the GPU and gives a clear `u`
-accuracy gain; the quantitative high-Re/`v` validation is the next extension.
+- a corrected 64² steady-state run;
+- wall-clustered or spectral/hp grids for Re=5000/10000;
+- WENO/limited reconstruction with dealiasing-like stabilization;
+- a 3D cavity with z walls for turbulence;
+- a faster distributed/GPU Poisson at larger sizes.

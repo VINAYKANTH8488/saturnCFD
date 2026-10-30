@@ -939,13 +939,11 @@ scaling to 8 GPUs.
 - [x] High-Re advection options: central, first-order upwind, minmod MUSCL,
       and a central/upwind blend (`--advection`, `--blend`). At Re=100, MUSCL
       lowers the coarse-grid RMS from 3.09e-2/1.95e-2 to 1.67e-2/1.28e-2.
-      At Re=1000, MUSCL at 48² gives u RMS 1.74e-2 (5.7x better than central
-      at 32²) but v RMS 1.96e-1 because the uniform grid misses the thin v
-      wall layer. Re=5000/10000 at 48² are stable but under-resolved. The
-      A steady-state criterion is now in the driver; Re=1000 at 64² (MUSCL,
-      t=30) gives u RMS 1.72e-2 but v RMS 2.20e-1 and is still not steady.
-      Uniform refinement does not fix v, so the Nektar++/NekRS-style
-      wall-clustered/GLL or spectral path is the next extension.
+      At Re=1000, MUSCL at 48² gives u RMS 1.74e-2 and v RMS 4.69e-2
+      (combined 0.050 vs central 0.139 at 32²). The earlier 1.96e-1 v value
+      was a shifted Ghia v-column bug, now fixed. Re=5000/10000 at 48² are
+      stable but under-resolved. A corrected 64² steady-state run and
+      wall-clustered/spectral resolution for Re>=5000 are the next extension.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
       C++ TGV prototype matches projection velocity error at `M_c=0.05` with
       ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).
