@@ -191,16 +191,37 @@ That is the next solver-wide extension. It is not required for Re=1000 at
 48² (the target is met), but it is the right path for Re≥5000 and turbulence.
 The Nektar++/NekRS GLL-clustering analogy is the design guide.
 
-### Higher-Re limits (MUSCL, n=48, t=10)
+### Higher-Re limits (n=48, t=10 unless noted)
 
-| Re | RMS u | RMS v | `max|div|` | GPU time |
-|---|---|---|---|---|---|
-| 5000 | 2.60e-1 | 2.69e-1 | 9.5e-8 | 285 s |
-| 10000 | 3.24e-1 | 2.95e-1 | 1.9e-8 | 346 s |
+| Re | scheme | RMS u | RMS v | `max|div|` | GPU time |
+|---|---|---|---|---|---|---|
+| 5000 | MUSCL | 2.60e-1 | 2.69e-1 | 9.5e-8 | 285 s |
+| 5000 | WENO5 | 2.16e-1 | 2.89e-1 | 1.5e-8 | 80 s (32²) |
+| 10000 | MUSCL | 3.24e-1 | 2.95e-1 | 1.9e-8 | 346 s |
+| 10000 | **WENO5** | **2.49e-1** | 3.08e-1 | 5.0e-8 | 413 s |
+| 10000 | **WENO5, 64²** | **2.53e-1** | 3.05e-1 | 7.1e-8 | 1115 s |
 
-Both are stable but under-resolved at 48²; these are stability-limit results,
-not validated high-Re accuracy. Wall clustering/spectral resolution is still
-the likely requirement at these Reynolds numbers.
+WENO5 improves the Re=10000 `u` profile by ~23% over MUSCL, but the `v`
+profile remains poor and **uniform refinement from 48² to 64² does not
+improve the result** (`u` 2.49e-1 -> 2.53e-1, `v` 3.08e-1 -> 3.05e-1). The
+Re=10000 boundary layer is not resolved by a uniform grid at this size.
+These are stability/trend results, **not a validation**. Wall clustering with
+a variable-coefficient Poisson is required before Re=5000/10000 can be
+claimed as validated.
+
+### Scheme choice
+
+| Regime | Recommended scheme | Reason |
+|---|---|---|
+| Re≤1000, uniform 32²–48² | WENO5 or MUSCL | WENO5 combined 0.048 vs MUSCL 0.050 at 48²; both meet the target |
+| Re=5000 | WENO5 + finer grid | WENO5 32² gives 2.16e-1/2.89e-1; not yet validated |
+| Re=10000 | WENO5 + wall clustering | WENO5 `u` 2.49e-1 vs MUSCL 3.24e-1; uniform refinement stalls |
+| High-Re oscillations | WENO5 + optional low-pass filter | filter is a dealiasing analogue; no benefit on the smooth cavity |
+| Robust/cheap fallback | MUSCL | lower cost, similar combined error at Re=1000 |
+
+Central advection is only competitive at low Re/coarse grids; upwind is
+over-damped. The next quantitative step is a wall-clustered grid with a
+variable-coefficient Poisson, not a larger uniform grid.
 
 ## GPU higher-Reynolds validation (Quadro P600)
 

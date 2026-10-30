@@ -950,6 +950,10 @@ scaling to 8 GPUs.
 - [x] 3D cavity with no-slip z walls (`--z-wall`): WENO5 32x32x48, t=10
       reaches centre-plane RMS 0.117/0.141, |div| 3.5e-7 in 157 s. This is a
       qualitative 3D run; a true 3D reference is pending.
+- [x] Re=10000 WENO5 limit study: 48² gives u/v 2.49e-1/3.08e-1; 64² gives
+      2.53e-1/3.05e-1, so uniform refinement stalls. Re=10000 is stable but
+      **not validated**; wall clustering with a variable-coefficient Poisson
+      is required.
 - [ ] Clustered/curvilinear grid with a variable-coefficient Poisson; this is
       the next solver-wide extension for Re>=5000/turbulence.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
