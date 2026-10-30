@@ -41,6 +41,33 @@ struct Geometry {
   int adv = 0;
   double adv_blend = 0.25;
   bool z_wall = false;
+  // beta = 0: uniform grid. beta > 0: tanh clustering at both walls.
+  double beta = 0.0;
+
+  KOKKOS_INLINE_FUNCTION
+  double map_x(double xi) const {
+    if (beta <= 0.0) {
+      return xi;
+    }
+    return 0.5 *
+           (1.0 + Kokkos::tanh(beta * (2.0 * xi - 1.0)) / Kokkos::tanh(beta));
+  }
+  KOKKOS_INLINE_FUNCTION
+  double dmap_x(double xi) const {
+    if (beta <= 0.0) {
+      return 1.0;
+    }
+    const double t = Kokkos::tanh(beta * (2.0 * xi - 1.0));
+    return beta / Kokkos::tanh(beta) * (1.0 - t * t);
+  }
+  KOKKOS_INLINE_FUNCTION
+  double xf(int i) const { return map_x(static_cast<double>(i) / n0); }
+  KOKKOS_INLINE_FUNCTION
+  double xc(int i) const { return map_x((static_cast<double>(i) + 0.5) / n0); }
+  KOKKOS_INLINE_FUNCTION
+  double yf(int j) const { return map_x(static_cast<double>(j) / n1); }
+  KOKKOS_INLINE_FUNCTION
+  double yc(int j) const { return map_x((static_cast<double>(j) + 0.5) / n1); }
 };
 
 KOKKOS_INLINE_FUNCTION
@@ -100,7 +127,9 @@ void divergence(const projection::ScalarView<ExecSpace>& u,
         const double up = (ip < 0) ? 0.0 : u(k, j, ip);
         const double vp = (jp < 0) ? 0.0 : v(k, jp, i);
         const double wp = (kp < 0) ? 0.0 : w(kp, j, i);
-        div(k, j, i) = (up - u(k, j, i)) / g.hx + (vp - v(k, j, i)) / g.hy +
+        const double dx = g.xf(i + 1) - g.xf(i);
+        const double dy = g.yf(j + 1) - g.yf(j);
+        div(k, j, i) = (up - u(k, j, i)) / dx + (vp - v(k, j, i)) / dy +
                        (wp - w(k, j, i)) / g.hz;
       });
 }
@@ -119,8 +148,6 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
   const double hx = g.hx;
   const double hy = g.hy;
   const double hz = g.hz;
-  const double hx2 = hx * hx;
-  const double hy2 = hy * hy;
   const double hz2 = hz * hz;
   const double u_lid = g.u_lid;
   const int adv = g.adv;
@@ -204,9 +231,20 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
                   u((k + 2) % n2, j, i), u((k + 3) % n2, j, i), w_at_u, hz);
             }
           }
-          const double lap_u = (u_ip - 2.0 * u_here + u_im) / hx2 +
-                               (u_jp - 2.0 * u_here + u_jm) / hy2 +
-                               (u_kp - 2.0 * u_here + u_km) / hz2;
+          dudx /= g.dmap_x(i * hx);
+          dudy /= g.dmap_x((j + 0.5) * hy);
+          const double dxm_u = g.xf(i) - g.xf(i - 1);
+          const double dxp_u = g.xf(i + 1) - g.xf(i);
+          const double dym_u =
+              (j == 0) ? g.yf(1) - g.yf(0) : g.yc(j) - g.yc(j - 1);
+          const double dyp_u =
+              (j + 1 == n1) ? g.yf(n1) - g.yf(n1 - 1) : g.yc(j + 1) - g.yc(j);
+          const double lap_u =
+              2.0 / (dxm_u + dxp_u) *
+                  ((u_ip - u_here) / dxp_u - (u_here - u_im) / dxm_u) +
+              2.0 / (dym_u + dyp_u) *
+                  ((u_jp - u_here) / dyp_u - (u_here - u_jm) / dym_u) +
+              (u_kp - 2.0 * u_here + u_km) / hz2;
           du(k, j, i) =
               -(u_here * dudx + v_at_u * dudy + w_at_u * dudz) + nu * lap_u;
         }
@@ -277,9 +315,21 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
                   v((k + 2) % n2, j, i), v((k + 3) % n2, j, i), w_at_v, hz);
             }
           }
-          const double lap_v = (v_ip - 2.0 * v_here + v_im) / hx2 +
-                               (v_jp - 2.0 * v_here + v_jm) / hy2 +
-                               (v_kp - 2.0 * v_here + v_km) / hz2;
+          dvdx /= g.dmap_x((i + 0.5) * hx);
+          dvdy /= g.dmap_x(j * hy);
+          const double dxm_v =
+              (i == 0) ? g.xf(1) - g.xf(0) : g.xc(i) - g.xc(i - 1);
+          const double dxp_v =
+              (i + 1 == n0) ? g.xf(n0) - g.xf(n0 - 1) : g.xc(i + 1) - g.xc(i);
+          const double dym_v = g.yf(j) - g.yf(j - 1);
+          const double dyp_v =
+              (j + 1 == n1) ? g.yf(n1) - g.yf(n1 - 1) : g.yf(j + 1) - g.yf(j);
+          const double lap_v =
+              2.0 / (dxm_v + dxp_v) *
+                  ((v_ip - v_here) / dxp_v - (v_here - v_im) / dxm_v) +
+              2.0 / (dym_v + dyp_v) *
+                  ((v_jp - v_here) / dyp_v - (v_here - v_jm) / dym_v) +
+              (v_kp - 2.0 * v_here + v_km) / hz2;
           dv(k, j, i) =
               -(u_at_v * dvdx + v_here * dvdy + w_at_v * dvdz) + nu * lap_v;
         }
@@ -347,9 +397,22 @@ void momentum_rhs(const projection::ScalarView<ExecSpace>& u,
                 w((k + 2) % n2, j, i), w((k + 3) % n2, j, i), w_here, hz);
           }
         }
-        const double lap_w = (w_ip - 2.0 * w_here + w_im) / hx2 +
-                             (w_jp - 2.0 * w_here + w_jm) / hy2 +
-                             (w_kp - 2.0 * w_here + w_km) / hz2;
+        dwdx /= g.dmap_x((i + 0.5) * hx);
+        dwdy /= g.dmap_x((j + 0.5) * hy);
+        const double dxm_w =
+            (i == 0) ? g.xf(1) - g.xf(0) : g.xc(i) - g.xc(i - 1);
+        const double dxp_w =
+            (i + 1 == n0) ? g.xf(n0) - g.xf(n0 - 1) : g.xc(i + 1) - g.xc(i);
+        const double dym_w =
+            (j == 0) ? g.yf(1) - g.yf(0) : g.yc(j) - g.yc(j - 1);
+        const double dyp_w =
+            (j + 1 == n1) ? g.yf(n1) - g.yf(n1 - 1) : g.yc(j + 1) - g.yc(j);
+        const double lap_w =
+            2.0 / (dxm_w + dxp_w) *
+                ((w_ip - w_here) / dxp_w - (w_here - w_im) / dxm_w) +
+            2.0 / (dym_w + dyp_w) *
+                ((w_jp - w_here) / dyp_w - (w_here - w_jm) / dym_w) +
+            (w_kp - 2.0 * w_here + w_km) / hz2;
         dw(k, j, i) =
             -(u_at_w * dwdx + v_at_w * dwdy + w_here * dwdz) + nu * lap_w;
         if (g.z_wall && k == 0) {
@@ -401,6 +464,180 @@ void filter_velocity(const projection::ScalarView<ExecSpace>& u,
         u_out(k, j, i) = (i == 0) ? 0.0 : uu + alpha * lu;
         v_out(k, j, i) = (j == 0) ? 0.0 : vv + alpha * lv;
         w_out(k, j, i) = (k == 0) ? 0.0 : ww + alpha * lw;
+      });
+}
+
+// Host-side variable-coefficient Poisson for the clustered 2D grid:
+//   B p = f,  B = -(variable-coefficient Laplacian)
+// with Neumann walls. The cell volumes are folded into f, so B is symmetric.
+class ClusteredPoisson2D {
+ public:
+  ClusteredPoisson2D(int n0, int n1, const Geometry& g)
+      : n0_(n0), n1_(n1), bx_(n0 * n1, 0.0), by_(n0 * n1, 0.0) {
+    for (int j = 0; j < n1; ++j) {
+      for (int i = 0; i < n0; ++i) {
+        const int index = j * n0 + i;
+        if (i > 0) {
+          bx_[index] = (g.yf(j + 1) - g.yf(j)) / (g.xc(i) - g.xc(i - 1));
+        }
+        if (j > 0) {
+          by_[index] = (g.xf(i + 1) - g.xf(i)) / (g.yc(j) - g.yc(j - 1));
+        }
+      }
+    }
+  }
+
+  void apply(const std::vector<double>& p, std::vector<double>& out) const {
+    for (int j = 0; j < n1_; ++j) {
+      for (int i = 0; i < n0_; ++i) {
+        const int index = j * n0_ + i;
+        const double bl = (i > 0) ? bx_[index] : 0.0;
+        const double br = (i + 1 < n0_) ? bx_[index + 1] : 0.0;
+        const double bo = (j > 0) ? by_[index] : 0.0;
+        const double bt = (j + 1 < n1_) ? by_[index + n0_] : 0.0;
+        const double pl = (i > 0) ? p[index - 1] : p[index];
+        const double pr = (i + 1 < n0_) ? p[index + 1] : p[index];
+        const double pd = (j > 0) ? p[index - n0_] : p[index];
+        const double pu = (j + 1 < n1_) ? p[index + n0_] : p[index];
+        out[index] = br * (p[index] - pr) + bl * (p[index] - pl) +
+                     bt * (p[index] - pu) + bo * (p[index] - pd);
+      }
+    }
+  }
+
+  void solve(std::vector<double>& p, const std::vector<double>& f,
+             double tolerance = 1.0e-8, int max_iterations = 500) const {
+    const int total = n0_ * n1_;
+    p.assign(total, 0.0);
+    std::vector<double> rhs = f;
+    double mean = 0.0;
+    for (double value : rhs) {
+      mean += value;
+    }
+    mean /= static_cast<double>(total);
+    for (double& value : rhs) {
+      value -= mean;
+    }
+    std::vector<double> r = rhs;
+    std::vector<double> z(total, 0.0);
+    std::vector<double> dir(total, 0.0);
+    std::vector<double> ap(total, 0.0);
+    std::vector<double> diag(total, 0.0);
+    for (int j = 0; j < n1_; ++j) {
+      for (int i = 0; i < n0_; ++i) {
+        const int index = j * n0_ + i;
+        const double bl = (i > 0) ? bx_[index] : 0.0;
+        const double br = (i + 1 < n0_) ? bx_[index + 1] : 0.0;
+        const double bo = (j > 0) ? by_[index] : 0.0;
+        const double bt = (j + 1 < n1_) ? by_[index + n0_] : 0.0;
+        diag[index] = bl + br + bo + bt;
+      }
+    }
+    auto dot = [&](const std::vector<double>& a, const std::vector<double>& b) {
+      double sum = 0.0;
+      for (int q = 0; q < total; ++q) {
+        sum += a[q] * b[q];
+      }
+      return sum;
+    };
+    auto norm = [&](const std::vector<double>& a) {
+      return std::sqrt(dot(a, a) / static_cast<double>(total));
+    };
+    const double target = tolerance * std::max(1.0, norm(rhs));
+    for (int q = 0; q < total; ++q) {
+      z[q] = diag[q] != 0.0 ? r[q] / diag[q] : 0.0;
+    }
+    dir = z;
+    double rz = dot(r, z);
+    for (int it = 0; it < max_iterations; ++it) {
+      if (norm(r) <= target) {
+        break;
+      }
+      apply(dir, ap);
+      const double denom = dot(dir, ap);
+      if (std::abs(denom) < 1.0e-300) {
+        break;
+      }
+      const double alpha = rz / denom;
+      for (int q = 0; q < total; ++q) {
+        p[q] += alpha * dir[q];
+        r[q] -= alpha * ap[q];
+      }
+      for (int q = 0; q < total; ++q) {
+        z[q] = diag[q] != 0.0 ? r[q] / diag[q] : 0.0;
+      }
+      const double rz_new = dot(r, z);
+      const double beta = rz_new / rz;
+      for (int q = 0; q < total; ++q) {
+        dir[q] = z[q] + beta * dir[q];
+      }
+      rz = rz_new;
+    }
+  }
+
+ private:
+  int n0_;
+  int n1_;
+  std::vector<double> bx_;
+  std::vector<double> by_;
+};
+
+template <class ExecSpace>
+void project_clustered(projection::ScalarView<ExecSpace>& u,
+                       projection::ScalarView<ExecSpace>& v,
+                       projection::ScalarView<ExecSpace>& w,
+                       projection::ScalarView<ExecSpace>& phi,
+                       projection::ScalarView<ExecSpace>& scratch,
+                       const Geometry& g) {
+  divergence<ExecSpace>(u, v, w, scratch, g);
+  auto hdiv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), scratch);
+  auto hphi = Kokkos::create_mirror_view(phi);
+  const int n0 = g.n0;
+  const int n1 = g.n1;
+  std::vector<double> f(static_cast<std::size_t>(n0) * n1, 0.0);
+  for (int j = 0; j < n1; ++j) {
+    for (int i = 0; i < n0; ++i) {
+      const double dx = g.xf(i + 1) - g.xf(i);
+      const double dy = g.yf(j + 1) - g.yf(j);
+      f[static_cast<std::size_t>(j) * n0 + i] = hdiv(0, j, i) * dx * dy;
+    }
+  }
+  ClusteredPoisson2D solver(n0, n1, g);
+  std::vector<double> p;
+  solver.solve(p, f, 1.0e-12, 2000);
+  for (int j = 0; j < n1; ++j) {
+    for (int i = 0; i < n0; ++i) {
+      hphi(0, j, i) = p[static_cast<std::size_t>(j) * n0 + i];
+    }
+  }
+  Kokkos::deep_copy(phi, hphi);
+
+  const auto policy =
+      make_mdrange3<ExecSpace>(Int3{{0, 0, 0}}, Int3{{g.n2, n1, n0}});
+  Kokkos::parallel_for(
+      "cavity_clustered_project", policy, KOKKOS_LAMBDA(int k, int j, int i) {
+        if (i > 0) {
+          u(k, j, i) +=
+              (phi(k, j, i) - phi(k, j, i - 1)) / (g.xc(i) - g.xc(i - 1));
+        } else {
+          u(k, j, i) = 0.0;
+        }
+        if (j > 0) {
+          v(k, j, i) +=
+              (phi(k, j, i) - phi(k, j - 1, i)) / (g.yc(j) - g.yc(j - 1));
+        } else {
+          v(k, j, i) = 0.0;
+        }
+        if (g.n2 == 1) {
+          w(k, j, i) = 0.0;
+        } else {
+          const int km = (k == 0) ? (g.z_wall ? -1 : g.n2 - 1) : k - 1;
+          if (k > 0) {
+            w(k, j, i) += (phi(k, j, i) - phi(km, j, i)) / g.hz;
+          } else if (g.z_wall) {
+            w(k, j, i) = 0.0;
+          }
+        }
       });
 }
 

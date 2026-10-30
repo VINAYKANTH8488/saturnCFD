@@ -179,17 +179,45 @@ Larger span moves the centre plane closer to the 2D solution, as expected.
 A genuine 3D reference (aspect-ratio-resolved cavity) is still needed for
 quantitative 3D validation.
 
-### Clustered grid
+### Wall-clustered grid and variable-coefficient solver
 
-Wall clustering is **not yet implemented**. The current Poisson solver is a
-constant-coefficient uniform-grid multigrid; a clustered grid needs:
-- face-coordinate arrays and metric factors in `Geometry`;
-- metric-aware divergence, momentum, and Laplacian;
-- a variable-coefficient/curvilinear Poisson (PCG or MG).
+Implemented for the 2D cavity (`--stretch BETA`, `nz=1`):
 
-That is the next solver-wide extension. It is not required for Re=1000 at
-48² (the target is met), but it is the right path for Re≥5000 and turbulence.
-The Nektar++/NekRS GLL-clustering analogy is the design guide.
+- tanh wall clustering `x = 0.5(1 + tanh(beta(2xi-1))/tanh(beta))`; at
+  `beta=2` the first wall cell is about `0.147 h` and the centre cell about
+  `2.07 h`;
+- metric-aware divergence, WENO5/MUSCL advection, and nonuniform
+  finite-volume Laplacian;
+- a host variable-coefficient PCG for the pressure:
+  `B p = f`, face coefficients `dy/dxc`, `dx/dyc`, Neumann walls,
+  volume-weighted RHS, tolerance `1e-12`;
+- GPU momentum, host pressure solve; the clustered path is 2D only.
+
+Re=1000, 32², `beta=2`, WENO5, `t=20`:
+
+| Grid | RMS u | RMS v |
+|---|---|---|
+| uniform | 3.54e-2 | 6.24e-2 |
+| **clustered, beta=2** | **3.68e-2** | **3.01e-2** |
+
+The `v` error is halved; `u` is essentially unchanged.
+
+Re=10000, 48², `beta=2`, WENO5:
+
+| t | RMS u | RMS v | combined | `max|div|` | time |
+|---|---|---|---|---|---|
+| 10 | 2.91e-1 | 2.47e-1 | 0.381 | 5.0e-8 | 203 s |
+| 20 | 2.20e-1 | 2.22e-1 | 0.313 | 4.5e-8 | 411 s |
+| **50** | **1.00e-1** | **1.12e-1** | **0.150** | **5.2e-8** | **1064 s** |
+
+At `t=50` the centreline error is about **10% of the lid speed**, versus
+`0.396` combined for uniform WENO5 at `t=10`. The run is **not steady**
+(residual `2.9e-1` over 100 steps) and not grid-converged, so this is a
+coarse validation, not a few-percent Re=10000 benchmark. Longer transients
+and a 64² clustered grid are the next refinement.
+
+The Nektar++/NekRS GLL-clustering analogy remains the design guide; the
+pressure solve is currently host-side, and 3D clustering is not implemented.
 
 ### Higher-Re limits (n=48, t=10 unless noted)
 

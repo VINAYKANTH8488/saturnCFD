@@ -93,10 +93,11 @@ Progress:
   from 3.09e-2/1.95e-2 to 1.67e-2/1.28e-2, and MUSCL at 48² gives Re=1000
   RMS 1.74e-2 (u) and 4.69e-2 (v) — combined 0.050 vs 0.139 for central at
   32². WENO5 gives 1.84e-2/4.41e-2 (combined 0.048), and 3D z-wall runs with
-  WENO5 are stable (32x32x48: 0.117/0.141, |div| 3.5e-7). Re=10000 with
-  WENO5 is stable but stalls at u/v ≈2.5e-1/3.1e-1 even at 64², so it is not
-  validated; wall clustering is required. Re=5000/10000 are under-resolved;
-  see
+  WENO5 are stable (32x32x48: 0.117/0.141, |div| 3.5e-7). A wall-clustered
+  2D grid (`--stretch`) with a variable-coefficient PCG reaches Re=10000
+  48²/t=50 at u/v **1.00e-1/1.12e-1** (combined 0.150, |div| 5.2e-8), a
+  coarse ~10% validation; uniform WENO5 stalled at ~0.25/0.31. Re=5000/10000
+  are not fully steady/grid-converged; see
   `scripts/verify_cavity_gpu.sh`
   (`docs/verification/cavity.md`). Re=400 tables are also wired in; a coarse
   24² run gives RMS 0.074 (u) / 0.072 (v).

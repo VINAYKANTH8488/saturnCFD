@@ -954,8 +954,13 @@ scaling to 8 GPUs.
       2.53e-1/3.05e-1, so uniform refinement stalls. Re=10000 is stable but
       **not validated**; wall clustering with a variable-coefficient Poisson
       is required.
-- [ ] Clustered/curvilinear grid with a variable-coefficient Poisson; this is
-      the next solver-wide extension for Re>=5000/turbulence.
+- [x] Wall-clustered 2D grid (`--stretch`, tanh) with a host
+      variable-coefficient PCG and metric-aware WENO5. Re=1000 32² beta=2:
+      u/v 3.68e-2/3.01e-2 (v halved vs uniform). Re=10000 48² beta=2, t=50:
+      1.00e-1/1.12e-1 (combined 0.150), |div| 5.2e-8, 1064 s; still not
+      steady/grid-converged, so a coarse ~10% validation.
+- [ ] 3D clustering and a GPU variable-coefficient Poisson; longer Re=10000
+      transient and 64² clustered grid for a few-percent validation.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
       C++ TGV prototype matches projection velocity error at `M_c=0.05` with
       ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).

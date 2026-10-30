@@ -50,6 +50,7 @@ struct Params {
   double blend = 0.25;
   double filter_alpha = 0.0;
   int filter_every = 1;
+  double stretch = 0.0;
   std::string advection = "central";
   std::string profile;
   std::string space = "default";
@@ -78,6 +79,7 @@ void usage(const char* argv0) {
       "  --blend VALUE      central/upwind blend fraction (default 0.25)\n"
       "  --filter VALUE     low-pass/dealiasing filter strength (0 = off)\n"
       "  --filter-every N   apply the filter every N steps (default 1)\n"
+      "  --stretch VALUE    tanh wall clustering strength (0 = uniform)\n"
       "  --profile FILE     write centreline u(y), v(x) samples\n"
       "  --z-wall           no-slip z walls instead of periodicity\n"
       "  --space NAME       serial|openmp|cuda|hip|sycl|default\n"
@@ -176,6 +178,8 @@ Params parse(int argc, char** argv) {
       p.filter_alpha = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--filter-every") {
       p.filter_every = parse_int(a, require_value(i, argc, argv, a));
+    } else if (a == "--stretch") {
+      p.stretch = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--space") {
       p.space = require_value(i, argc, argv, a);
     } else if (a == "--z-wall") {
@@ -314,25 +318,25 @@ struct CaseResult {
   bool steady = false;
 };
 
-// Linear interpolation of a cell-centered profile given at points
-// (j+0.5)*h, with wall values supplied at the two ends.
-double interpolate(const std::vector<double>& values, double h, double wall_lo,
-                   double wall_hi, double x) {
+double interpolate_coords(const std::vector<double>& values,
+                          const std::vector<double>& coords, double wall_lo,
+                          double wall_hi, double x) {
   const int n = static_cast<int>(values.size());
-  const double x0 = 0.5 * h;
-  const double x1 = (n - 0.5) * h;
-  if (x <= x0) {
-    const double t = (x - 0.0) / (x0 - 0.0);
+  if (x <= coords[0]) {
+    const double t = (x - 0.0) / coords[0];
     return (1.0 - t) * wall_lo + t * values[0];
   }
-  if (x >= x1) {
-    const double t = (x - x1) / (1.0 - x1);
+  if (x >= coords[n - 1]) {
+    const double t = (x - coords[n - 1]) / (1.0 - coords[n - 1]);
     return (1.0 - t) * values[n - 1] + t * wall_hi;
   }
-  const double pos = x / h - 0.5;
-  const int j = static_cast<int>(std::floor(pos));
-  const double t = pos - static_cast<double>(j);
-  return (1.0 - t) * values[j] + t * values[j + 1];
+  for (int j = 0; j + 1 < n; ++j) {
+    if (x >= coords[j] && x <= coords[j + 1]) {
+      const double t = (x - coords[j]) / (coords[j + 1] - coords[j]);
+      return (1.0 - t) * values[j] + t * values[j + 1];
+    }
+  }
+  return values[n - 1];
 }
 
 template <class ExecSpace>
@@ -343,11 +347,16 @@ CaseResult run_case(int n, const Params& params) {
   g.n0 = n;
   g.n1 = n;
   g.n2 = params.nz;
+  if (params.stretch > 0.0 && params.nz != 1) {
+    std::fprintf(stderr, "clustered grid currently requires --nz 1 (2D)\n");
+    std::exit(2);
+  }
   g.hx = 1.0 / static_cast<double>(n);
   g.hy = 1.0 / static_cast<double>(n);
   g.hz = 1.0 / static_cast<double>(params.nz);
   g.u_lid = params.u_lid;
   g.z_wall = params.z_wall;
+  g.beta = params.stretch;
   g.adv = advection_id(params.advection);
   g.adv_blend = params.blend;
   const double nu = params.u_lid / params.re;
@@ -391,15 +400,23 @@ CaseResult run_case(int n, const Params& params) {
   poptions.max_cycles = 100;
 
   auto do_project = [&](view_type& pu, view_type& pv, view_type& pw) {
-    saturn::cavity::project<ExecSpace>(pu, pv, pw, phi, scratch, g, solver,
-                                       poptions);
+    if (params.stretch > 0.0) {
+      saturn::cavity::project_clustered<ExecSpace>(pu, pv, pw, phi, scratch, g);
+    } else {
+      saturn::cavity::project<ExecSpace>(pu, pv, pw, phi, scratch, g, solver,
+                                         poptions);
+    }
   };
 
   do_project(u, v, w);
 
   const auto policy = saturn::make_mdrange3<ExecSpace>(
       saturn::Int3{{0, 0, 0}}, saturn::Int3{{g.n2, g.n1, g.n0}});
-  const double hmin = std::min({g.hx, g.hy, g.hz});
+  double hmin = std::min({g.hx, g.hy, g.hz});
+  if (params.stretch > 0.0) {
+    hmin = std::min({g.xf(1) - g.xf(0), g.xf(n) - g.xf(n - 1),
+                     g.yf(1) - g.yf(0), g.yf(n) - g.yf(n - 1)});
+  }
   Kokkos::Timer timer;
   double time = 0.0;
   int steps = 0;
@@ -511,8 +528,10 @@ CaseResult run_case(int n, const Params& params) {
         const int kp = (k + 1 == g.n2) ? 0 : k + 1;
         const double up = (ip < 0) ? 0.0 : u(k, j, ip);
         const double vp = (jp < 0) ? 0.0 : v(k, jp, i);
+        const double dx = g.xf(i + 1) - g.xf(i);
+        const double dy = g.yf(j + 1) - g.yf(j);
         const double d =
-            Kokkos::abs((up - u(k, j, i)) / g.hx + (vp - v(k, j, i)) / g.hy +
+            Kokkos::abs((up - u(k, j, i)) / dx + (vp - v(k, j, i)) / dy +
                         (w(kp, j, i) - w(k, j, i)) / g.hz);
         div = d > div ? d : div;
       },
@@ -532,23 +551,25 @@ CaseResult run_case(int n, const Params& params) {
   const int k_center = params.nz / 2;
   std::vector<double> u_center(n);
   std::vector<double> v_center(n);
+  std::vector<double> y_coords(n);
+  std::vector<double> x_coords(n);
   for (int j = 0; j < n; ++j) {
-    const int ip = (i_center + 1 == n) ? i_center : i_center + 1;
-    u_center[j] = 0.5 * (hu(k_center, j, i_center) + hu(k_center, j, ip));
+    y_coords[j] = g.yc(j);
+    u_center[j] = hu(k_center, j, i_center);
   }
   for (int i = 0; i < n; ++i) {
-    const int jp = (j_center + 1 == n) ? j_center : j_center + 1;
-    v_center[i] = 0.5 * (hv(k_center, j_center, i) + hv(k_center, jp, i));
+    x_coords[i] = g.xc(i);
+    v_center[i] = hv(k_center, j_center, i);
   }
 
   if (!params.profile.empty() && saturn::mpi_rank() == 0) {
     std::ofstream out(params.profile);
     out << "# kind station value\n";
     for (int j = 0; j < n; ++j) {
-      out << "u " << (j + 0.5) * g.hy << ' ' << u_center[j] << '\n';
+      out << "u " << g.yc(j) << ' ' << u_center[j] << '\n';
     }
     for (int i = 0; i < n; ++i) {
-      out << "v " << (i + 0.5) * g.hx << ' ' << v_center[i] << '\n';
+      out << "v " << g.xc(i) << ' ' << v_center[i] << '\n';
     }
   }
 
@@ -560,8 +581,9 @@ CaseResult run_case(int n, const Params& params) {
   if (has_ghia) {
     for (int q = 0; q < kGhiaCount; ++q) {
       const double uq =
-          interpolate(u_center, g.hy, 0.0, params.u_lid, kGhiaY[q]);
-      const double vq = interpolate(v_center, g.hx, 0.0, 0.0, kGhiaX[q]);
+          interpolate_coords(u_center, y_coords, 0.0, params.u_lid, kGhiaY[q]);
+      const double vq =
+          interpolate_coords(v_center, x_coords, 0.0, 0.0, kGhiaX[q]);
       const double du = uq - ref_u[q];
       const double dv = vq - ref_v[q];
       sum_u += du * du;
