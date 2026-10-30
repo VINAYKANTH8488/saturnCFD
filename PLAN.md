@@ -933,6 +933,11 @@ scaling to 8 GPUs.
       centreline profiles match Ghia et al. (RMS 7.6e-3 u, 9.9e-3 v),
       `max|div| ~ 3e-11` (`docs/verification/cavity.md`). Re=400 tables are
       included; a coarse 24² run gives RMS 0.074/0.072.
+- [x] GPU higher-Re cavity first step: Re=1000 on the P600 (32², t=40,
+      Ghia RMS 0.100/0.097, `max|div|=6.2e-8`, 193 s) passes the 15% gate;
+      Re=5000 is a stable but under-resolved smoke (RMS 0.288/0.282, 42 s).
+      `scripts/verify_cavity_gpu.sh` rebuilds and repeats both. High-Re
+      extension (robust advection, finer grids, 3D z walls) is the next step.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
       C++ TGV prototype matches projection velocity error at `M_c=0.05` with
       ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).

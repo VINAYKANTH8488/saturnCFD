@@ -95,3 +95,44 @@ ctest --test-dir build/cpu-openmp -R saturn.cavity --output-on-failure
   expensive; warm-starting the pressure and a faster multigrid/FFT path are
   needed for production.
 - No-slip wall ghosts are currently limited to x/y walls aligned with the grid.
+
+## GPU higher-Reynolds validation (Quadro P600)
+
+The CUDA build selects the Kokkos Cuda backend with `--space cuda`. Ghia
+centreline tables for Re=1000, 5000, and 10000 were added from the standard
+PetIBM transcription of Ghia et al. (the Re=3200 column has a known typo at
+`y=0.4531` and is not used).
+
+`scripts/verify_cavity_gpu.sh` builds `saturn_cavity_sim` with the
+`cuda-local` preset and runs:
+
+| Re | grid | t | steps | RMS u | RMS v | `max|div|` | GPU time |
+|---|---|---|---|---|---|---|---|
+| 1000 | 32x32x1 | 40 | 3404 | **1.00e-1** | **9.67e-2** | `6.2e-8` | 192.6 s |
+| 5000 | 32x32x1 | 10 | 729 | 2.88e-1 | 2.82e-1 | `1.1e-7` | 41.7 s |
+
+The Re=1000 run passes `--check` with `--rms-tol 0.15`: the centreline RMS
+error is ~10% of the lid speed on this coarse 32² grid, a first GPU
+validation. The Re=5000 run is a stability smoke; it remains bounded and
+mass-conserving but the 32² grid is far too coarse for a quantitative Ghia
+comparison.
+
+```bash
+source scripts/env_cuda.sh
+./scripts/verify_cavity_gpu.sh
+```
+
+### Code extension needed
+
+The next step is not just a larger grid. The current explicit central
+advection + explicit viscous step needs:
+- a robust high-Re advection scheme (upwind/limiter or WENO) to avoid
+  under-resolved central oscillations;
+- finer grids (64²–128²) and longer transients, which the GPU makes
+  affordable;
+- a 3D cavity with z walls for genuinely turbulent states;
+- a distributed/GPU Poisson or a faster multigrid path at larger sizes.
+
+The Re=1000 GPU result is the first validated step; the Re=5000 run shows the
+solver is stable in that direction, but the high-Re/turbulent validation
+requires the extensions above.

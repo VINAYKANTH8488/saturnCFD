@@ -182,6 +182,62 @@ constexpr double kGhia400V[kGhiaCount] = {
     -0.44993, -0.38598, 0.05186,  0.30174,  0.30203,  0.28124,
     0.22965,  0.20920,  0.19713,  0.18360,  0.00000};
 
+// Ghia et al. (1982), Re=1000, 5000, 10000 (PetIBM table; the published
+// Re=3200 column contains a known typo at y=0.4531, so it is not used here).
+constexpr double kGhia1000U[kGhiaCount] = {
+    1.00000,  0.65928,  0.57492,  0.51117,  0.46604,  0.33304,
+    0.18719,  0.05702,  -0.06080, -0.10648, -0.27805, -0.38289,
+    -0.29730, -0.22220, -0.20196, -0.18109, 0.00000};
+constexpr double kGhia1000V[kGhiaCount] = {
+    0.00000,  -0.05906, -0.07391, -0.08864, -0.10313, -0.16914,
+    -0.22445, -0.24533, 0.05454,  0.17527,  0.17507,  0.16077,
+    0.12317,  0.10890,  0.10091,  0.09233,  0.00000};
+constexpr double kGhia5000U[kGhiaCount] = {
+    1.00000,  0.48223,  0.46120,  0.45992,  0.46036,  0.33556,
+    0.20087,  0.08183,  -0.03039, -0.07404, -0.22855, -0.33050,
+    -0.40435, -0.43643, -0.42901, -0.41165, 0.00000};
+constexpr double kGhia5000V[kGhiaCount] = {
+    0.00000,  -0.39017, -0.47425, -0.52357, -0.54053, -0.44307,
+    -0.37401, -0.31184, 0.00999,  0.28188,  0.29030,  0.37119,
+    0.42768,  0.41906,  0.40917,  0.39560,  0.00000};
+constexpr double kGhia10000U[kGhiaCount] = {
+    1.00000,  0.47221,  0.47783,  0.48070,  0.47804,  0.34635,
+    0.20673,  0.08344,  0.03111,  -0.07540, -0.23186, -0.32709,
+    -0.38000, -0.41657, -0.42537, -0.42735, 0.00000};
+constexpr double kGhia10000V[kGhiaCount] = {
+    0.00000,  -0.49774, -0.55069, -0.55408, -0.52876, -0.41442,
+    -0.36214, -0.30018, 0.00945,  0.27280,  0.28066,  0.35368,
+    0.42951,  0.43648,  0.43329,  0.42447,  0.00000};
+
+bool ghia_tables(double re, const double*& u, const double*& v) {
+  if (re == 100.0) {
+    u = kGhiaU;
+    v = kGhiaV;
+    return true;
+  }
+  if (re == 400.0) {
+    u = kGhia400U;
+    v = kGhia400V;
+    return true;
+  }
+  if (re == 1000.0) {
+    u = kGhia1000U;
+    v = kGhia1000V;
+    return true;
+  }
+  if (re == 5000.0) {
+    u = kGhia5000U;
+    v = kGhia5000V;
+    return true;
+  }
+  if (re == 10000.0) {
+    u = kGhia10000U;
+    v = kGhia10000V;
+    return true;
+  }
+  return false;
+}
+
 struct CaseResult {
   int n = 0;
   int steps = 0;
@@ -359,9 +415,9 @@ CaseResult run_case(int n, const Params& params) {
 
   double sum_u = 0.0;
   double sum_v = 0.0;
-  const bool has_ghia = params.re == 100.0 || params.re == 400.0;
-  const double* ref_u = (params.re == 400.0) ? kGhia400U : kGhiaU;
-  const double* ref_v = (params.re == 400.0) ? kGhia400V : kGhiaV;
+  const double* ref_u = nullptr;
+  const double* ref_v = nullptr;
+  const bool has_ghia = ghia_tables(params.re, ref_u, ref_v);
   if (has_ghia) {
     for (int q = 0; q < kGhiaCount; ++q) {
       const double uq =
@@ -409,7 +465,11 @@ int run(const Params& params) {
         }
         status = 1;
       }
-      const bool has_ghia = params.re == 100.0 || params.re == 400.0;
+      const double* ref_u = nullptr;
+      const double* ref_v = nullptr;
+      const bool has_ghia = ghia_tables(params.re, ref_u, ref_v);
+      (void)ref_u;
+      (void)ref_v;
       if (has_ghia &&
           (result.rms_u > params.rms_tol || result.rms_v > params.rms_tol)) {
         if (root) {
