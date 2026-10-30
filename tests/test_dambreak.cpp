@@ -173,6 +173,68 @@ bool check_rising_bubble() {
          std::isfinite(speed);
 }
 
+// Martin & Moyce (1952) dry-bed dam break: the surge front Z = x/a must reach
+// the reference positions at the published dimensionless times
+// T = t sqrt(2g/a) within 15%. The experiment has a finite gate-release time,
+// so an inviscid simulation is expected to be a little early.
+bool check_martin_moyce() {
+  const int nx = 128;
+  const int ny = 64;
+  const double lx = 0.8;
+  const double ly = 0.4;
+  const double a = 0.1;
+  const double hx = lx / nx;
+  const double hy = ly / ny;
+  saturn::twophase::DamBreak2D solver(nx, ny, lx, ly);
+  for (int j = 0; j < ny; ++j) {
+    for (int i = 0; i < nx; ++i) {
+      const double x = (i + 0.5) * hx;
+      const double y = (j + 0.5) * hy;
+      solver.c()[static_cast<std::size_t>(j) * nx + i] =
+          (x < a && y < 2.0 * a) ? 1.0 : 0.0;
+    }
+  }
+  const double mass0 = solver.mass();
+  const double targets[3] = {2.11, 3.00, 3.89};
+  const double reference[3] = {1.83, 2.51, 3.11};
+  double arrival[3] = {-1.0, -1.0, -1.0};
+  for (int step = 0; step < 300; ++step) {
+    solver.step(1.0e-3, 1000.0, 1.0, 1.0e-3, 1.0e-3, -9.81, true, 0.0);
+    double front = 0.0;
+    for (int j = 0; j < 3; ++j) {
+      for (int i = 0; i < nx; ++i) {
+        if (solver.c()[static_cast<std::size_t>(j) * nx + i] > 0.5) {
+          front = std::max(front, (i + 0.5) * hx);
+        }
+      }
+    }
+    const double z = front / a;
+    const double t = (step + 1) * 1.0e-3;
+    const double dimensionless = t * std::sqrt(2.0 * 9.81 / a);
+    for (int q = 0; q < 3; ++q) {
+      if (arrival[q] < 0.0 && z >= targets[q]) {
+        arrival[q] = dimensionless;
+      }
+    }
+  }
+  double cmin = 0.0;
+  double cmax = 0.0;
+  const bool bounded = bounds_ok(solver.c(), cmin, cmax);
+  const double drift = std::abs(solver.mass() - mass0) / mass0;
+  std::printf(
+      "Martin-Moyce: T=%.2f/%.2f/%.2f (ref %.2f/%.2f/%.2f) "
+      "drift=%.2e\n",
+      arrival[0], arrival[1], arrival[2], reference[0], reference[1],
+      reference[2], drift);
+  bool ok = bounded && drift < 1.0e-8 && std::isfinite(solver.max_speed());
+  for (int q = 0; q < 3; ++q) {
+    if (arrival[q] < 0.0 || std::abs(arrival[q] / reference[q] - 1.0) > 0.15) {
+      ok = false;
+    }
+  }
+  return ok;
+}
+
 // Rayleigh-Taylor linear growth at Atwood 1/3: the centre-column vertical
 // velocity should grow as exp(sigma t) with sigma = sqrt(A g k) to within the
 // accuracy of the face-staggered conservative momentum flux at n=64.
@@ -234,6 +296,7 @@ int main() {
   ok = check_static_drop("static drop", 1.0e-3, 1.0e-3) && ok;
   ok = check_static_drop("static drop mu 10:1", 1.0e-3, 1.0e-2) && ok;
   ok = check_rising_bubble() && ok;
+  ok = check_martin_moyce() && ok;
   ok = check_rti() && ok;
   std::printf("dam break test %s\n", ok ? "passed" : "failed");
   return ok ? 0 : 1;

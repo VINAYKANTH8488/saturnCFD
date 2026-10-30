@@ -538,8 +538,10 @@ balances hydrostatic layers to `6.4e-12`, holds a static drop at
 reproduces RTI linear growth within 11% at 64², and a face-staggered
 conservative MAC step (same PLIC mass fluxes for c and momentum) keeps the
 1000:1 dam break stable and places the rising bubble within ~10% of the
-Hysing reference. High-Atwood RTI still destabilises at t~0.6; an open-top
-boundary and a quantitative dam-break front comparison are next.
+Hysing reference, and the dam-break surge front matches Martin & Moyce within
+9% (early, consistent with the gate-release offset). High-Atwood RTI still
+destabilises at t~0.6; an open-top boundary with a ghost-cell momentum
+condition is next.
 
 ## MPI
 

@@ -994,8 +994,10 @@ enough (Appendix C).
       The default step is now a face-staggered conservative MAC update using
       the same PLIC mass fluxes for c and momentum: the 1000:1 dam break is
       stable (|u| 2.52, drift 1e-14), Laplace is 0.36030, RTI is 5.71 at 64²,
-      and the rising bubble is within ~10% of Hysing. High-Atwood RTI still
-      destabilises at t~0.6 (`docs/verification/vof.md`).
+      and the rising bubble is within ~10% of Hysing. The dam-break front now
+      matches Martin & Moyce within 9% (early, gate-release offset).
+      High-Atwood RTI still destabilises at t~0.6
+      (`docs/verification/vof.md`).
 - [ ] Dam break, RTI, rising bubble; comparison with Basilisk (open-top
       boundary and reference validation pending).
 - [ ] Spurious-current test; interface sharpness metrics.
