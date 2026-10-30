@@ -1,3 +1,10 @@
+/**
+ * @file cavity_sim.cpp
+ * @brief Lid-driven cavity driver: Ghia validation, GPU runs, clustering.
+ *
+ * Supports uniform and tanh-clustered grids, uniform or no-slip z walls,
+ * and central/upwind/MUSCL/WENO5 advection.
+ */
 // Lid-driven cavity on a staggered MAC grid.
 //
 // Square cavity [0,1]^2, periodic in z, no-slip x/y walls, moving top lid

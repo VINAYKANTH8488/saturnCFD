@@ -1,3 +1,11 @@
+/**
+ * @file cavity.hpp
+ * @brief Lid-driven cavity on a staggered MAC grid, uniform or wall-clustered.
+ *
+ * The solver is a second-order MAC projection with SSP-RK3 and selectable
+ * central/upwind/MUSCL/WENO5 advection. The 2D clustered path uses a tanh
+ * wall map and a variable-coefficient pressure PCG.
+ */
 #pragma once
 
 #include <Kokkos_Core.hpp>
@@ -28,6 +36,8 @@ namespace cavity {
 // Pressure uses homogeneous Neumann conditions on the x/y walls and periodic
 // conditions in z.
 
+/** @brief Grid, lid speed, advection scheme, and optional wall-clustering map.
+ */
 struct Geometry {
   int n0 = 1;
   int n1 = 1;
@@ -134,6 +144,13 @@ void divergence(const projection::ScalarView<ExecSpace>& u,
       });
 }
 
+/**
+ * @brief Momentum right-hand side on the MAC faces.
+ * @param u,v,w Face-centred velocities.
+ * @param du,dv,dw Output momentum tendencies.
+ * @param g Geometry, including the optional clustering map.
+ * @param nu Kinematic viscosity.
+ */
 template <class ExecSpace>
 void momentumRhs(const projection::ScalarView<ExecSpace>& u,
                  const projection::ScalarView<ExecSpace>& v,
@@ -425,6 +442,7 @@ void momentumRhs(const projection::ScalarView<ExecSpace>& u,
 // Applied to the velocity components after a time step; it damps the
 // grid-scale content that a high-order reconstruction can alias.
 template <class ExecSpace>
+/** @brief Weak low-pass/dealiasing filter applied to the velocity field. */
 void filterVelocity(const projection::ScalarView<ExecSpace>& u,
                     const projection::ScalarView<ExecSpace>& v,
                     const projection::ScalarView<ExecSpace>& w,
@@ -470,6 +488,12 @@ void filterVelocity(const projection::ScalarView<ExecSpace>& u,
 // Host-side variable-coefficient Poisson for the clustered 2D grid:
 //   B p = f,  B = -(variable-coefficient Laplacian)
 // with Neumann walls. The cell volumes are folded into f, so B is symmetric.
+/**
+ * @brief Host variable-coefficient Poisson solver for the clustered 2D grid.
+ *
+ * Solves the symmetric negative-Laplacian system with Neumann walls. Cell
+ * volumes are folded into the right-hand side.
+ */
 class ClusteredPoisson2D {
  public:
   ClusteredPoisson2D(int n0, int n1, const Geometry& g)
@@ -582,6 +606,11 @@ class ClusteredPoisson2D {
   std::vector<double> by_;
 };
 
+/**
+ * @brief Pressure projection on the wall-clustered 2D grid.
+ *
+ * The pressure solve is host-side; the velocity update is on the device.
+ */
 template <class ExecSpace>
 void projectClustered(projection::ScalarView<ExecSpace>& u,
                       projection::ScalarView<ExecSpace>& v,
@@ -641,6 +670,10 @@ void projectClustered(projection::ScalarView<ExecSpace>& u,
       });
 }
 
+/**
+ * @brief MAC pressure projection on the uniform grid.
+ * @param solver Geometric multigrid used for the pressure Poisson equation.
+ */
 template <class ExecSpace, class PoissonSolver>
 poisson::Result project(projection::ScalarView<ExecSpace>& u,
                         projection::ScalarView<ExecSpace>& v,
@@ -688,6 +721,7 @@ poisson::Result project(projection::ScalarView<ExecSpace>& u,
   return result;
 }
 
+/** @brief SSP-RK3 step with a pressure projection after every stage. */
 template <class ExecSpace, class Project>
 void advanceSsprk3(projection::ScalarView<ExecSpace>& u,
                    projection::ScalarView<ExecSpace>& v,

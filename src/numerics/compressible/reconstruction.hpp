@@ -1,3 +1,7 @@
+/**
+ * @file reconstruction.hpp
+ * @brief Face reconstruction: central, WENO5-Z, and TENO6.
+ */
 #pragma once
 
 #include <Kokkos_Core.hpp>

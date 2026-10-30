@@ -1,3 +1,7 @@
+/**
+ * @file vof2d.hpp
+ * @brief Two-dimensional PLIC volume-of-fluid reconstruction and advection.
+ */
 #pragma once
 
 #include <algorithm>

@@ -76,15 +76,15 @@ struct ExactRiemann {
     u_star = 0.5 * (left.u + right.u) +
              0.5 * (f(p_star, right, c_right) - f(p_star, left, c_left));
 
-    const auto star_density = [&](const PrimitiveState& state) {
+    const auto starDensity = [&](const PrimitiveState& state) {
       if (p_star > state.p) {
         return state.rho * (p_star / state.p + (gamma - 1.0) / (gamma + 1.0)) /
                ((gamma - 1.0) / (gamma + 1.0) * p_star / state.p + 1.0);
       }
       return state.rho * std::pow(p_star / state.p, 1.0 / gamma);
     };
-    rho_star_left = star_density(left);
-    rho_star_right = star_density(right);
+    rho_star_left = starDensity(left);
+    rho_star_right = starDensity(right);
     c_star_left = std::sqrt(gamma * p_star / rho_star_left);
     c_star_right = std::sqrt(gamma * p_star / rho_star_right);
   }
@@ -520,12 +520,12 @@ int main(int argc, char** argv) {
               l1_p, linf_rho);
 
   // Plateau checks, well inside the star regions and away from the waves.
-  const auto sample_value = [&](double x) {
+  const auto sampleValue = [&](double x) {
     const int index = std::min(n - 1, std::max(0, static_cast<int>(x / dx)));
     return saturn::riemann::toPrimitive(cells[index], exact.gamma).rho;
   };
-  const double left_plateau = sample_value(0.60);
-  const double right_plateau = sample_value(0.75);
+  const double left_plateau = sampleValue(0.60);
+  const double right_plateau = sampleValue(0.75);
   std::printf("rho(0.60)=%.6f (exact %.6f), rho(0.75)=%.6f (exact %.6f)\n",
               left_plateau, exact.rho_star_left, right_plateau,
               exact.rho_star_right);

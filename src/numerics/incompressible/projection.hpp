@@ -1,3 +1,7 @@
+/**
+ * @file projection.hpp
+ * @brief MAC velocity layout and discrete divergence/gradient operators.
+ */
 #pragma once
 
 #include <Kokkos_Core.hpp>

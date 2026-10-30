@@ -444,7 +444,7 @@ CaseResult runCase(int ny, const Params& params) {
       uv[j] = suv / count - mean_u[j] * mean_v[j];
     }
 
-    auto wall_u = [&](int j) {
+    auto wallU = [&](int j) {
       double sum = 0.0;
       for (int k = 0; k < g.n2; ++k) {
         for (int i = 0; i < g.n0; ++i) {
@@ -454,8 +454,8 @@ CaseResult runCase(int ny, const Params& params) {
       }
       return sum / count;
     };
-    const double u_bottom = wall_u(0);
-    const double u_last = wall_u(g.n1 - 1);
+    const double u_bottom = wallU(0);
+    const double u_last = wallU(g.n1 - 1);
     const double u_wall_top =
         (params.case_name == "couette") ? params.u_top : 0.0;
     const double shear_bottom = 2.0 * u_bottom / g.hy;

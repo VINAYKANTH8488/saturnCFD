@@ -1,3 +1,7 @@
+/**
+ * @file compressible_ns.hpp
+ * @brief Compressible Navier-Stokes fluxes and source terms.
+ */
 #pragma once
 
 #include <Kokkos_Core.hpp>

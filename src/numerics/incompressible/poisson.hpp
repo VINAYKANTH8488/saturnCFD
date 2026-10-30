@@ -1,3 +1,7 @@
+/**
+ * @file poisson.hpp
+ * @brief Cell-centred geometric-multigrid Poisson solver.
+ */
 #pragma once
 
 #include <Kokkos_Core.hpp>
@@ -37,6 +41,7 @@ enum class Boundary {
   Dirichlet,
 };
 
+/** @brief Multigrid cycle and tolerance controls. */
 struct Options {
   int max_cycles = 100;
   int pre_smooth = 2;
@@ -114,6 +119,12 @@ int extendedIndex(int index, int n, Boundary low, Boundary high, int& sign) {
 
 }  // namespace detail
 
+/**
+ * @brief Geometric multigrid for the uniform-grid Poisson equation.
+ *
+ * Supports periodic, homogeneous-Neumann, and homogeneous-Dirichlet
+ * boundaries. The operator is the standard 7-point finite-volume Laplacian.
+ */
 template <class ExecSpace>
 class GeometricMultigrid {
  public:

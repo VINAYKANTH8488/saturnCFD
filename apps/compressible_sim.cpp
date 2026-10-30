@@ -663,7 +663,7 @@ int run(const Params& params) {
                                  internal, total,    max_mach};
   };
 
-  auto write_snapshot = [&](const std::string& base, int snapshot_step) {
+  auto writeSnapshot = [&](const std::string& base, int snapshot_step) {
     field_type primitive(box, 5, 0, "primitive");
     Kokkos::parallel_for(
         "primitive_output", interior_policy,
@@ -686,7 +686,7 @@ int run(const Params& params) {
   };
 
   if (!params.output.empty()) {
-    write_snapshot(params.output, step);
+    writeSnapshot(params.output, step);
   }
   if (params.checkpoint_every > 0 && !params.checkpoint.empty()) {
     saturn::writeCheckpoint(params.checkpoint, q, step, time, decomposition);
@@ -721,7 +721,7 @@ int run(const Params& params) {
 
     if (!params.output.empty() && params.plot_every > 0 &&
         step % params.plot_every == 0) {
-      write_snapshot(params.output, step);
+      writeSnapshot(params.output, step);
       if (step != last_diagnostics_step) {
         last_diagnostics = diagnostics(time);
         last_diagnostics_step = step;
@@ -740,7 +740,7 @@ int run(const Params& params) {
   Kokkos::fence();
 
   if (!params.output.empty()) {
-    write_snapshot(params.output, step);
+    writeSnapshot(params.output, step);
   }
   if (!params.checkpoint.empty() && params.checkpoint_every > 0) {
     saturn::writeCheckpoint(params.checkpoint, q, step, time, decomposition);

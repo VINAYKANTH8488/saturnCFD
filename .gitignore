@@ -35,3 +35,4 @@ saturn_io_test*
 __pycache__/
 *.pyc
 .pytest_cache/
+docs/doxygen/

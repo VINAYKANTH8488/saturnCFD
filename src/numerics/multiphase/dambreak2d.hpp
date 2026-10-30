@@ -1,3 +1,7 @@
+/**
+ * @file dambreak2d.hpp
+ * @brief Wall-bounded two-phase dam-break solver.
+ */
 #pragma once
 
 #ifdef SATURN_HAVE_FFTW

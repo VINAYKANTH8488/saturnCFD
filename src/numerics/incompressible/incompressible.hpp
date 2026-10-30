@@ -1,3 +1,7 @@
+/**
+ * @file incompressible.hpp
+ * @brief Incompressible MAC momentum, filtering, and SSP-RK3 helpers.
+ */
 #pragma once
 
 #include <Kokkos_Core.hpp>
