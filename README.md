@@ -92,8 +92,9 @@ Progress:
   the selectable upwind/MUSCL/blend schemes reduce the coarse-grid Re=100 RMS
   from 3.09e-2/1.95e-2 to 1.67e-2/1.28e-2, and MUSCL at 48² gives a Re=1000
   u RMS of 1.74e-2 (5.7x better than central at 32²); the v RMS remains
-  wall-layer limited. Re=5000/10000 run stably at 48² but are
-  under-resolved; see `scripts/verify_cavity_gpu.sh`
+  wall-layer limited (1.96e-1 at 48², 2.20e-1 at 64²), so uniform refinement
+  is not enough. Re=5000/10000 run stably at 48² but are under-resolved; see
+  `scripts/verify_cavity_gpu.sh`
   (`docs/verification/cavity.md`). Re=400 tables are also wired in; a coarse
   24² run gives RMS 0.074 (u) / 0.072 (v).
 - Phase 3 EDAC prototype (`apps/edac_sim.cpp`): the exact 2D TGV matches the

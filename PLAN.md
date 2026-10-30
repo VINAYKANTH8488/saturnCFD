@@ -942,8 +942,10 @@ scaling to 8 GPUs.
       At Re=1000, MUSCL at 48² gives u RMS 1.74e-2 (5.7x better than central
       at 32²) but v RMS 1.96e-1 because the uniform grid misses the thin v
       wall layer. Re=5000/10000 at 48² are stable but under-resolved. The
-      Nektar++/NekRS GLL-clustered/spectral path and a steady-state criterion
-      are the next extension.
+      A steady-state criterion is now in the driver; Re=1000 at 64² (MUSCL,
+      t=30) gives u RMS 1.72e-2 but v RMS 2.20e-1 and is still not steady.
+      Uniform refinement does not fix v, so the Nektar++/NekRS-style
+      wall-clustered/GLL or spectral path is the next extension.
 - [x] EDAC pressure evolution, damping `τ`, configurable pseudo-Mach `M_c`;
       C++ TGV prototype matches projection velocity error at `M_c=0.05` with
       ~12.6x more steps and `O(M_c)` divergence (`docs/verification/edac.md`).

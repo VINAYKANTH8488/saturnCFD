@@ -44,6 +44,9 @@ struct Params {
   double poisson_tol = 1.0e-10;
   double rms_tol = 0.03;
   double div_tol = 1.0e-7;
+  double steady_tol = 0.0;
+  int steady_check = 50;
+  int steady_window = 5;
   double blend = 0.25;
   std::string advection = "central";
   std::string profile;
@@ -64,6 +67,9 @@ void usage(const char* argv0) {
       "  --cfl VALUE        CFL (default 0.3)\n"
       "  --rms-tol VALUE    Ghia centreline RMS tolerance (default 0.03)\n"
       "  --div-tol VALUE    max divergence tolerance (default 1e-7)\n"
+      "  --steady-tol VALUE stop when max |du|,|dv| < VALUE (0 = off)\n"
+      "  --steady-check N   check interval in steps (default 50)\n"
+      "  --steady-window N  consecutive checks below tolerance (default 5)\n"
       "  --advection NAME   central|upwind|muscl|blend (default central)\n"
       "  --blend VALUE      central/upwind blend fraction (default 0.25)\n"
       "  --profile FILE     write centreline u(y), v(x) samples\n"
@@ -147,6 +153,12 @@ Params parse(int argc, char** argv) {
       p.rms_tol = parse_double(a, require_value(i, argc, argv, a));
     } else if (a == "--div-tol") {
       p.div_tol = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--steady-tol") {
+      p.steady_tol = parse_double(a, require_value(i, argc, argv, a));
+    } else if (a == "--steady-check") {
+      p.steady_check = parse_int(a, require_value(i, argc, argv, a));
+    } else if (a == "--steady-window") {
+      p.steady_window = parse_int(a, require_value(i, argc, argv, a));
     } else if (a == "--advection") {
       p.advection = require_value(i, argc, argv, a);
     } else if (a == "--blend") {
@@ -281,6 +293,9 @@ struct CaseResult {
   double rms_v = 0.0;
   double divergence = 0.0;
   double seconds = 0.0;
+  double steady_time = 0.0;
+  double steady_residual = 0.0;
+  bool steady = false;
 };
 
 // Linear interpolation of a cell-centered profile given at points
@@ -335,10 +350,14 @@ CaseResult run_case(int n, const Params& params) {
   view_type phi("phi", g.n2, g.n1, g.n0);
   Kokkos::deep_copy(phi, 0.0);
   view_type scratch("scratch", g.n2, g.n1, g.n0);
+  view_type u_prev("u_prev", g.n2, g.n1, g.n0);
+  view_type v_prev("v_prev", g.n2, g.n1, g.n0);
 
   Kokkos::deep_copy(u, 0.0);
   Kokkos::deep_copy(v, 0.0);
   Kokkos::deep_copy(w, 0.0);
+  Kokkos::deep_copy(u_prev, 0.0);
+  Kokkos::deep_copy(v_prev, 0.0);
 
   std::array<saturn::poisson::Boundary, 3> bc_low{
       {saturn::poisson::Boundary::Neumann, saturn::poisson::Boundary::Neumann,
@@ -366,6 +385,10 @@ CaseResult run_case(int n, const Params& params) {
   int steps = 0;
   double last_dt = 0.0;
   bool valid = true;
+  int steady_count = 0;
+  double steady_time = 0.0;
+  double steady_residual = 0.0;
+  bool steady = false;
   while (time < params.tend - 1.0e-14) {
     double max_speed = 0.0;
     double non_finite = 0.0;
@@ -401,6 +424,40 @@ CaseResult run_case(int n, const Params& params) {
         u, v, w, u1, v1, w1, u2, v2, w2, ku, kv, kw, g, nu, dt, do_project);
     time += dt;
     ++steps;
+    if (params.steady_tol > 0.0 && steps % params.steady_check == 0) {
+      double du = 0.0;
+      double dv = 0.0;
+      Kokkos::parallel_reduce(
+          "cavity_steady_u", policy,
+          KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
+            const double d = Kokkos::abs(u(k, j, i) - u_prev(k, j, i));
+            acc = d > acc ? d : acc;
+          },
+          Kokkos::Max<double>{du});
+      Kokkos::parallel_reduce(
+          "cavity_steady_v", policy,
+          KOKKOS_LAMBDA(int k, int j, int i, double& acc) {
+            const double d = Kokkos::abs(v(k, j, i) - v_prev(k, j, i));
+            acc = d > acc ? d : acc;
+          },
+          Kokkos::Max<double>{dv});
+      du = saturn::mpi_max(du);
+      dv = saturn::mpi_max(dv);
+      const double residual = std::max(du, dv);
+      steady_residual = residual;
+      if (residual < params.steady_tol) {
+        ++steady_count;
+      } else {
+        steady_count = 0;
+      }
+      Kokkos::deep_copy(u_prev, u);
+      Kokkos::deep_copy(v_prev, v);
+      if (steady_count >= params.steady_window) {
+        steady = true;
+        steady_time = time;
+        break;
+      }
+    }
   }
   Kokkos::fence();
   const double seconds = saturn::mpi_max(timer.seconds());
@@ -433,6 +490,12 @@ CaseResult run_case(int n, const Params& params) {
       },
       Kokkos::Max<double>{max_div});
   result.divergence = saturn::mpi_max(max_div);
+  result.steady = steady;
+  if (!steady) {
+    steady_time = time;
+  }
+  result.steady_time = steady_time;
+  result.steady_residual = steady_residual;
 
   auto hu = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), u);
   auto hv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), v);
@@ -505,6 +568,11 @@ int run(const Params& params) {
       std::printf("%6d %8d %12.4e %14.4e %14.4e %14.4e %10.3f\n", result.n,
                   result.steps, result.dt, result.rms_u, result.rms_v,
                   result.divergence, result.seconds);
+      if (params.steady_tol > 0.0) {
+        std::printf("  steady=%s t_end=%.3f residual=%.2e\n",
+                    result.steady ? "yes" : "no", result.steady_time,
+                    result.steady_residual);
+      }
     }
     if (params.check) {
       if (result.divergence > params.div_tol) {

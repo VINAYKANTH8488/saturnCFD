@@ -135,6 +135,24 @@ centreline has a thin wall layer; the uniform grid resolves it poorly, and the
 limiter adds dissipation there. The `u` result shows the scheme is working;
 the `v` result is a wall-resolution issue, not a global instability.
 
+### Steady-state and 64² check (Re=1000)
+
+A steady-state criterion was added to the driver: it compares `u` and `v`
+with their values `--steady-check` steps earlier and stops after
+`--steady-window` consecutive checks below `--steady-tol`. At 64², Re=1000,
+MUSCL, `t=30`:
+
+| Grid | RMS u | RMS v | `max|div|` | final residual | steady | time |
+|---|---|---|---|---|---|---|---|
+| 48² | 1.74e-2 | 1.96e-1 | 1.0e-7 | — | — | 530 s |
+| 64² | 1.72e-2 | 2.20e-1 | 3.8e-7 | 7.3e-2 | **no** | 2042 s |
+
+The `u` error is unchanged and excellent; the `v` error is **not reduced** by
+uniform refinement and is still growing at `t=30` (residual `7.3e-2`). This
+confirms that the `v` error is the near-wall boundary layer and the transient,
+not the `u` advection scheme. Uniform refinement alone is not the answer;
+wall clustering (GLL-like) and a longer/steady run are required.
+
 ### Higher-Re limits (MUSCL, n=48, t=10)
 
 | Re | RMS u | RMS v | `max|div|` | GPU time |
@@ -187,9 +205,10 @@ more careful dealiasing/limiting.
 
 ### Code extension needed
 
-- a steady-state convergence criterion (the Re=1000 runs stop at a fixed
-  `t=20`, not necessarily steady);
-- wall-clustered grids or a mapped/spectral grid to resolve the `v` layer;
+- a steady-state convergence criterion is now available, but the Re=1000
+  run at 64²/`t=30` is still not steady;
+- **wall-clustered grids or a mapped/spectral grid** are now the clear
+  priority: uniform 48² -> 64² does not reduce the `v` error;
 - WENO/limited reconstruction with overintegration-like stabilization at
   high Re;
 - a 3D cavity with z walls for genuinely turbulent states;
